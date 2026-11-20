@@ -991,3 +991,20 @@ def test_header_status_pill_follows_the_host():
     host.running_method, host.waiting_count = None, 1
     assert interactive.panel_phase(host) == ("Waiting for you", "waiting")
     assert interactive._rgb("#0B1530") == 0x30150B  # COLORREF is 0x00BBGGRR
+
+
+def test_calls_take_turns_between_clients_and_keep_their_own_order():
+    host = InteractiveHost.__new__(InteractiveHost)
+
+    def call(caller, name):
+        return NS(method=name, params={"caller": {"id": caller}})
+
+    a1, a2, b1 = call("a", "a1"), call("a", "a2"), call("b", "b1")
+    assert host._fair_next([a1]) is a1
+    assert host._fair_next([a1, a2, b1]) is a1  # nobody ran yet: queue order
+    host._ran_by()["a"] = 10.0
+    assert host._fair_next([a2, b1]) is b1  # b has waited longest
+    host._ran_by()["b"] = 11.0
+    assert host._fair_next([a2, b1]) is a2
+    assert interactive._caller_of(NS(params={"caller": "dev-x"})) == "dev-x"
+    assert interactive._caller_of(NS(params={})) is None
