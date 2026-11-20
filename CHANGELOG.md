@@ -16,7 +16,8 @@ First release after trying NXonaut on a real NX 2512 with Claude Desktop.
 - Showcase example: a red bicycle frame modelled by Claude.
 
 **Fixed**
-- The workspace field showed `${HOME}` literally, and a stale `NX_MCP_WORKSPACE` user
+- The workspace field showed `${HOME}` literally (it is now empty, which means
+  `C:\Users\<you>\NX_MCP_WORKSPACE`), and a stale `NX_MCP_WORKSPACE` user
   variable could point NX somewhere else. Both are repaired at start now.
 
 **Tested**
