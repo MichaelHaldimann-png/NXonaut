@@ -1,8 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.2.2 (2026-11-20)
 
 **New**
+- The panel shows the NXonaut version and a line when a newer release is on GitHub
+  (checked at most once a day, anonymous; `NXONAUT_UPDATE_CHECK=off` turns it off).
+- New drawing sheets get a small «made with NXonaut» note top right, as one named note
+  (NXONAUT_MARK) you can delete in one step; `nxonaut_mark: false` leaves it out.
+- An NXonaut button for NX's ribbon is included but not switched on yet: it comes on
+  in the next version, once tested in NX.
 - Engineering rules built in: Claude reads them before it designs shafts, fits, threads
   or drawings (`nx_get_design_rules`). Profiles ISO, CH, DE and US, chosen at install
   (**Engineering standards**). Drawing rules include: nothing overlaps.

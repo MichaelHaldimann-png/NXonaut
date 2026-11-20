@@ -70,7 +70,7 @@ def test_installed_templates_resolve_under_ugii_base_dir(tmp_path, monkeypatch):
     folder.mkdir(parents=True)
     (folder / "Drawing-A3-Size2D-template.prt").write_bytes(b"prt")
     ok = run(nx, "nx_create_drawing_sheet", name="T", template="a3", scale=2,
-             projection="first_angle")  # fmt: skip
+             projection="first_angle", nxonaut_mark=False)  # fmt: skip
     assert ok.ok, ok
     assert ok.data["sheet"]["name"] == "T" and ok.data["scale"] == 2  # renamed, rescaled
     assert ok.data["projection"] == "first_angle" and len(ok.warnings) == 2
@@ -176,3 +176,12 @@ def test_activate_says_so_when_nx_flags_the_part_modified_on_a_read_only_visit()
     assert flagged.ok, flagged
     note = next(w["message"] for w in flagged.warnings if "marked the part" in w["message"])
     assert "unchanged" in note and "nx_capture_view with sheet" in note
+
+
+def test_a_refused_nxonaut_mark_never_fails_the_sheet():
+    nx = sheet_nx()  # this fake has no note builder: NX refusing the note
+    ok = run(nx, "nx_create_drawing_sheet", name="M")
+    assert ok.ok and ok.data["nxonaut_mark"] is None
+    assert any("NXonaut note" in w["message"] for w in ok.warnings)
+    off = run(nx, "nx_create_drawing_sheet", name="N", nxonaut_mark=False)
+    assert off.ok and off.data["nxonaut_mark"] is None and not off.warnings

@@ -1298,7 +1298,7 @@ caps in the test, never the table:
 |---|---|---|
 | `agent` profile listing (4 gateways + 14 core tools; paid every turn) | 17,650 + 15 per domain = 17,830 (12 domains) | 17,361 (about 4.6K tokens) |
 | `agent` server instructions (once per session) | 1,800 | 1,723 |
-| Full listing (name + description + input schema, call keys included) | mean 1,265 per listed tool | mean 1,202.6 over 281 tools (337,918, about 88.9K tokens) |
+| Full listing (name + description + input schema, call keys included) | mean 1,265 per listed tool | mean 1,202.9 over 281 tools (338,024, about 89.0K tokens) |
 | Tool definition (name + description + input schema, no call keys) | each 1,600; 3,000 for unions | max 1,598 (187 plain tools), 2,999 (88 unions) |
 | Tool definition drift (75th percentile per kind) | plain 1,050, union 1,860 | plain 1,044.5, union 1,826.5 |
 | `nx_find_tools` page (26 realistic queries) | row 170; rest of the page 400; 90th percentile page 1,640 | row max 163, rest max 251, 90th percentile 1,463.5 (max 1,646) |

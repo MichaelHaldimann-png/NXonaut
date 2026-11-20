@@ -1,6 +1,6 @@
 {
   "name": "nxonaut",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Let Claude model, inspect and export in Siemens NX: parts, sketches, assemblies with constraints, drawings and STEP export. Not affiliated with Siemens.",
   "author": {
     "name": "Michael Haldimann and NXonaut contributors",

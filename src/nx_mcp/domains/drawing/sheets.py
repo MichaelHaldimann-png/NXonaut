@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import math
 import os
 import re
@@ -16,11 +17,13 @@ from nx_mcp.domains.drawing.common import (
     Loose,
     ScaleArg,
     SheetArg,
+    commit,
     scale_terms,
     scale_value,
+    set_origin,
     sheet_of,
 )
-from nx_mcp.kit import drawing, readback, result
+from nx_mcp.kit import builders, drawing, readback, result
 from nx_mcp.kit import parts as kit_parts
 from nx_mcp.kit import units as kit_units
 
@@ -54,6 +57,42 @@ class SheetData(TypedDict):
     template: str | None
     title_block_added: bool
     title_block: result.Row | None
+    nxonaut_mark: Annotated[result.Row | None, Doc("The small NXonaut note: delete it to remove")]
+
+
+# The small "made with NXonaut" note top right on a new sheet (the engineer's wish,
+# 2026-11-20): one named note, deleted in one step; nxonaut_mark false leaves it out.
+MARK_NAME = "NXONAUT_MARK"
+MARK_TEXT = "made with NXonaut"
+MARK_INSET_MM = (14.0, 12.0)  # from the top-right sheet corner: inside a 10 mm border
+MARK_HEIGHT_MM = 2.5
+
+
+def _add_mark(tx, part, sheet, dims, units):
+    """Place the NXonaut note top right on ``sheet``; None when NX refuses it (the sheet
+    stays: the mark is never worth failing the sheet for)."""
+    A = tx.nx.Annotations
+    scale = 25.4 if units == "in" else 1.0
+    point = [dims[0] - MARK_INSET_MM[0] / scale, dims[1] - MARK_INSET_MM[1] / scale]
+    try:
+        with drawing.on_sheet(tx, sheet, part) as sh:
+            with builders.build(
+                tx, part.Annotations.CreateDraftingNoteBuilder, A.SimpleDraftingAid.Null
+            ) as b:
+                b.Origin.Anchor = A.OriginBuilder.AlignmentPosition.TopRight
+                b.Text.TextBlock.SetText([MARK_TEXT])
+                with contextlib.suppress(Exception):
+                    b.Style.LetteringStyle.GeneralTextSize = MARK_HEIGHT_MM / scale
+                set_origin(tx, b.Origin, sh, point)
+                note = commit(b, "note")
+            with contextlib.suppress(Exception):
+                note.SetName(MARK_NAME)
+        return tx.ref(note, "annotation")
+    except Exception:
+        tx.warn(
+            "NX_UPDATE_WARNING", "The small NXonaut note could not be placed; the sheet is fine"
+        )
+        return None
 
 
 def _installed(name):
@@ -138,6 +177,7 @@ def nx_create_drawing_sheet(
     ] = "third_angle",
     template: TemplateName | None = None,
     template_path: Annotated[str, PathTo("read", ".prt")] | None = None,
+    nxonaut_mark: Annotated[bool, Doc("Small 'made with NXonaut' note top right")] = True,
 ) -> SheetData:
     """Create a drawing sheet from a standard or custom size or a sheet template, and open
     it. Default A3; the installed A0-A4 templates are metric. A template sets the sheet size:
@@ -265,6 +305,7 @@ def nx_create_drawing_sheet(
             "The sheet scale differs from the template's; title-block scale text is unchanged",
         )
     added = [t for t in part.DraftingManager.TitleBlocks if int(t.Tag) not in title_blocks]
+    mark = _add_mark(tx, part, sheet, dims, actual_units) if nxonaut_mark else None
     return {
         "sheet": tx.ref(sheet, "drawing_sheet"),
         "size": actual["size"],
@@ -275,6 +316,7 @@ def nx_create_drawing_sheet(
         "template": _shown_template(tx, path, installed),
         "title_block_added": bool(added),
         "title_block": tx.ref(added[0], "drawing_table") if added else None,
+        "nxonaut_mark": mark,
     }
 
 
