@@ -1,0 +1,17 @@
+! NXonaut menu: Start NXonaut under its own NXonaut menu (menuscript).
+! Staged here, not loaded yet: copy to nx_app/startup once it is checked on live NX.
+VERSION 120
+EDIT UG_GATEWAY_MAIN_MENUBAR
+
+BEFORE UG_HELP
+  CASCADE_BUTTON NXONAUT_MENU
+  LABEL NXonaut
+END_OF_BEFORE
+
+MENU NXONAUT_MENU
+  BUTTON NXONAUT_START
+  LABEL Start NXonaut
+  MESSAGE Start the NXonaut bridge for Claude, or show its panel when it already runs
+  BITMAP nxonaut
+  ACTIONS nxonaut_start.py
+END_OF_MENU
