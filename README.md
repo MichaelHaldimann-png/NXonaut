@@ -69,6 +69,7 @@ out with it. From the prompt to the finished assembly took about 11 minutes.
 
 <p align="center">
   <img src="docs/assets/examples/pedal-boat.png" width="640" alt="Pedal boat assembly with two floats, deck, seats, pedal cranks and motors, modelled in NX by Claude" />
+  <br><sub>Modelled by NXonaut in ~11 min</sub>
 </p>
 
 ## Bugs and feedback
