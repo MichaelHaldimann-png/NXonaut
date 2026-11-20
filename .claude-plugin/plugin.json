@@ -1,0 +1,30 @@
+{
+  "name": "nxonaut",
+  "version": "0.1.0",
+  "description": "Let Claude model, inspect and export in Siemens NX: parts, sketches, assemblies with constraints, drawings and STEP export. Not affiliated with Siemens.",
+  "author": {
+    "name": "Michael Haldimann and NXonaut contributors",
+    "url": "https://github.com/MichaelHaldimann-png/NXonaut"
+  },
+  "homepage": "https://github.com/MichaelHaldimann-png/NXonaut",
+  "repository": "https://github.com/MichaelHaldimann-png/NXonaut",
+  "license": "MIT",
+  "keywords": [
+    "siemens-nx",
+    "cad",
+    "nxopen",
+    "mcp"
+  ],
+  "mcpServers": {
+    "nx": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--quiet",
+        "--directory",
+        "${CLAUDE_PLUGIN_ROOT}",
+        "nx-mcp"
+      ]
+    }
+  }
+}
