@@ -66,7 +66,7 @@ import uuid
 from collections import Counter
 
 from nx_mcp.core.errors import fail, native
-from nx_mcp.kit import bodies, builders, drawing, geom, measure, parts, readback
+from nx_mcp.kit import bodies, builders, drawing, geom, measure, parts, positioning, readback
 
 # Rendering styles by surface name (NXOpen.View.RenderingStyleType members).
 STYLES = {
@@ -512,6 +512,25 @@ def restore_faces(tx, record, resolve) -> None:
 # ---- objects shown ---------------------------------------------------------------------------
 
 
+def constraint_symbols(part) -> list:
+    """The displayed symbols of ``part``'s assembly constraints
+    (``Constraint.GetDisplayedConstraint``: a blankable object), unique by tag."""
+    out: dict = {}
+    for constraint in positioning.all_constraints(part):
+        shown = constraint_symbol(constraint)
+        if shown is not None:
+            out.setdefault(_tag_of(shown), shown)
+    return list(out.values())
+
+
+def constraint_symbol(constraint):
+    """The displayed symbol of one assembly constraint, or None."""
+    try:
+        return constraint.GetDisplayedConstraint()
+    except Exception:  # noqa: BLE001 - a constraint NX shows no symbol for
+        return None
+
+
 def datums(part) -> list:
     """Datums and coordinate systems owned by ``part`` (unique by tag)."""
     values = list(getattr(part, "Datums", []) or []) + list(
@@ -532,6 +551,8 @@ def of_kinds(part, kinds) -> dict[str, list]:
     for kind in kinds:
         if kind == "datum":
             out[kind] = datums(part)
+        elif kind == "constraint":
+            out[kind] = constraint_symbols(part)
         else:
             try:
                 found = list(getattr(part, KIND_COLLECTIONS[kind], None) or [])
@@ -617,11 +638,12 @@ def in_assembly(part, objects) -> list:
 
 
 def capture_clutter(tx, part) -> list:
-    """Shown finished sketches and datums of ``part`` (none while a sketch is active:
-    hiding is then skipped, the edited sketch stays as it is)."""
+    """Shown finished sketches, datums and assembly constraint symbols of ``part`` (none
+    while a sketch is active: hiding is then skipped, the edited sketch stays as it is)."""
     if getattr(tx.session, "ActiveSketch", None) is not None:
         return []
     values = list(getattr(part, "Sketches", []) or []) + datums(part)
+    values += constraint_symbols(part)
     return [v for v in values if not bool(getattr(v, "IsBlanked", True))]
 
 

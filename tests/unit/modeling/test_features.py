@@ -522,3 +522,24 @@ def test_revolve_of_an_open_profile_reports_solid_or_sheet():
     both = run(nx, "nx_create_revolve", sketch=sk.ref, axis={"principal": "y"}, sheet=True,
                combine={"operation": "unite", "targets": [block.ref]})  # fmt: skip
     assert both.error["field"] == "/combine" and both.mutation_outcome == "not_started"
+
+
+def test_a_revolve_with_several_targets_builds_one_feature_per_target():
+    """NX 2512: a subtract revolve with two targets cut only the first one."""
+    nx = modeling_nx()
+    a, b = nx.block(10, 10, 10), nx.block(10, 10, 10, origin=(0, 0, 20))
+    sk = nx.sketch()
+    cut = iter([a, b])
+
+    def hook(builder):
+        body = next(cut)
+        body.volume -= 100
+        return feature(nx, "REVOLVED", [body])
+
+    nx.on_commit("RevolveBuilder", hook)
+    ok = run(nx, "nx_create_revolve", sketch=sk.ref, axis={"principal": "x"},
+             combine={"operation": "subtract", "targets": [a.ref, b.ref]})  # fmt: skip
+    assert ok.ok and not ok.warnings, ok
+    made = [x for x in nx.builders if x.kind == "RevolveBuilder"]
+    assert [m.BooleanOperation.SetTargetBodies.calls[0][0][0] for m in made] == [[a], [b]]
+    assert ok.data["volume"] == 1800 and len(ok.data["bodies"]) == 2

@@ -144,6 +144,9 @@ class SaveData(TypedDict, total=False):
     other_modified_count: Annotated[int, Doc("All other loaded parts left with unsaved changes")]
     verified_parts: Annotated[int, Doc("Loaded parts whose files were checked unchanged")]
     updated_views: list[result.Row]  # out-of-date drawing views updated before the save
+    now_modified: Annotated[
+        list[str], Doc("Other parts NX marked modified by this save; their files untouched")
+    ]
 
 
 class KeptPart(TypedDict):

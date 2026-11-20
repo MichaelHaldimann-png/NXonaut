@@ -202,3 +202,34 @@ def test_objects_of_a_component_part_hidden_in_that_part_carry_a_note():
     note = " ".join(w["message"] for w in ok.warnings)
     assert "vis_comp.prt is now modified" in note and "work.prt" in note
     assert "scope=assembly" in note
+
+
+def test_objects_found_by_type_that_follow_their_owner_do_not_fail_the_call():
+    """NX 2512: hiding datums, sketches, curves and points in an assembly failed the
+    read-back on sketch curve occurrences, whose blank state follows their sketch."""
+    nx, asm, comp, comps = assembly_nx()
+    stuck = comps[0].FindOccurrence(comp.Curves[1])
+    stuck.Blank = lambda: None  # NX keeps it shown
+    ok = run(
+        nx, "nx_set_visibility", mode="hide", types=["datum", "sketch", "curve", "point"],
+        scope="assembly", part="work",
+    )  # fmt: skip
+    assert ok.ok, ok
+    assert ok.data["unchanged"] == 1 and not stuck.IsBlanked
+    assert any("follow their sketch" in w["message"] for w in ok.warnings)
+    named = run(nx, "nx_set_visibility", mode="hide", objects=[nx.ref_of(stuck)])
+    assert named.error["code"] == "NX_VERIFICATION_FAILED"  # a named object still must change
+
+
+def test_an_assembly_constraint_ref_hides_its_symbol():
+    nx = display_nx()
+    symbol, constraint = Object("CONSTRAINT_SYMBOL"), Object("TOUCH")
+    constraint.GetDisplayedConstraint = lambda: symbol
+    symbol.OwningPart = constraint.OwningPart = nx.part
+    nx.part.ComponentAssembly = NS(Positioner=NS(Constraints=[constraint]))
+    ref = nx.ref_of(constraint, "assembly_constraint")
+    ok = run(nx, "nx_set_visibility", mode="hide", objects=[ref])
+    assert ok.ok, ok
+    assert symbol.IsBlanked and ok.data["count"] == 1
+    shown = run(nx, "nx_set_visibility", mode="show", types=["constraint"])
+    assert shown.ok and not symbol.IsBlanked and shown.data["by_type"] == {"constraint": 1}

@@ -11,6 +11,15 @@
   (`nx_save_design_rule`).
 
 **Fixed**
+- Pictures of assemblies no longer show the constraint symbols, and `nx_set_visibility`
+  hides or shows them (`ac:` refs, or `types: ["constraint"]`).
+- Hiding datums, sketches, curves and points in a whole assembly no longer fails when
+  NX keeps a sketch curve shown (it follows its sketch); the result counts them.
+- A revolve that subtracts from two or more bodies now cuts every body, not only the
+  first.
+- Saving a component no longer reports a failed save because NX marks the assembly
+  that shows it as modified; a note says so instead.
+- `align` on two cylinders of different size now makes them coaxial instead of tangent.
 - Drawings: a tolerance frame, surface finish symbol, weld symbol or note now starts its
   leader on the side that faces the edge it points to. Before, NX always put it on the
   left, so a leader to an edge on the right ran under the frame.

@@ -689,3 +689,20 @@ def test_a_value_may_be_an_expression_that_keeps_driving_it(nx, monkeypatch):
     c = nx.assembly.positioner.Constraints[-1]
     assert c.Expression.RightHandSide == "gap * 2" and ok.data["value"] == 24
     assert calls == [("gap * 2", "length", "mm", "/value", True)]
+
+
+def test_align_on_cylinders_references_their_axes_so_they_end_up_coaxial(nx):
+    """NX 2512: align on two cylindrical faces of different radius made them tangent."""
+    pin = nx.ref_of(nx.b.face("cylinder"), "face")
+    hole = nx.ref_of(nx.a.face("cylinder"), "face")
+    ok = run(nx, "nx_create_assembly_constraint", type="align", component=nx.b.ref,
+             geometry=pin, target_component=nx.a.ref, target_geometry=hole)  # fmt: skip
+    assert ok.ok, ok
+    assert [r.uses_axis for r in nx.assembly.positioner.Constraints[-1].refs] == [True, True]
+    plane = run(nx, "nx_create_assembly_constraint", type="align", component=nx.b.ref,
+                geometry=geometry(nx, nx.b), target_component=nx.a.ref,
+                target_geometry=geometry(nx, nx.a))  # fmt: skip
+    assert plane.ok and [r.uses_axis for r in nx.assembly.positioner.Constraints[-1].refs] == [
+        False,
+        False,
+    ]

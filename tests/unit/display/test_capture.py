@@ -1,6 +1,7 @@
 """nx_capture_view: viewport and Studio PNGs, inline image metadata, sheets, cleanup."""
 
 from pathlib import Path
+from types import SimpleNamespace as NS
 
 import pytest
 
@@ -507,3 +508,16 @@ def test_a_part_shown_only_for_the_capture_is_fitted():
     assert nx.work_view.fits == 1 and ok.data["camera"]["scale"] == 2.5
     kept = run(nx, "nx_capture_view", part="plate", fit=False)
     assert kept.ok and nx.work_view.fits == 1
+
+
+def test_assembly_constraint_symbols_are_hidden_for_the_capture():
+    nx = display_nx()
+    symbol = Object("CONSTRAINT_SYMBOL")
+    constraint = Object("TOUCH")
+    constraint.GetDisplayedConstraint = lambda: symbol
+    nx.part.ComponentAssembly = NS(Positioner=NS(Constraints=[constraint]))
+    nx.watch = [symbol]
+    ok = run(nx, "nx_capture_view")
+    assert ok.ok, ok
+    assert ok.data["hidden_constraints"] == 1 and ok.data["hidden_datums"] == 0
+    assert nx.captures[0].blanked == [True] and not symbol.IsBlanked
