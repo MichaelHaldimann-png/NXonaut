@@ -33,9 +33,8 @@
     "workspace": {
       "type": "directory",
       "title": "Workspace folder",
-      "description": "The only folder Claude reads and writes files in (parts, exports). NX uses the same one.",
-      "default": "${HOME}/NX_MCP_WORKSPACE",
-      "required": true
+      "description": "The only folder Claude reads and writes files in (parts, exports). NX uses the same one. Leave empty for C:\\Users\\<you>\\NX_MCP_WORKSPACE.",
+      "required": false
     },
     "nx_autostart": {
       "type": "boolean",
