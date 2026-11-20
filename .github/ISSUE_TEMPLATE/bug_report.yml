@@ -1,0 +1,33 @@
+name: Bug report
+description: Something in NXonaut did not work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please leave out part names, customer names, file paths and screenshots of
+        confidential models.
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: NX build, NXonaut version, Windows version
+      placeholder: NX 2406.9160, NXonaut 1.0.0, Windows 11
+    validations:
+      required: true
+  - type: input
+    id: tool
+    attributes:
+      label: Tool
+      placeholder: nx_create_extrude
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Error (code and message)
+      render: json

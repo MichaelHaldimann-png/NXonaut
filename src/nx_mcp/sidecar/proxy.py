@@ -1124,9 +1124,22 @@ class CatalogueProxy:
                     operation_id=operation_id,
                 )
         envelope = self._served_hints(_tidy(self._relative_paths(spec, envelope)))
+        if not envelope.get("ok", True):  # opt-in, anonymous; never fails the call
+            await asyncio.to_thread(self._report_error, spec.name, envelope)
         if detail == "compact":
             envelope = _project(envelope, self.store)
         return result(envelope, extra=self._attachments(envelope))
+
+    def _report_error(self, tool: str, envelope: dict) -> None:
+        """Keep an anonymous report of a fault when the user opted in (error_reports)."""
+        try:
+            from nx_mcp import error_reports
+
+            root = getattr(self.workspace, "root", None)
+            if root is not None:
+                error_reports.record(root, tool, envelope, nx_build=self.nx_build())
+        except Exception:
+            pass
 
     def _served_hints(self, envelope: dict) -> dict:
         """An error's ``tool#variant`` pointers only where nx_get_tool_schemas serves that
