@@ -175,7 +175,7 @@ def nx_create_note(
         ) as b:
             b.Origin.Anchor = A.OriginBuilder.AlignmentPosition.MidLeft
             b.Text.TextBlock.SetText(list(text))
-            anchor = add_leader(tx, b.Leader, obj, shown) if obj is not None else None
+            anchor = add_leader(tx, b.Leader, obj, shown, origin) if obj is not None else None
             set_origin(tx, b.Origin, sh, origin)
             note = commit(b, "note")
         update(tx)
@@ -717,7 +717,7 @@ def _finish(tx, view, sheet, obj, origin, spec):
         with builders.build(tx, factory, A.DraftingSurfaceFinishSymbol.Null) as b:
             b.Finish = getattr(kinds, native)
             b.A2 = text
-            anchor = add_leader(tx, b.Leader, obj, view)
+            anchor = add_leader(tx, b.Leader, obj, view, origin)
             origin = origin if origin is not None else default_origin(sh, anchor, view)
             set_origin(tx, b.Origin, sh, origin)
             symbol = commit(b, "surface finish symbol")
@@ -756,7 +756,7 @@ def _weld(tx, view, sheet, obj, origin, spec):
                 data = b.ArrowSideWeldData if name == "arrow" else b.OtherSideWeldData
                 data.WeldSymbol = getattr(symbols, WELDS[spec["type"]])
                 data.WeldSize = size
-            anchor = add_leader(tx, b.Leader, obj, view)
+            anchor = add_leader(tx, b.Leader, obj, view, origin)
             origin = origin if origin is not None else default_origin(sh, anchor, view)
             set_origin(tx, b.Origin, sh, origin)
             weld = commit(b, "weld symbol")
