@@ -21,6 +21,24 @@ in the workspace folder.
 (needs [uv](https://docs.astral.sh/uv/)), then steps 4 and 5.
 Other MCP clients and more options: [Install](install.md).
 
+## Example: a red road bike frame
+
+One sentence to Claude, in German:
+
+> *Modelliere einen schnellen roten Fahrradrahmen mit Schweisszeichnung.*
+> (Model a fast red bike frame with a welding drawing.)
+
+Claude built a parametric diamond frame in NX 2512: tube centrelines in a fully
+constrained sketch driven by expressions (seat and head angle, reach, stack, tube sizes),
+11 separate steel tubes and dropouts with coped (fishmouth) ends, checked for 14 weld
+seams with no overlap. Then an A2 welding drawing with three views, main dimensions,
+ISO 2553 fillet weld symbols, a parts list and a weld table, exported to PDF.
+
+<p align="center">
+  <img src="assets/examples/bike-frame.png" width="440" alt="Red road bike frame modelled in NX by Claude" />
+  <img src="assets/examples/bike-frame-drawing.png" width="440" alt="Welding drawing of the bike frame with weld symbols, parts list and weld table" />
+</p>
+
 ## About NXonaut
 
 Community MCP server for Siemens NX, built first for Claude (Claude Desktop and Claude
