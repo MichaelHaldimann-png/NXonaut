@@ -36,7 +36,7 @@ from pydantic import ValidationError
 from nx_mcp.core import catalogue, evidence
 from nx_mcp.core.catalogue import CatalogueError
 from nx_mcp.core.errors import NXError
-from nx_mcp.sidecar import artifacts, gateways, proxy, schema
+from nx_mcp.sidecar import artifacts, design_rules, gateways, proxy, schema
 from nx_mcp.sidecar.proxy import CatalogueProxy, failure, result
 
 logger = logging.getLogger("nx_mcp")
@@ -75,7 +75,9 @@ AGENT_INSTRUCTIONS = (
     "and chamfer values driven by the expression; [x, y, z] points and vectors take numbers only. "
     "Options match in any case or spacing ('Through All'). When two or more parts are loaded, "
     "add the target part's file name to the arguments of every call without refs, the listed "
-    'core tools included: {"part": "housing", ...}; nx_list_parts lists them.'
+    'core tools included: {"part": "housing", ...}; nx_list_parts lists them. Shafts, fits, '
+    "threads, drawings: first read nx_get_design_rules for the topic; save a convention the "
+    "engineer corrects with nx_save_design_rule once they agree."
 )
 # Every tool that can be called without references lists ``part`` in its schemas (the
 # ref-less core tools in the agent listing, every such tool in nx_get_tool_schemas and the
@@ -145,7 +147,8 @@ class Surface:
         self.mcp = mcp
         self.profile = profile
         self.specs = dict(catalogue.load())
-        clashes = sorted(set(self.specs) & set(gateways.NAMES))
+        self.workspace = workspace
+        clashes = sorted(set(self.specs) & {*gateways.NAMES, *design_rules.NAMES})
         if clashes:
             raise CatalogueError("catalogue tools collide with gateways: " + ", ".join(clashes))
         store = artifacts.install(mcp, workspace)
@@ -195,7 +198,7 @@ class Surface:
     async def list_tools(self) -> list[Tool]:
         await self.proxy.refresh()
         self._listed = self.proxy.signature()
-        tools = self.gateway_tools()
+        tools = self.gateway_tools() + design_rules.tools()
         if self.profile == "agent":
             listed = [self.specs[n] for n in CORE_TOOLS if n in self.specs]
         else:
@@ -209,6 +212,7 @@ class Surface:
         return {
             *(s for s, spec in self.specs.items() if self.proxy.visible(spec)),
             *gateways.NAMES,
+            *design_rules.NAMES,
         }
 
     async def call_tool(self, name, arguments) -> CallToolResult:
@@ -232,6 +236,8 @@ class Surface:
             await self.proxy.refresh()  # NX (re)connected: its build and session state
         if name in gateways.NAMES:
             answer = await self._gateway(name, arguments)
+        elif name in design_rules.NAMES:
+            answer = design_rules.call(name, arguments, self.workspace.root)
         else:
             answer = await self._run(
                 name,
@@ -298,10 +304,10 @@ class Surface:
             return self._find(request) if name == "nx_find_tools" else self._schemas(request)
         request = cast("gateways.Invoke | gateways.InvokeRead", request)  # the other gateways
         target = request.tool
-        if target in gateways.NAMES:
+        if target in gateways.NAMES or target in design_rules.NAMES:
             problem = NXError(
                 "NX_UNSUPPORTED_OPTION",
-                f"{target} is a gateway; call it directly",
+                f"{target} is an MCP tool of its own; call it directly",
                 field="/tool",
             )
             return result(failure(target, problem, "not_started"))

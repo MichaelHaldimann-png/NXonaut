@@ -1,0 +1,15 @@
+{
+  "profile": "DE",
+  "extends": "ISO",
+  "title": "Germany: DIN EN ISO practice, German labels, decimal comma",
+  "topics": {
+    "drawing": {
+      "rules": {
+        "language": "Drawing texts in German. Title block labels: Benennung, Zeichnungsnummer, Werkstoff, Maßstab, Blatt, Änderung, Allgemeintoleranz, Erstellt, Geprüft, Datum.",
+        "decimal": "Decimal comma in dimensions and notes (12,5); dates as DD.MM.YYYY or YYYY-MM-DD.",
+        "title_block": "Title block per DIN EN ISO 7200 at the bottom right, filled: Benennung, Zeichnungsnummer, Änderungsindex, Werkstoff, Maßstab, Blatt n/N, projection symbol method 1, 'ISO 2768-mK', 'Erstellt: NXonaut', date.",
+        "standards_prefix": "Cite standards as DIN EN ISO where adopted, DIN for national ones (DIN 509, DIN 6885, DIN 76)."
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "profile": "CH",
+  "extends": "ISO",
+  "title": "Switzerland: ISO practice (SN EN ISO), German labels, decimal comma",
+  "topics": {
+    "drawing": {
+      "rules": {
+        "language": "Drawing texts in Swiss Standard German (no sharp s: 'Massstab'). Title block labels: Benennung, Zeichnungsnummer, Werkstoff, Massstab, Blatt, Index, Allgemeintoleranz, Gezeichnet, Geprüft, Datum.",
+        "decimal": "Decimal comma in dimensions and notes (12,5); dates as DD.MM.YYYY in the title block.",
+        "title_block": "Title block per ISO 7200 at the bottom right, filled: Benennung, Zeichnungsnummer, Index, Werkstoff, Massstab, Blatt n/N, projection symbol method 1, 'ISO 2768-mK', 'Gezeichnet: NXonaut', date of first issue.",
+        "standards_prefix": "Cite standards as SN EN ISO where adopted (e.g. 'ISO 2768-mK' is fine in the title block)."
+      }
+    }
+  }
+}

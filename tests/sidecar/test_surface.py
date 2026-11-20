@@ -13,7 +13,7 @@ from nx_mcp.core import catalogue, evidence
 from nx_mcp.core.errors import NXError
 from nx_mcp.core.types import PartRef, PathTo
 from nx_mcp.server import create_server
-from nx_mcp.sidecar import gateways
+from nx_mcp.sidecar import design_rules, gateways
 from nx_mcp.sidecar.proxy import CatalogueProxy, _walk_paths
 from nx_mcp.workspace import Workspace
 
@@ -64,7 +64,7 @@ OFFSET = {"method": "offset", "reference": "fc:7", "distance": "15 mm"}
 async def test_agent_profile_lists_gateways_and_existing_core_tools(tmp_path, tested):
     async with create_connected_server_and_client_session(server(tmp_path)) as client:
         tools = {t.name: t for t in (await client.list_tools()).tools}
-    assert list(tools) == [*gateways.NAMES, "nx_get_result", "nx_list_objects"]
+    assert list(tools) == [*gateways.NAMES, *design_rules.NAMES, "nx_get_result", "nx_list_objects"]
     assert tools["nx_invoke_read"].annotations.readOnlyHint is True
     # destructiveHint true is MCP's default for a tool that is not read-only: left out.
     assert tools["nx_invoke"].annotations.readOnlyHint is None
@@ -77,7 +77,7 @@ async def test_agent_profile_lists_gateways_and_existing_core_tools(tmp_path, te
     assert listed.inputSchema["properties"]["limit"]["maximum"] == 200
 
 
-async def test_nx_set_control_is_gone_and_the_agent_profile_has_18_tools(tmp_path, monkeypatch):
+async def test_nx_set_control_is_gone_and_the_agent_profile_has_20_tools(tmp_path, monkeypatch):
     """Only the engineer changes the panel mode: no tool does, nx_get_status reports it."""
     from nx_mcp.sidecar import server as surface
 
@@ -86,7 +86,8 @@ async def test_nx_set_control_is_gone_and_the_agent_profile_has_18_tools(tmp_pat
     assert "nx_set_control" not in catalogue.load()
     assert "nx_set_control" not in surface.CORE_TOOLS and len(surface.CORE_TOOLS) == 14
     names = [t.name for t in await server(tmp_path).list_tools()]
-    assert names == [*gateways.NAMES, *surface.CORE_TOOLS] and len(names) == 18
+    assert names == [*gateways.NAMES, *design_rules.NAMES, *surface.CORE_TOOLS]
+    assert len(names) == 20
     full = {t.name for t in await server(tmp_path, surface="full").list_tools()}
     assert "nx_set_control" not in full and "nx_get_status" in full
 
@@ -101,7 +102,7 @@ async def test_full_profile_lists_every_tool_with_annotations_from_effect(tmp_pa
     tested = {n for n, s in catalogue.load().items() if evidence.visible(s, "v2406")}
     untested = set(catalogue.load()) - tested
     assert "nx_create_datum_plane" in tested  # the real evidence is loaded
-    assert set(gateways.NAMES) | tested == set(tools)
+    assert set(gateways.NAMES) | set(design_rules.NAMES) | tested == set(tools)
     assert not untested & set(tools)  # decision 11: untested tools are hidden
     assert not {"nx_result", "nx_inspect", "nx_result_cleanup", "nx_read_result"} & set(tools)
     datum = tools["nx_create_datum_plane"]

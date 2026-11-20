@@ -35,6 +35,22 @@ in the workspace folder.
 **Claude Code:** `/plugin install nxonaut --marketplace MichaelHaldimann-png/nxonaut`
 (needs [uv](https://docs.astral.sh/uv/)), then steps 4 and 5.
 
+## Designed to standards from the start
+
+NXonaut brings engineering rules with it, so Claude designs the way a careful engineer
+would: fits for bearing seats, keys, undercuts, chamfers and thread runouts on shafts,
+and drawings with the right projection method, general tolerances, a filled title block
+and nothing overlapping. You pick the standard once when you install: **ISO**, **CH**,
+**DE** or **US** (ASME, third-angle).
+
+Your own way of working comes on top. When you correct Claude ("our shafts are always
+42CrMo4"), it suggests a rule and, once you agree, saves it to `nxonaut-rules.json` in
+your workspace. The shipped standards stay untouched.
+
+The rules get better with every report: if Claude got a standard wrong or a rule is
+missing, [open an issue](https://github.com/MichaelHaldimann-png/NXonaut/issues/new/choose)
+and it goes into the next release for everyone.
+
 ## Example: a red road bike frame
 
 One sentence to Claude, in German:
@@ -112,7 +128,8 @@ So if something breaks on your setup, I want to hear about it.
 Reports and issues end up on the list for the weekly build. Once a fix is in, it ships
 with the next release, so what you report really does come back to you fixed.
 
-Ideas, questions and "this would help me" are just as welcome as bug reports.
+Ideas, questions and "this would help me" are just as welcome as bug reports. That includes the
+engineering rules: a wrong value, a missing standard or a convention from your country.
 
 ## Credits
 

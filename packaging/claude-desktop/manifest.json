@@ -25,7 +25,8 @@
       "args": ["run", "--directory", "${__dirname}", "server/main.py"],
       "env": {
         "NX_MCP_WORKSPACE": "${user_config.workspace}",
-        "NXONAUT_NX_AUTOSTART": "${user_config.nx_autostart}"
+        "NXONAUT_NX_AUTOSTART": "${user_config.nx_autostart}",
+        "NXONAUT_RULES_PROFILE": "${user_config.rules_profile}"
       }
     }
   },
@@ -41,6 +42,13 @@
       "title": "Start with NX",
       "description": "Let NX start NXonaut by itself (sets UGII_USER_DIR, only if you do not use it already).",
       "default": true,
+      "required": false
+    },
+    "rules_profile": {
+      "type": "string",
+      "title": "Engineering standards",
+      "description": "Rules Claude follows for drawings, fits, shafts and threads: ISO, CH, DE or US (ASME, third-angle). Your own rules in nxonaut-rules.json in the workspace come on top.",
+      "default": "ISO",
       "required": false
     }
   },

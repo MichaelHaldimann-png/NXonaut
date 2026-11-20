@@ -6,7 +6,7 @@ from mcp.shared.memory import create_connected_server_and_client_session
 from nx_mcp.core import catalogue
 from nx_mcp.core.errors import NXError
 from nx_mcp.server import create_server
-from nx_mcp.sidecar import gateways
+from nx_mcp.sidecar import design_rules, gateways
 from nx_mcp.workspace import Workspace
 from tests.kit.bridges import RecordingBridge, StubBridge
 
@@ -18,7 +18,11 @@ async def test_server_always_lists_every_tool_and_no_code_execution_tools():
     async with create_connected_server_and_client_session(server) as client:
         names = {tool.name for tool in (await client.list_tools()).tools}
 
-    assert names <= {*gateways.NAMES, *catalogue.load()}  # only gateways and catalogue tools
+    assert names <= {
+        *gateways.NAMES,
+        *design_rules.NAMES,
+        *catalogue.load(),
+    }  # only gateways and catalogue tools
     assert not {"nx_run_journal", "nx_record_start", "nx_record_stop"} & names
 
 
