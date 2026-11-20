@@ -1,0 +1,24 @@
+/* Subtle space look, matching the banner: night blue, soft periwinkle, a warm star. */
+:root, [data-md-color-scheme="default"] {
+  --md-primary-fg-color: #1b2546;
+  --md-primary-fg-color--light: #2a3557;
+  --md-primary-fg-color--dark: #0b1020;
+  --md-accent-fg-color: #5b6bd6;
+}
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #0b1020;
+  --md-primary-fg-color--light: #111a33;
+  --md-primary-fg-color--dark: #070a14;
+  --md-accent-fg-color: #9fb4ff;
+  --md-default-bg-color: #0d1326;
+  --md-default-fg-color--light: #a9b4d6;
+  --md-typeset-a-color: #9fb4ff;
+}
+[data-md-color-scheme="slate"] .md-main {
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, #e6ecff66, transparent),
+    radial-gradient(1px 1px at 78% 9%, #e6ecff55, transparent),
+    radial-gradient(1.2px 1.2px at 55% 64%, #e6ecff44, transparent),
+    radial-gradient(1px 1px at 90% 82%, #e6ecff55, transparent);
+  background-attachment: fixed;
+}
