@@ -141,3 +141,21 @@ async def test_a_broken_user_file_is_reported_and_never_overwritten(tmp_path):
         {"topic": "Shaft!", "rule": "a", "text": "t", "agreed": True},
     )
     assert bad["error"]["field"] == "/topic"
+
+
+def test_every_manufacturing_process_has_rules_and_a_check_step(tmp_path):
+    from nx_mcp.core import catalogue
+
+    known = set(catalogue.load())
+    guide = design_rules.get(tmp_path, "manufacturing")["rules"]
+    assert {"process_first", "check_step"} <= set(guide)
+    for process in ("casting", "machining", "sheet_metal", "thermoforming", "welding", "additive"):
+        topic = design_rules.get(tmp_path, process)
+        assert topic["rules"] and process in guide["process_first"], process
+        checks = topic["tables"]["checks"]
+        assert checks["columns"] == ["check", "tool", "pass"]
+        for _check, tool, _pass in checks["rows"]:  # every check names a tool that exists
+            names = {w.strip("(),") for w in tool.split() if w.startswith("nx_")}
+            assert names and names <= known, (process, tool)
+    assert "draft" in design_rules.get(tmp_path, "casting")["rules"]
+    assert "ISO 128-50" in design_rules.get(tmp_path, "drawing")["rules"]["hatching"]

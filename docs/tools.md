@@ -961,7 +961,7 @@ Fill a closed region of a drawing sheet with a crosshatch or an area fill. bound
 | `type` | `crosshatch` \| `area_fill` | `"crosshatch"` |  |
 | `pattern` | `iron` \| `steel` \| `brass` \| `rubber` \| `refractory` \| `marble` \| `lead` \| `aluminum` \| `electrical_winding` \| `thermal_insulation` | `"iron"` | crosshatch: NX pattern |
 | `angle` | number or string | optional | Line or fill angle from sheet +x; default 45 (fill 0) |
-| `spacing` | number or string | optional | crosshatch: pattern distance (steel: between line pairs); default 5 mm |
+| `spacing` | number or string | optional | crosshatch: pattern distance (steel: line pairs); default by region size 1-5 mm |
 | `material` | `solid` \| `concrete` \| `cork_felt` \| `earth` \| `liquids` \| `rock` \| `sand` \| `sound_insulation` \| `wood_across_grain` \| `wood_along_grain` | `"solid"` | area_fill: NX fill pattern |
 | `scale` | number | `1.0` | area_fill: pattern scale |
 

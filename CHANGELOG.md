@@ -9,6 +9,12 @@
 - Your own rules in `nxonaut-rules.json` in the workspace win over the profile. Claude
   proposes a rule when you correct it and saves it only after you agree
   (`nx_save_design_rule`).
+- Manufacturing rules: Claude decides first how a part is made (casting, machining,
+  sheet metal, thermoforming, welding, 3D printing) and models to it, e.g. draft and
+  radii on cast parts. Each process has a check step that Claude runs before a part is
+  done (draft, wall thickness, radii, bend radii, overhangs).
+- Hatching: small cut areas are hatched denser than large ones (ISO 128-50); without a
+  given spacing `nx_create_hatch` picks it from the region's size.
 
 **Fixed**
 - Pictures of assemblies no longer show the constraint symbols, and `nx_set_visibility`

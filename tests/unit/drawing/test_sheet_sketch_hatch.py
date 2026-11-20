@@ -5,7 +5,7 @@ from types import SimpleNamespace as NS
 
 import pytest
 
-from nx_mcp.domains.drawing import sheet_sketch
+from nx_mcp.domains.drawing import hatch, sheet_sketch
 from tests.kit import run
 from tests.kit.fake import Factories
 from tests.kit.objects import Object, Sketch, matrix
@@ -285,3 +285,15 @@ def test_a_patterned_area_fill_may_stop_short_of_the_boundary():
     assert (
         solid.error["code"] == "NX_VERIFICATION_FAILED" and solid.mutation_outcome == "rolled_back"
     )
+
+
+def test_crosshatch_spacing_follows_the_region_size_when_not_given():
+    """ISO 128-50 practice (Michael): small cut areas are hatched denser than large ones."""
+    assert hatch.auto_spacing(5, 30) == 1.0 and hatch.auto_spacing(30, 30) == 2.5
+    assert hatch.auto_spacing(120, 90) == 5.0
+    nx = sheet_nx()
+    ok = run(nx, "nx_create_hatch", boundary=_rect(nx))  # an 80 x 40 region
+    assert ok.ok, ok
+    assert ok.data["spacing"] == pytest.approx(3.5) and ok.data["spacing_auto"] is True
+    given = run(nx, "nx_create_hatch", boundary=_rect(nx), spacing=2)
+    assert given.data["spacing"] == pytest.approx(2) and "spacing_auto" not in given.data
