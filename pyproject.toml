@@ -90,4 +90,5 @@ disable_error_code = ["empty-body"]
 [tool.setuptools.package-data]
 nx_mcp = [
     "evidence/*.json",
+    "design_rules/profiles/*.json",
 ]

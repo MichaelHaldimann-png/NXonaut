@@ -7,7 +7,7 @@ from mcp.shared.memory import create_connected_server_and_client_session
 
 from nx_mcp.core import catalogue, evidence
 from nx_mcp.server import create_server
-from nx_mcp.sidecar import gateways
+from nx_mcp.sidecar import design_rules, gateways
 from nx_mcp.sidecar.artifacts import ResultStore
 from nx_mcp.sidecar.server import CORE_TOOLS
 from nx_mcp.workspace import Workspace
@@ -42,7 +42,10 @@ async def test_discovery_lists_gateways_and_core_tools(tmp_path):
             for n in CORE_TOOLS
             if catalogue.get(n) and evidence.visible(catalogue.get(n), evidence.DEFAULT_BUILD)
         }  # no NX connected: listed for the default supported build
-        assert "nx_list_objects" in listed and listed == set(gateways.NAMES) | core
+        assert (
+            "nx_list_objects" in listed
+            and listed == set(gateways.NAMES) | set(design_rules.NAMES) | core
+        )
         result = await client.call_tool("nx_find_tools", {"query": "nx_list_objects"})
         assert result.structuredContent["data"]["tools"][0]["name"] == "nx_list_objects"
         result = await client.call_tool("nx_get_tool_schemas", {"names": ["nx_list_objects"]})
@@ -96,9 +99,9 @@ def test_dual_http_profiles(tmp_path, monkeypatch):
         readable = [
             s for s in catalogue.load().values() if evidence.visible(s, evidence.DEFAULT_BUILD)
         ]
-        extra = len(gateways.NAMES) + len(readable)
+        extra = len(gateways.NAMES) + len(design_rules.NAMES) + len(readable)
         core = [n for n in CORE_TOOLS if n in {s.name for s in readable}]
-        agent = len(gateways.NAMES) + len(core)
+        agent = len(gateways.NAMES) + len(design_rules.NAMES) + len(core)
         for path, count in [("/mcp", extra), ("/agent/mcp", agent)]:
             response = client.post(
                 path,

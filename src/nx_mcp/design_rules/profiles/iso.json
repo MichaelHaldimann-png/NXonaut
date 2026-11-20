@@ -1,0 +1,133 @@
+{
+  "profile": "ISO",
+  "title": "ISO base: international practice, first-angle projection, metric",
+  "note": "Guidance in NXonaut's own words, not the text of the standards. Check values that matter for safety or function against the current edition before release.",
+  "topics": {
+    "drawing": {
+      "title": "Technical drawings: views, dimensions, title block",
+      "rules": {
+        "projection": "First-angle projection (projection method 1, ISO 5456-2) with its symbol in the title block.",
+        "sheet": "A-series sheets (ISO 5457), border and grid; A4 portrait or A3/A2 landscape. Plain sheet with an own title block table: never the NX example template or any vendor logo.",
+        "scale": "Preferred scales (ISO 5455): 1:1, 1:2, 1:5, 1:10, 2:1, 5:1, 10:1. Main scale in the title block, other scales beside their view.",
+        "views": "Front view = the most informative view; shafts and turned parts lie horizontal. Only the views needed; sections for keyways and bores, detail views (2:1 to 10:1) for undercuts, grooves and small radii.",
+        "dimensions": "Dimensions outside the part where possible, never across the body; aligned rows with even spacing, smaller dimensions nearer the part, no crossing dimension lines, no duplicates. Diameters with the symbol, functional dimensions from datum faces (ISO 129-1).",
+        "lines": "Line widths in a ratio of 2:1, e.g. 0.5 mm visible edges and 0.25 mm dimension, hatching and centre lines (ISO 128-2). Centre lines on every axis of revolution.",
+        "lettering": "Lettering ISO 3098 type B, upright; 3.5 mm for dimensions, 5 or 7 mm for the title and drawing number.",
+        "units": "Millimetres without unit sign; angles in degrees.",
+        "general_tolerances": "General tolerances ISO 2768-mK in the title block unless the part needs finer (f) or coarser (c, v) classes.",
+        "gps": "Write 'ISO 8015' (independence principle) near the title block; envelope requirement (E) on fits that need it.",
+        "geometric_tolerances": "Form, orientation, location and run-out per ISO 1101 with datums per ISO 5459. Tolerance functional surfaces only: bearing seats, sealing faces, locating faces.",
+        "surface_texture": "Surface symbols per ISO 21920-1 (formerly ISO 1302); a general symbol near the title block with the exceptions in brackets.",
+        "edges": "Undefined edges per ISO 13715, e.g. a general note 'edges -0.3' for burr-free sharp edges.",
+        "title_block": "Title block per ISO 7200 at the bottom right: title, drawing number, revision, material, scale, sheet n/N, projection symbol, general tolerance, created by, date of issue (YYYY-MM-DD). Created by: NXonaut.",
+        "no_overlaps": "Nothing overlaps: no text, symbol or frame on top of a line, edge, hatch or other annotation; no leader crossing a dimension, symbol or frame. Move or re-anchor the annotation, shorten its leader, or move the view until every item stands free. Check the whole sheet in a capture before export.",
+        "layout": "Clean, balanced layout: views aligned on their projection axes, even gaps, notes grouped above the title block, nothing overlapping."
+      }
+    },
+    "tolerances": {
+      "title": "Fits and tolerances (ISO 286, ISO 2768)",
+      "rules": {
+        "system": "Hole-basis system (H holes) by default; shaft-basis (h shafts) for drawn bars carrying several parts.",
+        "bearing_rotating_inner": "Rolling bearing, inner ring rotates with the load direction fixed: shaft j6 (light load), k6 (normal), m6 (heavy); housing H7, or J7 for a more precise radial fit.",
+        "bearing_fixed_inner": "Inner ring stationary relative to the load (idler, wheel on fixed axle): shaft g6 (axially free) or h6.",
+        "bearing_floating": "The floating (non-locating) bearing needs an axially free outer ring: housing H7 or G7.",
+        "hub_on_shaft": "Gear, pulley or coupling with a key: H7/k6 (normal), H7/j6 (easy to mount), H7/n6 or H7/p6 for interference without a key, H7/s6 for a press fit carrying torque.",
+        "sliding": "Sliding or guided parts: H7/h6 (snug), H7/g6 (running with little play), H8/f7 (running fit, plain bearings).",
+        "computing": "Hole H7: EI 0, ES +IT7. Shaft g6: es from the table, ei = es - IT6. Shafts k6 m6 n6 p6: ei from the table, es = ei + IT6. j6 has its own columns. Example: 30 k6 = +0.002/+0.015 mm."
+      },
+      "tables": {
+        "iso286": {
+          "title": "IT grades and fundamental deviations in micrometres (diameter over-up to, mm)",
+          "columns": ["over", "to", "IT6", "IT7", "g_es", "k_ei", "m_ei", "n_ei", "p_ei", "j6_es", "j6_ei"],
+          "rows": [
+            [3, 6, 8, 12, -4, 1, 4, 8, 12, 6, -2],
+            [6, 10, 9, 15, -5, 1, 6, 10, 15, 7, -2],
+            [10, 18, 11, 18, -6, 1, 7, 12, 18, 8, -3],
+            [18, 30, 13, 21, -7, 2, 8, 15, 22, 9, -4],
+            [30, 50, 16, 25, -9, 2, 9, 17, 26, 11, -5],
+            [50, 80, 19, 30, -10, 2, 11, 20, 32, 12, -7],
+            [80, 120, 22, 35, -12, 3, 13, 23, 37, 13, -9],
+            [120, 180, 25, 40, -14, 3, 15, 27, 43, 14, -11]
+          ]
+        },
+        "iso2768_m": {
+          "title": "ISO 2768-m general length tolerances in mm (over-up to: +/-)",
+          "columns": ["over", "to", "plus_minus"],
+          "rows": [[0.5, 3, 0.1], [3, 6, 0.1], [6, 30, 0.2], [30, 120, 0.3], [120, 400, 0.5], [400, 1000, 0.8], [1000, 2000, 1.2]]
+        }
+      }
+    },
+    "shaft": {
+      "title": "Shaft design: seats, shoulders, keys, undercuts, chamfers",
+      "rules": {
+        "diameters": "Step diameters from the R20/R40 preferred numbers; bearing seats on standard bearing bores (10, 12, 15, 17, then steps of 5 mm from 20).",
+        "shoulders": "Every mounted part sits against a shoulder, a spacer or a retaining ring (DIN 471 groove). Shoulder height and fillet for bearings from the bearing catalogue: the fillet radius stays below the bearing's chamfer.",
+        "fillets": "No sharp internal corners: a fillet at every shoulder (r 0.4 to 1 mm on small shafts, larger where the bearing allows), or an undercut where the seat is ground.",
+        "undercuts": "Undercut DIN 509 form E where only the diameter is ground, form F where diameter and shoulder face are ground; sized from the table, shown in a detail view.",
+        "keys": "Parallel keys DIN 6885-1 form A (ISO 773 similar), sized by shaft diameter from the table. Keyway width N9 on the shaft and JS9 in the hub (P9 both for alternating torque). Key length about 1 to 1.5 x d and a few mm shorter than the hub, from the standard lengths.",
+        "keyway_end": "Shaft keyways end at least a few mm before a shoulder or undercut; dimension the depth as d - t1 on the shaft and D + t2 in the hub.",
+        "chamfers": "45 degree chamfers on shaft ends and on the entry side of seats: 0.5 mm up to d 10, 1 mm up to 30, 1.5 to 2 mm up to 80, 2 to 3 mm above.",
+        "centre_holes": "Long shafts that are turned or ground between centres get centre holes DIN 332-1 (form A, or form B with a protective countersink) noted on the drawing.",
+        "surfaces": "Ra 0.8 on bearing seats (ground), Ra 1.6 on hub seats, Ra 3.2 on keyway sides, Ra 3.2 to 6.3 turned elsewhere; seal running surfaces Ra 0.2 to 0.8 without lead.",
+        "runout": "Datums A and B on the two bearing seats, common datum A-B; circular run-out of the other seats and shoulders to A-B, about IT5 to IT6 of the diameter.",
+        "material": "Default shaft steel C45E (1.1191), quenched and tempered; 42CrMo4 (1.7225) for high load; X20Cr13 or 1.4305 where corrosion matters."
+      },
+      "tables": {
+        "keys_din6885": {
+          "title": "Parallel keys DIN 6885-1: shaft diameter over-up to, key b x h, shaft depth t1, hub depth t2 (mm)",
+          "columns": ["d_over", "d_to", "b", "h", "t1", "t2"],
+          "rows": [
+            [6, 8, 2, 2, 1.2, 1.0], [8, 10, 3, 3, 1.8, 1.4], [10, 12, 4, 4, 2.5, 1.8],
+            [12, 17, 5, 5, 3.0, 2.3], [17, 22, 6, 6, 3.5, 2.8], [22, 30, 8, 7, 4.0, 3.3],
+            [30, 38, 10, 8, 5.0, 3.3], [38, 44, 12, 8, 5.0, 3.3], [44, 50, 14, 9, 5.5, 3.8],
+            [50, 58, 16, 10, 6.0, 4.3], [58, 65, 18, 11, 7.0, 4.4], [65, 75, 20, 12, 7.5, 4.9],
+            [75, 85, 22, 14, 9.0, 5.4], [85, 95, 25, 14, 9.0, 5.4], [95, 110, 28, 16, 10.0, 6.4],
+            [110, 130, 32, 18, 11.0, 7.4], [130, 150, 36, 20, 12.0, 8.4]
+          ],
+          "note": "Standard key lengths: 6 8 10 12 14 16 18 20 22 25 28 32 36 40 45 50 56 63 70 80 90 100 110 125 140 160 180 200."
+        },
+        "undercuts_din509": {
+          "title": "Undercut DIN 509 (form E/F), radius r x depth t1 by shaft diameter (mm)",
+          "columns": ["d_over", "d_to", "r", "t1", "load"],
+          "rows": [
+            [3, 10, 0.4, 0.2, "normal"], [10, 18, 0.6, 0.2, "normal"], [18, 80, 0.6, 0.3, "normal"],
+            [80, 500, 1.0, 0.4, "normal"], [18, 50, 1.6, 0.3, "fatigue"], [50, 80, 2.5, 0.4, "fatigue"],
+            [80, 125, 4.0, 0.5, "fatigue"]
+          ],
+          "note": "Take the width and the face allowance from the standard for the chosen form."
+        }
+      }
+    },
+    "threads": {
+      "title": "Metric threads: pitches, tap drills, runouts",
+      "rules": {
+        "series": "ISO metric coarse threads (ISO 261/262) by default; fine threads only for thin walls, adjustment or high preload. Tolerance 6g external, 6H internal.",
+        "tapped_holes": "Blind tapped holes: drill depth about thread depth + 4 x pitch, 118 degree drill point; usable thread at least 1 x d in steel, 1.5 x d in cast iron, 2 x d in aluminium.",
+        "countersink": "Countersink tapped holes 90 degrees to about the major diameter; chamfer external threads 45 degrees down to the minor diameter.",
+        "runout": "External threads up to a shoulder get a thread undercut DIN 76-1 form A: width about 3.5 x pitch, diameter about d - 1.5 x pitch.",
+        "notation": "Note threads as 'M10' (coarse) or 'M10x1' (fine), with depth for blind holes ('M8 x 16 deep, drill 6.8 x 22 deep')."
+      },
+      "tables": {
+        "metric_coarse": {
+          "title": "Metric coarse threads: pitch and tap drill (mm)",
+          "columns": ["size", "pitch", "tap_drill", "clearance_medium"],
+          "rows": [
+            ["M3", 0.5, 2.5, 3.4], ["M4", 0.7, 3.3, 4.5], ["M5", 0.8, 4.2, 5.5], ["M6", 1.0, 5.0, 6.6],
+            ["M8", 1.25, 6.8, 9.0], ["M10", 1.5, 8.5, 11.0], ["M12", 1.75, 10.2, 13.5],
+            ["M16", 2.0, 14.0, 17.5], ["M20", 2.5, 17.5, 22.0], ["M24", 3.0, 21.0, 26.0],
+            ["M30", 3.5, 26.5, 33.0]
+          ],
+          "note": "clearance_medium: through hole for a screw, ISO 273 medium series."
+        }
+      }
+    },
+    "materials": {
+      "title": "Default materials and their designations",
+      "rules": {
+        "designation": "Name steels per EN 10027 (C45E, 1.1191 in brackets), aluminium per EN 573 (EN AW-6082 T6).",
+        "defaults": "Machined steel parts S235JR or C45E; shafts C45E or 42CrMo4; housings EN AW-6082 T6 or EN-GJL-250; stainless 1.4301 (sheet) or 1.4305 (machined); plastic POM-C or PA6.",
+        "density": "Set the NX material so the mass is right: steel 7.85, aluminium 2.70, cast iron 7.2, stainless 7.9, POM 1.41 g/cm3."
+      }
+    }
+  }
+}

@@ -438,7 +438,7 @@ a domain was added.
 | Item | Before the catalogue (measured then) | Design (caps and measured values: architecture.md 6) |
 |---|---|---|
 | Full listing (name + description + input schema) | 218,951 characters, about 55-60K tokens for 227 tools (median 851, max 6,077 characters per tool) | A mean per listed tool, call keys (`operation_id`, `intent`) included, so adding tools does not move the cap; per-tool caps bound each definition. Opt-in for clients that load schemas on demand |
-| `agent` profile listing | 13 tools, 11,588 characters, about 3K tokens | 18 tools (4 gateways + 14 core), about 4K tokens, plus the server instructions once per session; cap a base plus a little per domain |
+| `agent` profile listing | 13 tools, 11,588 characters, about 3K tokens | 20 tools (4 gateways + 2 design-rule tools + 14 core), about 4.6K tokens, plus the server instructions once per session; cap a base plus a little per domain |
 | One discovery call (10 rows) | full descriptions, 1-3K tokens | name + summary + effect rows; each row, the rest of the page and the 90th percentile page capped |
 | Schema fetch | one tool per call, 250-1,500 tokens each | 1-10 tools per call; each entry a little over the tool's definition; variants of one tool share their schema once |
 | Typical modeling task (overview, 3 searches, 4 schemas) | about 8-10K tokens of tool metadata | a few K tokens, capped, plus the session's listing and instructions |

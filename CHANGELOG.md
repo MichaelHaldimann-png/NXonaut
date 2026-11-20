@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Engineering rules built in: Claude reads them before it designs shafts, fits, threads
+  or drawings (`nx_get_design_rules`). Profiles ISO, CH, DE and US, chosen at install
+  (**Engineering standards**). Drawing rules include: nothing overlaps.
+- Your own rules in `nxonaut-rules.json` in the workspace win over the profile. Claude
+  proposes a rule when you correct it and saves it only after you agree
+  (`nx_save_design_rule`).
+
 ## 0.2.1 (2026-11-20)
 
 Same content as the published 0.2.0. A new number because an earlier test build was

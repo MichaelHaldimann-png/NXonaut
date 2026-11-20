@@ -1,0 +1,32 @@
+{
+  "profile": "US",
+  "extends": "ISO",
+  "title": "United States: ASME practice, third-angle projection",
+  "topics": {
+    "drawing": {
+      "rules": {
+        "projection": "Third-angle projection (projection method 3) with its symbol in the title block.",
+        "sheet": "ANSI sheet sizes A (8.5 x 11 in) to E, or ISO A-series when the customer works metric. Plain sheet with an own title block: never a vendor logo.",
+        "scale": "Scales as 1:1, 1:2, 2:1 (or FULL, HALF); main scale in the title block.",
+        "units": "Units as agreed: inches with decimal point and no leading zero (.50), or millimetres with a leading zero (0.5); state the unit in the title block.",
+        "general_tolerances": "General tolerances in the title block by decimal places (e.g. .X +/-.1, .XX +/-.01, .XXX +/-.005, angles +/-1 deg) instead of ISO 2768.",
+        "gps": "GD&T per ASME Y14.5 (Rule #1 envelope applies by default); note 'INTERPRET PER ASME Y14.5-2018'.",
+        "geometric_tolerances": "Feature control frames per ASME Y14.5, datums A B C; tolerance functional surfaces only.",
+        "surface_texture": "Surface texture symbols per ASME Y14.36, values in microinches (e.g. 32) or micrometres for metric drawings.",
+        "lettering": "Upright single-stroke gothic capitals, 0.12 in (3 mm) for dimensions.",
+        "title_block": "Title block at the bottom right per ASME Y14.100: title, drawing number, revision, material, finish, scale, sheet, projection symbol, tolerance block, drawn by NXonaut, date (YYYY-MM-DD)."
+      }
+    },
+    "threads": {
+      "rules": {
+        "series": "Metric ISO threads for metric designs; unified threads (UNC, UNF per ASME B1.1, class 2A/2B) for inch designs, noted as '1/4-20 UNC-2B'."
+      }
+    },
+    "materials": {
+      "rules": {
+        "designation": "Name materials per AISI/SAE or ASTM (AISI 1045, 4140, 6061-T6, 304).",
+        "defaults": "Shafts AISI 1045 or 4140; plates A36; aluminium 6061-T6; stainless 304 or 303 (machined)."
+      }
+    }
+  }
+}

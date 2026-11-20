@@ -46,10 +46,14 @@ DOMAINS = len(typing.get_args(catalogue.Domain))
 # Moved when a core tool gained an argument: nx_check_model's ``clash`` (force the
 # self-overlap and void checks on large solids) and its sealed-void sentence; 15,579
 # measured at 12 domains, cap about 3% above (the same headroom rule as every cap here).
-AGENT_LISTING_BASE, PER_DOMAIN = 15_880, 15
-AGENT_LISTING = AGENT_LISTING_BASE + PER_DOMAIN * DOMAINS  # 16,060 at 12 domains
+# 2026-11-20: two NX-free tools of a new kind, nx_get_design_rules and nx_save_design_rule
+# (engineering rule profiles and the engineer's own rule file), listed in every profile:
+# 17,309 measured at 12 domains, cap about 3% above.
+AGENT_LISTING_BASE, PER_DOMAIN = 17_650, 15
+AGENT_LISTING = AGENT_LISTING_BASE + PER_DOMAIN * DOMAINS  # 17,830 at 12 domains
 # The server instructions, sent once per session: 1,395 on 2026-10-13 (unbudgeted before).
-INSTRUCTIONS_CAP = 1_600
+# 2026-11-20: 1,646 with the sentence on design rules (when to read and save them).
+INSTRUCTIONS_CAP = 1_700
 
 # -- Full profile ------------------------------------------------------------------------
 # A mean per listed tool (name + description + input schema with the call keys), so adding

@@ -31,9 +31,11 @@ authenticated loopback bridge. Design of record: `docs/design/architecture.md`
   `nx_app/journals/start_batch.py` (batch, `nx_bridge.py`); `interactive.py` is the
   UI-thread host and panel. Workspace: `NX_MCP_WORKSPACE`, else `<home>/NX_MCP_WORKSPACE`
   (`workspace.default_workspace()`); NX and the sidecar must use the same one.
-- `sidecar/`: `server.py` generates the `agent` profile (default: 4 gateways + 14 core
-  tools, 18 in all) and `full` (gateways + every visible catalogue tool); `proxy.py`,
-  `gateways.py`, `schema.py`, `local.py`, `artifacts.py`.
+- `sidecar/`: `server.py` generates the `agent` profile (default: 4 gateways + 2 design-rule
+  tools + 14 core tools, 20 in all) and `full` (gateways, design-rule tools and every
+  visible catalogue tool); `proxy.py`, `gateways.py`, `schema.py`, `local.py`,
+  `artifacts.py`, `design_rules.py` (NX-free rule profiles in `src/nx_mcp/design_rules/`,
+  the engineer's own `<workspace>/nxonaut-rules.json` on top).
 - `acceptance/`: scenario runner; `evidence/<domain>.json` is written only by it.
 - Tests: `tests/kit/` (the shared fake NX), `tests/core/`, `tests/unit/<domain>/`,
   `tests/sidecar/`, `tests/host/`, `tests/acceptance/`.
