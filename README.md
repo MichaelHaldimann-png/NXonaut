@@ -181,7 +181,18 @@ Codex), and for NX where noted.
 | --- | --- |
 | `NX_MCP_WORKSPACE` | Another workspace folder. Set the same value for NX and the client |
 | `NX_MCP_SURFACE` | `full` shows every NX tool to the client directly (more context, fewer steps); default `agent` |
+| `NXONAUT_ERROR_REPORTS` | `on` or `off`: anonymous error reports (see [Error reports](#error-reports-opt-in)); off by default |
 | `NX_MCP_BRIDGE_DESCRIPTOR` | Only for a non-standard setup: the bridge file NX writes (for NX, `NX_MCP_UI_DESCRIPTOR` sets where it writes it) |
+
+## Error reports (opt-in)
+
+To improve NXonaut on NX setups we never tested, you can allow anonymous error reports:
+`python -m nx_mcp.error_reports ask`. It is **off** until you say yes. A report holds only
+the tool name, the error code, NX's message with names and paths removed, and the
+NXonaut, NX, Python and Windows versions: never part names, file paths, geometry or user
+names. Check what would be sent with `python -m nx_mcp.error_reports list`, turn it off
+with `python -m nx_mcp.error_reports off` (or `NXONAUT_ERROR_REPORTS=off`). Details:
+[docs/error-reports.md](docs/error-reports.md).
 
 ## For developers
 
