@@ -77,8 +77,9 @@ HOLD_SECONDS = 60
 # bridge (QUEUE_TIMEOUT) waits longer, so this answer always arrives first.
 BUSY_WAIT_SECONDS = 120
 PAD_RIGHT = 16  # Panel margin right of the text and Stop bridge, in pixels.
-MIN_WINDOW = (560, 300)  # Opening and smallest panel window size.
-MIN_CLIENT = (520, 200)  # Layout floor while Windows shrinks the client area.
+HEADER = 56  # Height of the painted NXonaut header band above the controls.
+MIN_WINDOW = (560, 300 + HEADER)  # Opening and smallest panel window size.
+MIN_CLIENT = (520, 200 + HEADER)  # Layout floor while Windows shrinks the client area.
 PANEL_ROWS = 8  # Panel body lines at the opening size; resizing changes host.panel_rows.
 NOTICE_SECONDS = 30  # A notice replaces the idle line this long.
 
@@ -309,6 +310,43 @@ ID_MODES = {111: "auto", 113: "ask"}
 ANSWERS = {ID_RUN_ONCE: "run_once", ID_RUN_AUTO: "run_auto", ID_DECLINE: "decline"}
 
 
+def _rgb(hex_color):
+    """A Win32 COLORREF (0x00BBGGRR) from ``#RRGGBB``."""
+    r, g, b = (int(hex_color[i : i + 2], 16) for i in (1, 3, 5))
+    return r | (g << 8) | (b << 16)
+
+
+# The panel's night-sky look (the logo's colours). Every step of it is best effort:
+# when one fails, that part keeps the plain Windows look and the panel still works.
+THEME = {
+    "header": _rgb("#081025"),
+    "body": _rgb("#0B1530"),
+    "field": _rgb("#13224A"),
+    "text": _rgb("#E6ECFF"),
+    "muted": _rgb("#8FA3D1"),
+    "accent": _rgb("#5CE1E6"),
+    "visor": _rgb("#1E3A8A"),
+    "suit": _rgb("#F1F5FF"),
+    "ready": _rgb("#4ADE80"),
+    "working": _rgb("#5CE1E6"),
+    "waiting": _rgb("#FBBF24"),
+    "alert": _rgb("#F87171"),
+}
+# Header stars, as fractions of the band (x of the width, y of the height).
+STARS = ((0.42, 0.22), (0.47, 0.70), (0.55, 0.35), (0.61, 0.80), (0.66, 0.18), (0.36, 0.55))
+
+
+def panel_phase(host):
+    """The header's status pill: (text, THEME colour name)."""
+    if getattr(host, "running_method", None) and getattr(host, "blocked_by", None) is not None:
+        return "NX dialog open", "alert"
+    if getattr(host, "waiting_count", 0) or getattr(host, "busy_wait", None) is not None:
+        return "Waiting for you", "waiting"
+    if getattr(host, "running_method", None):
+        return "Working", "working"
+    return "Ready", "ready"
+
+
 class ControlPanel:
     def __init__(self, host):
         from ctypes import wintypes as w
@@ -370,6 +408,16 @@ class ControlPanel:
         cls = WNDCLASS()
         cls.lpfnWndProc = self.proc
         cls.hbrBackground = 6
+        self._brushes: dict = {}
+        try:
+            gdi32 = ctypes.WinDLL("gdi32")
+            gdi32.CreateSolidBrush.restype = ctypes.c_void_p
+            gdi32.CreateSolidBrush.argtypes = [w.DWORD]
+            self._brushes = {k: gdi32.CreateSolidBrush(THEME[k]) for k in ("body", "field")}
+            if all(self._brushes.values()):
+                cls.hbrBackground = self._brushes["body"]
+        except Exception as exc:
+            self.host.last_error = "Panel theme: " + str(exc)
         cls.lpszClassName = "NxMcpPanel" + uuid.uuid4().hex
         self._class = cls
         if not self.user.RegisterClassW(ctypes.byref(cls)):
@@ -453,9 +501,166 @@ class ControlPanel:
             self.line_height = self._text_height(gdi, font) or 16
         except Exception as exc:
             self.host.last_error = "Panel font: " + str(exc)
+        self._themed = False
+        try:
+            self._apply_theme()
+        except Exception as exc:
+            self.host.last_error = "Panel theme: " + str(exc)
         rect = w.RECT()
         if self.user.GetClientRect(self.hwnd, ctypes.byref(rect)):
             self._layout(rect.right, rect.bottom)
+
+    def _apply_theme(self):
+        """Dark title bar, dark buttons and list, light text (Windows 10 1809+)."""
+        if not all(self._brushes.values()) or not self._brushes:
+            return
+        try:
+            dwm = ctypes.WinDLL("dwmapi")
+            for attribute, value in ((20, 1), (19, 1), (35, THEME["header"])):
+                # Dark mode (20; 19 before Windows 10 20H1), caption colour (35, Windows 11).
+                data = ctypes.c_int(value)
+                dwm.DwmSetWindowAttribute(
+                    ctypes.c_void_p(self.hwnd), attribute, ctypes.byref(data), 4
+                )
+        except Exception:
+            pass
+        theme = ctypes.WinDLL("uxtheme").SetWindowTheme
+        theme.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_wchar_p]
+        for child in (self.parts, self.show_part, self.run_once, self.run_auto,
+                      self.decline, self.open_log, self.stop):  # fmt: skip
+            theme(child, "DarkMode_Explorer", None)
+        # Radio buttons and the checkbox draw their text in the theme's colour;
+        # without a theme they ask WM_CTLCOLORSTATIC like any label.
+        for child in (*self.radios.values(), self.grant):
+            theme(child, "", "")
+        self._gdi = ctypes.WinDLL("gdi32")
+        for name in ("SetTextColor", "SetBkColor", "SetBkMode"):
+            getattr(self._gdi, name).argtypes = [ctypes.c_void_p, ctypes.c_uint]
+        self._themed = True
+
+    def _control_colours(self, msg, dc, child):
+        """WM_CTLCOLOR*: text and background colours, and the brush to fill with."""
+        field = msg == 0x134 or child == getattr(self, "parts", None)  # WM_CTLCOLORLISTBOX
+        text = "accent" if child == getattr(self, "parts_label", None) else "text"
+        if child == getattr(self, "mode_label", None):
+            text = "muted"
+        self._gdi.SetTextColor(dc, THEME[text])
+        self._gdi.SetBkColor(dc, THEME["field" if field else "body"])
+        return self._brushes["field" if field else "body"]
+
+    def _paint_header(self, hwnd):
+        """WM_PAINT: the header band with the astronaut, the name and the status pill."""
+        from ctypes import wintypes as w
+
+        class PAINTSTRUCT(ctypes.Structure):
+            _fields_ = [("hdc", w.HDC), ("fErase", w.BOOL), ("rcPaint", w.RECT),
+                        ("fRestore", w.BOOL), ("fIncUpdate", w.BOOL),
+                        ("rgbReserved", ctypes.c_byte * 32)]  # fmt: skip
+
+        user = self.user
+        paint = PAINTSTRUCT()
+        user.BeginPaint.restype = ctypes.c_void_p
+        user.BeginPaint.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        user.EndPaint.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        dc = user.BeginPaint(hwnd, ctypes.byref(paint))
+        try:
+            if dc:
+                self._draw_header(dc, self._client[0] if hasattr(self, "_client") else 560)
+        finally:
+            user.EndPaint(hwnd, ctypes.byref(paint))
+
+    def _draw_header(self, dc, width):
+        gdi, vp = self._gdi, ctypes.c_void_p
+        for name, args in (
+            ("CreateSolidBrush", [ctypes.c_uint]),
+            ("CreatePen", [ctypes.c_int, ctypes.c_int, ctypes.c_uint]),
+            ("SelectObject", [vp, vp]),
+            ("DeleteObject", [vp]),
+            ("Ellipse", [vp, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int]),
+            ("RoundRect", [vp] + [ctypes.c_int] * 6),
+            ("Rectangle", [vp] + [ctypes.c_int] * 4),
+            ("SetPixel", [vp, ctypes.c_int, ctypes.c_int, ctypes.c_uint]),
+            ("MoveToEx", [vp, ctypes.c_int, ctypes.c_int, vp]),
+            ("LineTo", [vp, ctypes.c_int, ctypes.c_int]),
+            ("TextOutW", [vp, ctypes.c_int, ctypes.c_int, ctypes.c_wchar_p, ctypes.c_int]),
+            ("CreateFontW", [ctypes.c_int] * 5 + [ctypes.c_uint] * 8 + [ctypes.c_wchar_p]),
+            ("GetTextExtentPoint32W", [vp, ctypes.c_wchar_p, ctypes.c_int, vp]),
+        ):
+            getattr(gdi, name).argtypes = args
+        for name in ("CreateSolidBrush", "CreatePen", "SelectObject", "CreateFontW"):
+            getattr(gdi, name).restype = vp
+        made = []
+
+        def brush(colour):
+            made.append(gdi.CreateSolidBrush(THEME[colour]))
+            return made[-1]
+
+        def pen(colour, size=1):
+            made.append(gdi.CreatePen(0, size, THEME[colour]))
+            return made[-1]
+
+        def font(height, weight):
+            made.append(gdi.CreateFontW(-height, 0, 0, 0, weight, 0, 0, 0, 1, 0, 0, 5, 0,
+                                        "Segoe UI"))  # fmt: skip
+            return made[-1]
+
+        def shape(draw, fill, outline, *box):
+            gdi.SelectObject(dc, brush(fill))
+            gdi.SelectObject(dc, pen(outline))
+            draw(dc, *box)
+
+        old_brush = gdi.SelectObject(dc, brush("header"))
+        old_pen = gdi.SelectObject(dc, pen("header"))
+        old_font = None
+        try:
+            gdi.Rectangle(dc, 0, 0, width + 1, HEADER)
+            for fx, fy in STARS:
+                gdi.SetPixel(dc, int(width * fx), int(HEADER * fy), THEME["muted"])
+            # The astronaut: backpack, suit, helmet, visor and its glint.
+            shape(gdi.RoundRect, "muted", "muted", 15, 26, 41, 50, 6, 6)
+            shape(gdi.RoundRect, "suit", "suit", 18, 28, 38, 52, 8, 8)
+            shape(gdi.Ellipse, "suit", "suit", 14, 6, 42, 32)
+            shape(gdi.Ellipse, "visor", "accent", 18, 11, 38, 27)
+            gdi.SetPixel(dc, 22, 15, THEME["suit"])
+            gdi.SetPixel(dc, 23, 15, THEME["suit"])
+            gdi.SetPixel(dc, 22, 16, THEME["suit"])
+            # The wireframe cube it holds.
+            gdi.SelectObject(dc, pen("accent"))
+            for x0, y0, x1, y1 in ((42, 34, 52, 34), (52, 34, 52, 44), (52, 44, 42, 44),
+                                   (42, 44, 42, 34), (46, 30, 56, 30), (56, 30, 56, 40),
+                                   (42, 34, 46, 30), (52, 34, 56, 30), (52, 44, 56, 40)):  # fmt: skip
+                gdi.MoveToEx(dc, x0, y0, None)
+                gdi.LineTo(dc, x1, y1)
+            gdi.SetBkMode(dc, 1)  # TRANSPARENT
+            old_font = gdi.SelectObject(dc, font(20, 600))
+            gdi.SetTextColor(dc, THEME["text"])
+            gdi.TextOutW(dc, 66, 8, "NXonaut", 7)
+            gdi.SelectObject(dc, font(12, 400))
+            gdi.SetTextColor(dc, THEME["muted"])
+            sub = "AI agent for Siemens NX" + (" · DEV" if getattr(self.host, "dev", False) else "")
+            gdi.TextOutW(dc, 67, 33, sub, len(sub))
+            # The status pill at the right: a coloured dot and the phase.
+            text, colour = panel_phase(self.host)
+            gdi.SelectObject(dc, font(13, 600))
+            size = (ctypes.c_long * 2)()
+            gdi.GetTextExtentPoint32W(dc, text, len(text), ctypes.byref(size))
+            right = width - PAD_RIGHT
+            left = right - size[0] - 36
+            shape(gdi.RoundRect, "field", colour, left, 15, right, 41, 26, 26)
+            shape(gdi.Ellipse, colour, colour, left + 11, 24, left + 19, 32)
+            gdi.SetTextColor(dc, THEME[colour])
+            gdi.TextOutW(dc, left + 25, 28 - size[1] // 2, text, len(text))
+            # A thin accent line under the band.
+            gdi.SelectObject(dc, pen("visor"))
+            gdi.MoveToEx(dc, 0, HEADER - 1, None)
+            gdi.LineTo(dc, width + 1, HEADER - 1)
+        finally:
+            if old_font:
+                gdi.SelectObject(dc, old_font)
+            gdi.SelectObject(dc, old_brush)
+            gdi.SelectObject(dc, old_pen)
+            for handle in made:
+                gdi.DeleteObject(handle)
 
     def _text_height(self, gdi, font):
         """Pixel height of one activity line in the panel font (0 if unknown)."""
@@ -482,19 +687,20 @@ class ControlPanel:
         move = self.user.MoveWindow
         right = max(width - PAD_RIGHT, MIN_CLIENT[0] - PAD_RIGHT)
         buttons = max(height - 12 - 28, MIN_CLIENT[1] - 12 - 28)
-        move(self.mode_label, 12, 12, 48, 20, True)
-        move(self.radios["auto"], 66, 8, 72, 24, True)
-        move(self.radios["ask"], 144, 8, 124, 24, True)
+        top0 = HEADER  # the painted header band
+        move(self.mode_label, 12, top0 + 12, 48, 20, True)
+        move(self.radios["auto"], 66, top0 + 8, 72, 24, True)
+        move(self.radios["ask"], 144, top0 + 8, 124, 24, True)
         # The grant checkbox row is reserved only while it shows (show_grant).
         grant_row = 28 if getattr(self, "_grant", None) is not None else 0
-        area = buttons - grant_row - 8 - 38
+        area = buttons - grant_row - 8 - 38 - top0
         line = max(self.line_height, 1)
         low, high = PARTS_ROWS
         rows = max(low, min(high, len(getattr(self, "_parts_rows", ()) or ()) or low))
         parts_height = min(rows * line + 6, max(low * line + 6, area // 3))
         list_height = max(line * 3, area - parts_height - 22)
-        move(self.label, 12, 38, right - 12, list_height, True)
-        top = 38 + list_height + 4
+        move(self.label, 12, top0 + 38, right - 12, list_height, True)
+        top = top0 + 38 + list_height + 4
         move(self.parts_label, 12, top, right - 12, 18, True)
         move(self.parts, 12, top + 18, right - 12, parts_height, True)
         move(self.grant, 12, buttons - 28, right - 12, 22, True)
@@ -538,6 +744,13 @@ class ControlPanel:
                 return 0
             if msg == 0x0005:  # WM_SIZE: client width and height in lp
                 self._layout(lp & 0xFFFF, (lp >> 16) & 0xFFFF)
+                if getattr(self, "_themed", False):
+                    self._invalidate_header()
+                return 0
+            if msg in (0x133, 0x134, 0x135, 0x138) and getattr(self, "_themed", False):
+                return self._control_colours(msg, wp, lp)
+            if msg == 0x000F and getattr(self, "_themed", False):  # WM_PAINT
+                self._paint_header(hwnd)
                 return 0
             if msg == 0x0024:  # WM_GETMINMAXINFO: ptMinTrackSize is longs 6 and 7
                 info = ctypes.cast(lp, ctypes.POINTER(ctypes.c_long * 10)).contents
@@ -570,10 +783,23 @@ class ControlPanel:
             self.user.ShowWindow(self.decline, 5 if card else 0)
             self.user.ShowWindow(self.open_log, 0 if card else 5)
             self.user.ShowWindow(self.show_part, 0 if card else 5)
+        if getattr(self, "_themed", False):
+            phase = panel_phase(self.host)
+            if phase != getattr(self, "_phase", None):
+                self._phase = phase
+                self._invalidate_header()
         # Paint only this panel before native work. Never pump arbitrary NX
         # messages here: that would permit reentrant modeling calls.
         self.user.UpdateWindow(self.label)
         self.user.UpdateWindow(self.hwnd)
+
+    def _invalidate_header(self):
+        from ctypes import wintypes as w
+
+        width = getattr(self, "_client", MIN_CLIENT)[0]
+        rect = w.RECT(0, 0, width, HEADER)
+        self.user.InvalidateRect.argtypes = [ctypes.c_void_p, ctypes.c_void_p, w.BOOL]
+        self.user.InvalidateRect(self.hwnd, ctypes.byref(rect), True)
 
     def show_grant(self, grant):
         """Show the "Allow agent to change <part>" checkbox, or hide it (None)."""
@@ -626,6 +852,12 @@ class ControlPanel:
     def close(self):
         self.user.DestroyWindow(self.hwnd)
         self.user.UnregisterClassW(self._class.lpszClassName, None)
+        try:
+            for handle in getattr(self, "_brushes", {}).values():
+                if handle:
+                    ctypes.WinDLL("gdi32").DeleteObject(ctypes.c_void_p(handle))
+        except Exception:
+            pass  # the panel is gone either way
 
 
 class InteractiveHost:
