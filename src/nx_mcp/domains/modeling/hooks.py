@@ -1,0 +1,229 @@
+"""Modeling listers for ``nx_list_objects`` (bodies, faces, edges, features, datums,
+expressions), the feature and point deleters for ``nx_delete_objects`` (``fn(tx, objects)``,
+inside the caller's mark) and the restorer that shows again the source bodies a mirror or
+an untrim hid, once the undo deleted its feature (``note_hidden``)."""
+
+from __future__ import annotations
+
+from nx_mcp.core.catalogue import deleter, lister, restorer
+from nx_mcp.core.errors import fail, native
+from nx_mcp.kit import expr, geom, model, result, select
+
+FACE_TYPES = {22: "plane", 16: "cylinder", 17: "cone", 18: "sphere", 19: "torus"}
+EDGE_TYPES = {"Linear": "line", "Circular": "circle", "Elliptical": "ellipse"}
+
+
+def _bodies(tx, owner, owner_kind):
+    if owner is None:
+        return list(tx.part.Bodies)
+    if owner_kind == "feature":
+        return list(owner.GetBodies())
+    if owner_kind == "body":
+        return [owner]
+    fail("NX_WRONG_KIND", "owner must be a body or a feature here", field="/owner")
+
+
+@lister("body")
+def bodies(tx, owner, owner_kind):
+    return [
+        (b, "body", {"type": "solid" if getattr(b, "IsSolidBody", False) else "sheet"})
+        for b in _bodies(tx, owner, owner_kind)
+    ]
+
+
+@lister("face")
+def faces(tx, owner, owner_kind):
+    # The type comes from UF AskFaceType (microseconds); AskFaceData (about a millisecond
+    # a face on NX 2406) runs only for the point and normal of planar faces.
+    found = []
+    for body in _bodies(tx, owner, owner_kind):
+        tx.checkpoint()
+        for face in body.GetFaces():
+            with native():
+                code = int(tx.uf.Modeling.AskFaceType(face.Tag))
+            extra = {"type": FACE_TYPES.get(code, "other")}
+            if code == 22:
+                _, point, direction = select.face_data(tx, face)
+                extra["details"] = {"point": point, "normal": geom.unit(direction)}
+            found.append((face, "face", extra))
+    return found
+
+
+@lister("edge")
+def edges(tx, owner, owner_kind):
+    if owner_kind == "face":
+        values = list(owner.GetEdges())
+    else:
+        values = [e for b in _bodies(tx, owner, owner_kind) for e in b.GetEdges()]
+    out = []
+    for i, edge in enumerate(values):
+        if i % 500 == 0:
+            tx.checkpoint()
+        name = result.enum_name(edge.SolidEdgeType, tx.nx.Edge.EdgeType)
+        out.append((edge, "edge", {"type": EDGE_TYPES.get(name, "other")}))
+    return out
+
+
+@lister("feature")
+def features(tx, owner, owner_kind):
+    if owner is not None:
+        fail("NX_UNSUPPORTED_OPTION", "features are listed for the whole part", field="/owner")
+    from nx_mcp.domains.modeling.tree import feature_messages, states
+
+    # User-visible features only (a hole's or a sketch's internal sub-feature follows its
+    # owner and no feature tool takes it). NX's Suppressed is also True for features after
+    # the current one: suppressed is the user's suppression, inactive marks rolled back ones.
+    out = []
+    for f, suppressed, active in states(tx, tx.part).values():
+        stamp = getattr(f, "Timestamp", None)
+        details = {
+            "suppressed": suppressed,
+            "timestamp": None if stamp is None else int(stamp),
+            "errors": feature_messages(f),
+        }
+        if not active:
+            details["inactive"] = True
+        out.append((f, "feature", {"type": str(f.FeatureType).lower(), "details": details}))
+    return out
+
+
+@lister("expression")
+def expressions(tx, owner, owner_kind):
+    """Work-part expressions by name, or the parameters of one feature (owner)."""
+    if owner_kind == "feature":
+        values = list(owner.GetExpressions())
+    elif owner is None:
+        values = list(tx.part.Expressions)
+    else:
+        fail("NX_WRONG_KIND", "owner must be a feature here", field="/owner")
+    out = []
+    for e in sorted(values, key=lambda e: str(e.Name)):
+        try:
+            value = expr.value(tx, e)
+        except Exception:  # a string or list expression has no numeric value
+            value = None
+        details = {
+            "formula": str(e.RightHandSide),
+            "value": value,
+            "units": expr.units(e),
+            "editable": expr.editable(e),
+        }
+        out.append((e, "expression", {"type": str(getattr(e, "Type", "")).lower(),
+                                      "details": details}))  # fmt: skip
+    return out
+
+
+@lister("datum")
+def datums(tx, owner, owner_kind):
+    if owner is not None:
+        fail("NX_UNSUPPORTED_OPTION", "datums are listed for the whole part", field="/owner")
+    out = []
+    # Datum CSYS frames live in CoordinateSystems, not in Datums. That collection also
+    # holds the hidden frames that features such as Scale and Move Object keep (no datum
+    # CSYS of their own): only the frames of datum CSYS features are listed.
+    frames = _datum_csys_frames(tx.part)
+    found = [*tx.part.Datums, *(c for c in getattr(tx.part, "CoordinateSystems", None) or []
+                                if int(c.Tag) in frames)]  # fmt: skip
+    for datum in {int(d.Tag): d for d in found}.values():
+        kind = tx.kind_of(datum)
+        details = {"blanked": bool(getattr(datum, "IsBlanked", False))}
+        if kind == "datum_plane":
+            details["origin"] = geom.xyz(datum.Origin)
+            details["normal"] = geom.unit(geom.xyz(datum.Normal))
+        elif kind == "datum_axis":
+            details["origin"] = geom.xyz(datum.Origin)
+            details["direction"] = geom.unit(geom.xyz(datum.Direction))
+        elif kind == "datum_csys":
+            details["origin"] = geom.xyz(datum.Origin)
+        out.append((datum, kind, {"type": kind.removeprefix("datum_"), "details": details}))
+    return out
+
+
+def _datum_csys_frames(part) -> set[int]:
+    """Tags of the coordinate systems that datum CSYS features own."""
+    tags: set[int] = set()
+    for feature in part.Features:
+        if "DATUM_CSYS" not in str(getattr(feature, "FeatureType", "")).upper():
+            continue
+        try:
+            entities = list(feature.GetEntities())
+        except Exception:  # noqa: BLE001 - a feature without entities owns no frame
+            continue
+        tags |= {int(e.Tag) for e in entities if hasattr(e, "Orientation")}
+    return tags
+
+
+def no_active_sketch(tx):
+    """Deletes run the model update: refuse while a sketch is active (NX defers it)."""
+    if tx.session.ActiveSketch is not None:
+        fail("NX_SKETCH_ACTIVE", "Finish the active sketch before deleting model objects",
+             hint="Finish the active sketch, then retry")  # fmt: skip
+
+
+@deleter("point")
+def delete_points(tx, objects):
+    """Points (loose, imported, fitted or a point feature's): a point a feature owns goes
+    with its feature (deleting the point alone would leave the feature empty); the others
+    through NX's Delete, like features."""
+    owners: dict[int, object] = {}
+    loose = []
+    for point in objects:
+        owner = _point_feature(tx, point)
+        if owner is not None:
+            owners[int(owner.Tag)] = owner
+        else:
+            loose.append(point)
+    delete_features(tx, [*owners.values(), *loose])
+
+
+def _point_feature(tx, point):
+    """The point feature that owns ``point`` (its only entity), or None."""
+    tag = int(point.Tag)
+    for feature in tx.part.Features:
+        if "POINT" not in str(getattr(feature, "FeatureType", "")).upper():
+            continue
+        try:
+            entities = list(feature.GetEntities())
+        except Exception:  # noqa: BLE001 - a feature without entities owns no point
+            continue
+        if entities and all(int(e.Tag) == tag for e in entities):
+            return feature
+    return None
+
+
+@deleter("feature")
+def delete_features(tx, objects):
+    """NX's Delete through the update manager: dependent features and their bodies go too."""
+    no_active_sketch(tx)
+    with native(default="NX_BUILD_FAILED"):
+        tx.session.UpdateManager.AddToDeleteList(list(objects))
+    model.update(tx)
+
+
+def note_hidden(tx, rows: list) -> None:
+    """Keep the bodies a creating call hid (their result rows): an undo by compensation
+    deletes the call's feature, then :func:`restore_hidden` shows them again."""
+    refs = [str(r["id"]) for r in rows if isinstance(r, dict) and r.get("id")]
+    if refs:
+        tx.note_restore({"hidden": refs}, after_delete=True)
+
+
+@restorer("nx_create_mirror")
+@restorer("nx_create_untrim")
+def restore_hidden(tx, data: dict, *, apply: bool) -> str:
+    """Show again the source bodies a mirror or an untrim hid (``note_hidden``), after the
+    undo deleted its feature. A body deleted since is refused; one shown since is left."""
+    found = [(ref, tx.resolve(ref, "body")) for ref in data.get("hidden") or []]
+    if not apply:
+        return ""
+    shown = []
+    for ref, body in found:
+        if bool(getattr(body, "IsBlanked", False)):
+            with native():
+                body.Unblank()
+            shown.append(ref)
+    left = [ref for ref, body in found if bool(getattr(body, "IsBlanked", False))]
+    if left:
+        fail("NX_VERIFICATION_FAILED", f"NX still hides {', '.join(left)}",
+             details={"bodies": left})  # fmt: skip
+    return f"showed {', '.join(shown)} again" if shown else "the hidden bodies were shown already"

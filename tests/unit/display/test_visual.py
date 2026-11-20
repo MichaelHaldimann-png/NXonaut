@@ -1,0 +1,203 @@
+"""Visual materials and true shading on the shared fake kernel (tests/unit/display/support.py)."""
+
+import pytest
+
+from tests.kit import NXException, run
+from tests.unit.display.fakes import STYLES
+from tests.unit.display.support import make_library, visual_nx
+
+
+@pytest.fixture(autouse=True)
+def installed(tmp_path, monkeypatch):
+    monkeypatch.setenv("UGII_BASE_DIR", str(make_library(tmp_path / "nx")))
+
+
+def test_list_ranks_library_names_and_counts_part_materials():
+    nx = visual_nx()
+    block = nx.block(10, 10, 10)
+    run(nx, "nx_set_visual_material", objects=[block.ref], material="Teak")
+    out = run(nx, "nx_list_visual_materials", query="teak")
+    assert out.ok, out.error
+    assert [i["name"] for i in out.data["items"]] == ["Teak", "Varnished Teak"]
+    assert out.data["items"][0]["category"] == "Woods"
+    assert out.data["in_part"] == [{"name": "Teak", "kind": "material", "objects": 1}]
+    assert out.data["categories"] == {"Glasses": 2, "Paints": 3, "Plastics": 1, "Woods": 2}
+    by_category = run(nx, "nx_list_visual_materials", query="glasses")
+    assert {i["name"] for i in by_category.data["items"]} == {"Clear Glass", "Smoked Glass"}
+    paged = run(nx, "nx_list_visual_materials", offset=2, limit=2)
+    assert paged.page["total"] == 8 and "categories" not in paged.data
+    none = run(nx, "nx_list_visual_materials", query="unobtainium")
+    assert none.ok and none.data["items"] == [] and none.warnings[0]["code"] == "NX_NOTE"
+
+
+def test_set_resolves_a_loose_name_and_reads_back_bodies_and_faces():
+    nx = visual_nx()
+    block = nx.block(10, 10, 10)
+    top = block.faces[0]
+    glass = run(nx, "nx_set_visual_material", objects=[block.ref], material="clear  glass")
+    assert glass.ok, glass.error
+    assert glass.mutation_outcome == "committed"
+    assert glass.data["material"] == "Clear Glass" and glass.data["category"] == "Glasses"
+    assert glass.data["objects"][0]["material"] == "Clear Glass"
+    paint = run(nx, "nx_set_visual_material", objects=[top.ref], material="brush-painted metal RED")
+    assert paint.ok and paint.data["objects"][0] == {
+        "object": paint.data["objects"][0]["object"],
+        "material": "Brush Painted Metal Red",
+        "from_body": False,
+    }
+    info = run(nx, "nx_get_visual_material", objects=[block.ref, block.faces[1].ref])
+    rows = info.data["objects"]
+    assert [r["material"] for r in rows] == [
+        "Clear Glass",
+        "Brush Painted Metal Red",
+        "Clear Glass",
+    ]
+    assert rows[1]["object"]["id"] == top.ref and rows[2]["from_body"] is True
+    cleared = run(nx, "nx_set_visual_material", objects=[top.ref], remove=True)
+    assert cleared.ok and cleared.data["material"] is None
+    assert cleared.data["objects"][0]["material"] == "Clear Glass"  # the body's again
+    assert cleared.data["objects"][0]["from_body"] is True
+
+
+def test_set_refuses_unknown_names_and_bad_argument_mixes():
+    nx = visual_nx()
+    block = nx.block(10, 10, 10)
+    unknown = run(nx, "nx_set_visual_material", objects=[block.ref], material="Clear Glas")
+    assert unknown.error["code"] == "NX_NOT_FOUND" and unknown.mutation_outcome == "not_started"
+    assert "Clear Glass" in unknown.error["details"]["close"]
+    both = run(nx, "nx_set_visual_material", objects=[block.ref], material="Teak", remove=True)
+    assert both.error["field"] == "/remove" and "exclude each other" in both.error["message"]
+    neither = run(nx, "nx_set_visual_material", objects=[block.ref])
+    assert neither.error["code"] == "NX_INVALID_ARGUMENT" and neither.error["field"] == "/material"
+    assert "remove=true to clear" in neither.error["message"]
+
+
+def test_a_misspelt_query_ranks_the_name_made_of_that_word_first(tmp_path):
+    metals = tmp_path / "nx" / "UGPHOTO" / "SVM" / "Materials" / "Metals"
+    metals.mkdir(parents=True)
+    for name in ("Stainless Steel Printed 1.75mm", "Steel"):
+        (metals / f"{name}.svm").write_text("svm", encoding="utf-8")
+    nx = visual_nx()
+    out = run(nx, "nx_list_visual_materials", query="stel")
+    assert [i["name"] for i in out.data["items"]] == ["Steel", "Stainless Steel Printed 1.75mm"]
+    assert out.warnings[0]["code"] == "NX_NOTE"
+
+
+def test_set_without_a_library_is_unavailable(monkeypatch, tmp_path):
+    monkeypatch.setenv("UGII_BASE_DIR", str(tmp_path / "empty"))
+    nx = visual_nx()
+    block = nx.block(10, 10, 10)
+    out = run(nx, "nx_set_visual_material", objects=[block.ref], material="Teak")
+    assert out.error["code"] == "NX_CATALOG_UNAVAILABLE"
+
+
+def test_a_native_failure_rolls_back():
+    nx = visual_nx()
+    block = nx.block(10, 10, 10)
+    nx.part.VisualMaterialCollection.fail_assign = NXException(3, "boom")
+    out = run(nx, "nx_set_visual_material", objects=[block.ref], material="Teak")
+    assert out.error["code"] == "NX_BUILD_FAILED" and out.mutation_outcome == "rolled_back"
+
+
+def test_true_shading_switches_to_studio_reads_back_and_turns_off():
+    nx = visual_nx()
+    nx.block(10, 10, 10)
+    nx.work_view.RenderingStyle = STYLES.Shaded
+    on = run(nx, "nx_set_true_shading", material="Chrome", background="white", shadows=False)
+    assert on.ok, on.error
+    assert on.data["enabled"] is True and on.data["style"] == "studio"
+    assert on.data["material"] == "chrome" and on.data["background"] == "white"
+    assert on.data["shadows"] is False and on.data["reflections"] is True
+    assert on.data["environment"] == "default" and on.data["marks_part_modified"] is True
+    assert nx.shading["GlobalMaterialType"] == 15
+    keep = run(nx, "nx_set_true_shading", environment="glossy_1")
+    assert keep.data["material"] == "chrome" and keep.data["environment"] == "glossy_1"
+    off = run(nx, "nx_set_true_shading", enabled=False)
+    assert off.ok and off.data["enabled"] is False and off.data["style"] == "shaded"
+    assert nx.work_view.RenderingStyle == STYLES.Shaded and off.data["material"] == "chrome"
+
+
+def test_true_shading_failure_puts_the_view_back():
+    nx = visual_nx()
+    nx.block(10, 10, 10)
+    nx.work_view.RenderingStyle = STYLES.Shaded
+    nx.shading_error = NXException(5, "no")
+    out = run(nx, "nx_set_true_shading", material="gold")
+    assert out.error["code"] == "NX_BUILD_FAILED" and out.mutation_outcome == "rolled_back"
+    assert nx.work_view.RenderingStyle == STYLES.Shaded
+
+
+def test_true_shading_off_stays_off_after_the_read_back():
+    """NX 2406: opening a TrueShadingBuilder switches true shading on and Destroy leaves it
+    on, so the read-back after enabled=false would turn it on again; it puts the style
+    back instead."""
+    nx = visual_nx()
+    nx.block(10, 10, 10)
+    nx.work_view.RenderingStyle = STYLES.ShadedWithEdges
+    assert run(nx, "nx_set_true_shading", material="chrome").data["enabled"] is True
+    off = run(nx, "nx_set_true_shading", enabled=False)
+    assert off.ok and off.data["enabled"] is False, off
+    assert nx.work_view.shed is False and nx.work_view.RenderingStyle == STYLES.ShadedWithEdges
+    read = run(nx, "nx_get_true_shading")
+    assert read.ok and read.data["enabled"] is False and read.data["material"] == "chrome"
+    assert read.mutation_outcome == "not_applicable"
+    assert nx.work_view.shed is False and nx.work_view.RenderingStyle == STYLES.ShadedWithEdges
+
+
+def test_reading_true_shading_in_plain_studio_keeps_plain_studio():
+    nx = visual_nx()
+    nx.block(10, 10, 10)
+    nx.work_view.RenderingStyle = STYLES.Studio  # Studio without true shading
+    read = run(nx, "nx_get_true_shading")
+    assert read.ok and read.data["enabled"] is False and read.data["style"] == "studio"
+    assert nx.work_view.shed is False and nx.work_view.RenderingStyle == STYLES.Studio
+
+
+def test_close_names_match_words_in_any_order_and_spelling():
+    nx = visual_nx()
+    block = nx.block(10, 10, 10)
+    swapped = run(nx, "nx_set_visual_material", objects=[block.ref], material="Glas Clear")
+    assert swapped.error["details"]["close"][0] == "Clear Glass"
+    near = run(nx, "nx_list_visual_materials", query="varnised teek")
+    assert near.ok and near.data["items"][0]["name"] == "Varnished Teak"
+    assert "closest names" in near.warnings[0]["message"]
+
+
+def test_get_lists_each_object_once_and_wrong_kinds_name_the_tool_kinds():
+    nx = visual_nx()
+    block = nx.block(10, 10, 10)
+    top = block.faces[0]
+    run(nx, "nx_set_visual_material", objects=[top.ref], material="Teak")
+    info = run(nx, "nx_get_visual_material", objects=[top.ref, block.ref])
+    ids = [r["object"]["id"] for r in info.data["objects"]]
+    assert sorted(ids) == sorted({top.ref, block.ref}) and info.data["count"] == 2
+    expression = nx.expression("p9", "1", 1.0)
+    bad = run(nx, "nx_set_visual_material", objects=[nx.ref_of(expression, "expression")],
+              material="Teak")  # fmt: skip
+    assert bad.error["code"] == "NX_WRONG_KIND" and bad.error["field"] == "/objects/0"
+
+
+def test_compensation_puts_the_previous_materials_back():
+    nx = visual_nx()
+    block = nx.block(10, 10, 10)
+    top = block.faces[0]
+    run(nx, "nx_set_visual_material", objects=[top.ref], material="Teak")
+    glass = run(nx, "nx_set_visual_material", objects=[top.ref, block.ref], material="Clear Glass")
+    assert glass.ok
+    undo = run(nx, "nx_undo_operation", mode="compensate")
+    assert undo.ok and undo.data["compensated"], undo
+    info = run(nx, "nx_get_visual_material", objects=[top.ref]).data["objects"]
+    assert info[0]["material"] == "Teak"
+    body = run(nx, "nx_get_visual_material", objects=[block.ref]).data["objects"][0]
+    assert body["material"] is None
+
+
+def test_compensation_puts_true_shading_back():
+    nx = visual_nx()
+    nx.block(10, 10, 10)
+    nx.work_view.RenderingStyle = STYLES.Shaded
+    on = run(nx, "nx_set_true_shading", material="gold")
+    assert on.ok
+    undo = run(nx, "nx_undo_operation", mode="compensate")
+    assert undo.ok and undo.data["compensated"], undo
+    assert nx.work_view.shed is False and nx.shading["GlobalMaterialType"] == 28

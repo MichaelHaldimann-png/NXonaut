@@ -1,0 +1,449 @@
+{
+ "covers": {
+  "nx_capture_view": []
+ },
+ "fixture": "fixtures/drawing_block_mm.prt",
+ "part": null,
+ "steps": [
+  {
+   "call": "nx_open_part",
+   "setup": true,
+   "save": "part",
+   "args": {
+    "path": "$fixture"
+   }
+  },
+  {
+   "call": "engineer",
+   "args": {
+    "code": "from nx_mcp.kit import parts as kp\nservices.host._remember_model()  # the development tool's own undo mark is no engineer edit\np = [x for x in session.Parts if str(x.Leaf).lower().startswith('display_capture_view') and str(x.FullPath).lower().startswith(r'$run'.lower())][0]\nkp.show(NXOpen, session.Parts, p)\nresult = p.Leaf"
+   },
+   "intent": "Acceptance: the engineer looks at the scenario's part (a tab click, no edit): it is the displayed part whatever NX showed before (engineer tab guard)",
+   "expect": {
+    "ok": true,
+    "data.noticed": false
+   }
+  },
+  {
+   "call": "nx_set_camera",
+   "setup": true,
+   "args": {
+    "orientation": "isometric",
+    "fit": true
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "path": "$run/viewport.png",
+    "width": 800,
+    "height": 500
+   },
+   "expect": {
+    "mutation_outcome": "not_applicable",
+    "data.quality": "studio",
+    "data.requested": [
+     800,
+     500
+    ],
+    "data.resolution": [
+     800,
+     500
+    ],
+    "data.image.inline": false,
+    "data.image.mime_type": "image/png",
+    "data.image.sha256": {
+     "matches": "^[0-9a-f]{64}$"
+    },
+    "data.path": {
+     "matches": "viewport[.]png$"
+    },
+    "data.camera.style": "shaded_with_edges",
+    "frame": "display_part_absolute",
+    "data.overwritten": false,
+    "data.marks_part_modified": false,
+    "data.image.width": 800,
+    "warnings": {
+     "count": 1
+    },
+    "warnings.0.code": "NX_NOTE",
+    "warnings.0.message": {
+     "matches": "^NX exports the graphics window at its own [0-9]+x[0-9]+, so Studio rendered the view at 800x500"
+    },
+    "data.style": "shaded_with_edges"
+   }
+  },
+  {
+   "call": "nx_list_parts",
+   "args": {
+    "path_prefix": "$run",
+    "modified": false
+   },
+   "expect": {
+    "page.total": 1
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "path": "$run/studio.png",
+    "quality": "studio",
+    "width": 640,
+    "height": 400,
+    "style": "studio",
+    "background": "color",
+    "color": [
+     0.85,
+     0.9,
+     1.0
+    ],
+    "lighting": 2,
+    "hide_sketches": false
+   },
+   "expect": {
+    "data.resolution": [
+     640,
+     400
+    ],
+    "data.image.width": 640,
+    "data.image.height": 400,
+    "data.style": "studio",
+    "warnings.0.code": "NX_UPDATE_WARNING",
+    "data.marks_part_modified": true,
+    "mutation_outcome": "not_applicable"
+   }
+  },
+  {
+   "call": "nx_get_camera",
+   "args": {},
+   "expect": {
+    "data.style": "shaded_with_edges"
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "path": "$run/wire.png",
+    "style": "wireframe",
+    "background": "transparent",
+    "fit": true
+   },
+   "expect": {
+    "data.style": "wireframe",
+    "data.image.inline": false
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "path": "$run/wire_sized.png",
+    "style": "wireframe",
+    "width": 900,
+    "height": 600
+   },
+   "expect": {
+    "data.quality": "viewport",
+    "data.style": "wireframe",
+    "data.resolution": [
+     900,
+     600
+    ],
+    "data.image.width": 900,
+    "warnings.0.code": "NX_NOTE",
+    "warnings.0.message": {
+     "contains": "scaled down to fit 900x600"
+    }
+   },
+   "intent": "Acceptance: a wireframe view is scaled down into the requested size"
+  },
+  {
+   "call": "nx_get_camera",
+   "args": {},
+   "expect": {
+    "data.style": "shaded_with_edges"
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "path": "$run/default.png",
+    "quality": "studio"
+   },
+   "expect": {
+    "data.resolution": [
+     1024,
+     768
+    ],
+    "data.requested": [
+     1024,
+     768
+    ]
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "background": "color"
+   },
+   "expect": {
+    "error.category": "invalid_argument",
+    "error.field": "/color",
+    "mutation_outcome": "not_started"
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "lighting": 2
+   },
+   "expect": {
+    "error.field": "/lighting",
+    "mutation_outcome": "not_started"
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "path": "$run/viewport.png"
+   },
+   "expect": {
+    "error.category": "already_exists",
+    "mutation_outcome": "not_started",
+    "error.code": "NX_ALREADY_EXISTS",
+    "error.field": "/path"
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "path": "$run/viewport.png",
+    "overwrite": true,
+    "quality": "studio",
+    "width": 320,
+    "height": 200
+   },
+   "expect": {
+    "ok": true,
+    "mutation_outcome": "not_applicable",
+    "data.overwritten": true,
+    "data.path": {
+     "matches": "viewport[.]png$"
+    },
+    "data.resolution": [
+     320,
+     200
+    ],
+    "data.image.width": 320,
+    "data.image.height": 200
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "path": "$run/viewport.png",
+    "overwrite": true,
+    "width": 800,
+    "height": 500
+   },
+   "expect": {
+    "ok": true,
+    "data.overwritten": true,
+    "data.requested": [
+     800,
+     500
+    ],
+    "data.resolution": [
+     800,
+     500
+    ]
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "overwrite": true
+   },
+   "expect": {
+    "error.code": "NX_INVALID_ARGUMENT",
+    "error.field": "/overwrite",
+    "mutation_outcome": "not_started"
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "path": "$run/fresh.png",
+    "overwrite": true,
+    "width": 400,
+    "height": 300
+   },
+   "expect": {
+    "ok": true,
+    "mutation_outcome": "not_applicable",
+    "data.overwritten": false,
+    "data.path": {
+     "matches": "fresh[.]png$"
+    },
+    "data.requested": [
+     400,
+     300
+    ]
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "path": "../outside.png",
+    "overwrite": true
+   },
+   "expect": {
+    "error.code": "NX_PATH_OUTSIDE_WORKSPACE",
+    "error.field": "/path",
+    "mutation_outcome": "not_started"
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "path": "$run/x.jpg"
+   },
+   "expect": {
+    "error.category": "unsupported",
+    "mutation_outcome": "not_started"
+   }
+  },
+  {
+   "call": "nx_create_drawing_sheet",
+   "setup": true,
+   "save": "sh",
+   "args": {
+    "name": "SHT1",
+    "size": "a3",
+    "projection": "first_angle"
+   }
+  },
+  {
+   "call": "nx_create_drawing_view",
+   "setup": true,
+   "args": {
+    "type": "base",
+    "sheet": "$sh.data.sheet.id",
+    "orientation": "top",
+    "position": [
+     150,
+     150
+    ]
+   }
+  },
+  {
+   "call": "nx_activate_drawing_sheet",
+   "setup": true,
+   "args": {
+    "sheet": "$sh.data.sheet.id"
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "path": "$run/sheet_viewport.png",
+    "fit": true
+   },
+   "expect": {
+    "data.sheet.name": "SHT1",
+    "data.sheet.kind": "drawing_sheet",
+    "data.image.inline": false,
+    "data.resolution": {
+     "count": 2
+    },
+    "warnings": {
+     "count": 0
+    }
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "path": "$run/sheet_studio.png",
+    "quality": "studio",
+    "width": 840,
+    "height": 594
+   },
+   "expect": {
+    "error.code": "NX_UNSUPPORTED_OPTION",
+    "error.field": "/quality",
+    "mutation_outcome": "not_started"
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "path": "$run/sheet_sized.png",
+    "width": 840,
+    "height": 594
+   },
+   "expect": {
+    "data.sheet.name": "SHT1",
+    "data.quality": "viewport",
+    "data.resolution": [
+     840,
+     594
+    ],
+    "warnings.0.code": "NX_NOTE",
+    "warnings.0.message": {
+     "contains": "scaled down to fit 840x594"
+    }
+   },
+   "intent": "Acceptance: a drawing sheet is scaled down into the requested size"
+  },
+  {
+   "call": "nx_get_camera",
+   "args": {},
+   "expect": {
+    "data.sheet.name": "SHT1",
+    "data.style": "drawing"
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "style": "shaded"
+   },
+   "expect": {
+    "error.category": "unsupported",
+    "error.field": "/style",
+    "mutation_outcome": "not_started"
+   }
+  },
+  {
+   "call": "nx_set_camera",
+   "args": {
+    "orientation": "top"
+   },
+   "expect": {
+    "error.code": "NX_WRONG_APPLICATION",
+    "mutation_outcome": "not_started"
+   }
+  },
+  {
+   "call": "nx_activate_drawing_sheet",
+   "setup": true,
+   "args": {}
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "path": "$run/model_again.png",
+    "quality": "studio",
+    "width": 320,
+    "height": 200
+   },
+   "expect": {
+    "data.resolution": [
+     320,
+     200
+    ],
+    "data.camera.style": "shaded_with_edges"
+   }
+  }
+ ]
+}

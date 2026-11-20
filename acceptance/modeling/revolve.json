@@ -1,0 +1,551 @@
+{
+ "covers": {
+  "nx_create_revolve": []
+ },
+ "fixture": null,
+ "part": "new",
+ "steps": [
+  {
+   "call": "nx_create_part",
+   "setup": true,
+   "args": {
+    "path": "$part",
+    "units": "mm"
+   }
+  },
+  {
+   "call": "nx_create_sketch",
+   "setup": true,
+   "save": "rv",
+   "args": {
+    "placement": {
+     "principal": "xz"
+    }
+   }
+  },
+  {
+   "call": "nx_create_sketch_curves",
+   "setup": true,
+   "args": {
+    "sketch": "$rv.data.sketch.id",
+    "curves": [
+     {
+      "type": "rectangle",
+      "corner1": [
+       0,
+       0
+      ],
+      "corner2": [
+       10,
+       10
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "call": "nx_finish_sketch",
+   "setup": true,
+   "args": {
+    "sketch": "$rv.data.sketch.id"
+   }
+  },
+  {
+   "call": "nx_create_revolve",
+   "save": "full",
+   "args": {
+    "sketch": "$rv.data.sketch.id",
+    "axis": {
+     "principal": "z"
+    }
+   },
+   "expect": {
+    "data.volume": {
+     "close": 3141.592653589793,
+     "tol": 1e-06
+    },
+    "data.bodies": {
+     "count": 1
+    }
+   }
+  },
+  {
+   "call": "nx_measure_bounds",
+   "args": {
+    "bodies": [
+     "$full.data.bodies.0.id"
+    ],
+    "precision": "exact"
+   },
+   "expect": {
+    "data.min": {
+     "close": [
+      -10,
+      -10,
+      0
+     ],
+     "tol": 0.0001
+    },
+    "data.max": {
+     "close": [
+      10,
+      10,
+      10
+     ],
+     "tol": 0.0001
+    }
+   }
+  },
+  {
+   "call": "nx_create_revolve",
+   "save": "quarter",
+   "args": {
+    "sketch": "$rv.data.sketch.id",
+    "axis": {
+     "principal": "z"
+    },
+    "end_angle": "1.5707963267948966 rad"
+   },
+   "expect": {
+    "data.volume": {
+     "close": 785.3981633974482,
+     "tol": 1e-06
+    }
+   }
+  },
+  {
+   "call": "nx_create_datum_axis",
+   "setup": true,
+   "save": "ax",
+   "args": {
+    "method": "point_direction",
+    "origin": [
+     20,
+     0,
+     0
+    ],
+    "direction": [
+     0,
+     0,
+     1
+    ]
+   }
+  },
+  {
+   "call": "nx_create_sketch",
+   "setup": true,
+   "save": "rv2",
+   "args": {
+    "placement": {
+     "principal": "xz"
+    }
+   }
+  },
+  {
+   "call": "nx_create_sketch_curves",
+   "setup": true,
+   "args": {
+    "sketch": "$rv2.data.sketch.id",
+    "curves": [
+     {
+      "type": "rectangle",
+      "corner1": [
+       21,
+       0
+      ],
+      "corner2": [
+       25,
+       10
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "call": "nx_finish_sketch",
+   "setup": true,
+   "args": {
+    "sketch": "$rv2.data.sketch.id"
+   }
+  },
+  {
+   "call": "nx_create_revolve",
+   "save": "half",
+   "args": {
+    "sketch": "$rv2.data.sketch.id",
+    "axis": "$ax.data.datum_axis.id",
+    "end_angle": 180
+   },
+   "expect": {
+    "data.volume": {
+     "close": 376.99111843077515,
+     "tol": 1e-06
+    }
+   }
+  },
+  {
+   "call": "nx_create_sketch",
+   "setup": true,
+   "save": "rv3",
+   "args": {
+    "placement": {
+     "principal": "xz"
+    }
+   }
+  },
+  {
+   "call": "nx_create_sketch_curves",
+   "setup": true,
+   "args": {
+    "sketch": "$rv3.data.sketch.id",
+    "curves": [
+     {
+      "type": "rectangle",
+      "corner1": [
+       10,
+       0
+      ],
+      "corner2": [
+       12,
+       10
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "call": "nx_finish_sketch",
+   "setup": true,
+   "args": {
+    "sketch": "$rv3.data.sketch.id"
+   }
+  },
+  {
+   "call": "nx_create_revolve",
+   "args": {
+    "sketch": "$rv3.data.sketch.id",
+    "axis": {
+     "origin": [
+      0,
+      0,
+      0
+     ],
+     "direction": [
+      0,
+      0,
+      1
+     ]
+    },
+    "combine": {
+     "operation": "unite",
+     "targets": [
+      "$full.data.bodies.0.id"
+     ]
+    }
+   },
+   "expect": {
+    "data.volume": {
+     "close": 4523.893421169302,
+     "tol": 1e-06
+    },
+    "data.bodies": {
+     "count": 1
+    }
+   }
+  },
+  {
+   "call": "nx_measure_bounds",
+   "args": {
+    "bodies": [
+     "$full.data.bodies.0.id"
+    ],
+    "precision": "exact"
+   },
+   "expect": {
+    "data.min": {
+     "close": [
+      -12,
+      -12,
+      0
+     ],
+     "tol": 0.0001
+    },
+    "data.max": {
+     "close": [
+      12,
+      12,
+      10
+     ],
+     "tol": 0.0001
+    }
+   }
+  },
+  {
+   "call": "nx_create_revolve",
+   "save": "zq",
+   "args": {
+    "sketch": "$rv.data.sketch.id",
+    "axis": "z",
+    "end_angle": "90 deg"
+   },
+   "expect": {
+    "data.volume": {
+     "close": 785.3981633974483,
+     "tol": 1e-06
+    }
+   }
+  },
+  {
+   "call": "nx_measure_bounds",
+   "args": {
+    "bodies": [
+     "$zq.data.bodies.0.id"
+    ],
+    "precision": "exact"
+   },
+   "expect": {
+    "data.min": {
+     "close": [
+      0,
+      0,
+      0
+     ],
+     "tol": 0.0001
+    },
+    "data.max": {
+     "close": [
+      10,
+      10,
+      10
+     ],
+     "tol": 0.0001
+    }
+   }
+  },
+  {
+   "call": "nx_create_revolve",
+   "save": "nzq",
+   "args": {
+    "sketch": "$rv.data.sketch.id",
+    "axis": "-z",
+    "end_angle": 90
+   },
+   "expect": {
+    "data.volume": {
+     "close": 785.3981633974483,
+     "tol": 1e-06
+    }
+   }
+  },
+  {
+   "call": "nx_measure_bounds",
+   "args": {
+    "bodies": [
+     "$nzq.data.bodies.0.id"
+    ],
+    "precision": "exact"
+   },
+   "expect": {
+    "data.min": {
+     "close": [
+      0,
+      -10,
+      0
+     ],
+     "tol": 0.0001
+    },
+    "data.max": {
+     "close": [
+      10,
+      0,
+      10
+     ],
+     "tol": 0.0001
+    }
+   }
+  },
+  {
+   "call": "nx_create_revolve",
+   "args": {
+    "sketch": "$rv.data.sketch.id",
+    "axis": {
+     "principal": "z"
+    },
+    "start_angle": 90,
+    "end_angle": 45
+   },
+   "expect": {
+    "error.category": "invalid_argument",
+    "mutation_outcome": "not_started",
+    "error.field": "/end_angle"
+   }
+  },
+  {
+   "call": "nx_create_revolve",
+   "args": {
+    "sketch": "$rv.data.sketch.id",
+    "axis": {
+     "principal": "z"
+    },
+    "end_angle": 400
+   },
+   "expect": {
+    "error.category": "invalid_argument",
+    "mutation_outcome": "not_started",
+    "error.field": "/end_angle"
+   }
+  },
+  {
+   "call": "nx_create_sketch",
+   "setup": true,
+   "save": "far",
+   "args": {
+    "placement": {
+     "principal": "xz"
+    }
+   }
+  },
+  {
+   "call": "nx_create_sketch_curves",
+   "setup": true,
+   "args": {
+    "sketch": "$far.data.sketch.id",
+    "curves": [
+     {
+      "type": "rectangle",
+      "corner1": [
+       100,
+       0
+      ],
+      "corner2": [
+       110,
+       5
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "call": "nx_finish_sketch",
+   "setup": true,
+   "args": {
+    "sketch": "$far.data.sketch.id"
+   }
+  },
+  {
+   "call": "nx_create_revolve",
+   "args": {
+    "sketch": "$far.data.sketch.id",
+    "axis": {
+     "principal": "z"
+    },
+    "combine": {
+     "operation": "subtract",
+     "targets": [
+      "$full.data.bodies.0.id"
+     ]
+    }
+   },
+   "intent": "Acceptance: a subtract revolve that misses its target says so (live: 'crosses the axis' for a profile on one side)",
+   "expect": {
+    "error.code": "NX_BUILD_FAILED",
+    "error.field": "/combine/targets",
+    "error.nx_code": 671623,
+    "error.message": {
+     "contains": "misses the combine targets"
+    },
+    "mutation_outcome": "rolled_back"
+   }
+  },
+  {
+   "call": "nx_create_sketch",
+   "setup": true,
+   "save": "rz",
+   "args": {
+    "placement": {
+     "principal": "xy",
+     "origin": [
+      0,
+      0,
+      100
+     ]
+    }
+   }
+  },
+  {
+   "call": "nx_create_sketch_curves",
+   "setup": true,
+   "args": {
+    "sketch": "$rz.data.sketch.id",
+    "curves": [
+     {
+      "type": "rectangle",
+      "corner1": [
+       10,
+       0
+      ],
+      "corner2": [
+       20,
+       10
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "call": "nx_finish_sketch",
+   "setup": true,
+   "args": {
+    "sketch": "$rz.data.sketch.id"
+   }
+  },
+  {
+   "call": "nx_create_revolve",
+   "args": {
+    "sketch": "$rz.data.sketch.id",
+    "axis": "z"
+   },
+   "intent": "Acceptance: an XY sketch about z (live: NX refuses with 671623, the 'crosses the axis' code) names the axis",
+   "expect": {
+    "error.code": "NX_INVALID_ARGUMENT",
+    "error.field": "/axis",
+    "mutation_outcome": "not_started",
+    "error.message": {
+     "contains": "normal to the sketch plane"
+    }
+   }
+  },
+  {
+   "call": "nx_create_revolve",
+   "args": {
+    "sketch": "$far.data.sketch.id",
+    "axis": {
+     "principal": "z"
+    },
+    "combine": {
+     "operation": "intersect",
+     "targets": [
+      "$full.data.bodies.0.id"
+     ]
+    }
+   },
+   "intent": "Acceptance: an intersect revolve that misses its target says so, not 'crosses the axis'",
+   "expect": {
+    "error.code": "NX_BUILD_FAILED",
+    "error.field": "/combine/targets",
+    "error.nx_code": 671623,
+    "error.message": {
+     "contains": "misses the combine targets"
+    },
+    "mutation_outcome": "rolled_back"
+   }
+  },
+  {
+   "call": "nx_check_model",
+   "args": {},
+   "expect": {
+    "data.healthy": true
+   }
+  }
+ ]
+}

@@ -4,39 +4,38 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import sys
-from pathlib import Path
 
-from mcp.server.mcpserver import MCPServer
+from mcp.server.fastmcp import FastMCP
 
 from nx_mcp.bridge import DescriptorBridgeClient
-from nx_mcp.certified import BridgeCaller, create_certified_server
-from nx_mcp.workspace import Workspace
+from nx_mcp.workspace import Workspace, default_workspace
 
 logger = logging.getLogger("nx_mcp")
 
 
 def create_server(
-    bridge: BridgeCaller | None = None,
+    bridge=None,
     workspace: Workspace | None = None,
     *,
-    enable_experimental: bool | None = None,
-    enable_journal: bool | None = None,
-) -> MCPServer:
-    """Create the certified v0.2 MCP server."""
-    if workspace is None and (workspace_root := os.environ.get("NX_MCP_WORKSPACE")):
-        workspace = Workspace(Path(workspace_root))
-    if enable_experimental is None:
-        enable_experimental = os.environ.get("NX_MCP_ENABLE_EXPERIMENTAL") == "1"
-    if enable_journal is None:
-        enable_journal = os.environ.get("NX_MCP_ENABLE_JOURNAL") == "1"
-    return create_certified_server(
-        bridge or DescriptorBridgeClient(),
-        workspace,
-        enable_experimental=enable_experimental,
-        enable_journal=enable_experimental and enable_journal,
-    )
+    surface: str | None = None,
+    build=None,
+) -> FastMCP:
+    """Create the MCP server: the gateways and the catalogue tools.
+
+    ``surface`` (or ``NX_MCP_SURFACE``) selects the profile, ``agent`` by default.
+    ``build`` overrides the NX build read from the bridge descriptor (tests).
+    """
+    from nx_mcp.sidecar.server import install, profile_from_env
+
+    if workspace is None:
+        # The same default as the NX hosts: NX_MCP_WORKSPACE, else <home>/NX_MCP_WORKSPACE.
+        workspace = Workspace(default_workspace())
+    profile = profile_from_env(surface)
+    bridge = bridge or DescriptorBridgeClient()
+    server = FastMCP("nx-mcp")
+    install(server, bridge, workspace, profile, build=build)
+    return server
 
 
 async def async_main() -> None:

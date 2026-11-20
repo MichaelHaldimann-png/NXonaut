@@ -1,0 +1,374 @@
+{
+ "covers": {
+  "nx_create_draft": []
+ },
+ "fixture": null,
+ "part": "new",
+ "steps": [
+  {
+   "call": "nx_create_part",
+   "setup": true,
+   "args": {
+    "path": "$part",
+    "units": "mm"
+   }
+  },
+  {
+   "call": "nx_create_sketch",
+   "setup": true,
+   "save": "blk_sk",
+   "args": {
+    "placement": {
+     "principal": "xy"
+    }
+   }
+  },
+  {
+   "call": "nx_create_sketch_curves",
+   "setup": true,
+   "args": {
+    "sketch": "$blk_sk.data.sketch.id",
+    "curves": [
+     {
+      "type": "rectangle",
+      "corner1": [
+       0,
+       0
+      ],
+      "corner2": [
+       40,
+       20
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "call": "nx_finish_sketch",
+   "setup": true,
+   "args": {
+    "sketch": "$blk_sk.data.sketch.id"
+   }
+  },
+  {
+   "call": "nx_create_extrude",
+   "save": "blk",
+   "args": {
+    "sketch": "$blk_sk.data.sketch.id",
+    "end": {
+     "type": "distance",
+     "value": 10
+    }
+   },
+   "setup": true
+  },
+  {
+   "call": "nx_find_geometry",
+   "setup": true,
+   "save": "side",
+   "args": {
+    "owner": "$blk.data.bodies.0.id",
+    "kind": "face",
+    "geometry_type": "plane",
+    "normal": [
+     1,
+     0,
+     0
+    ],
+    "limit": 1,
+    "order": "nearest",
+    "near": [
+     40,
+     10,
+     5
+    ]
+   }
+  },
+  {
+   "call": "nx_find_geometry",
+   "setup": true,
+   "save": "bot",
+   "args": {
+    "owner": "$blk.data.bodies.0.id",
+    "kind": "face",
+    "geometry_type": "plane",
+    "normal": [
+     0,
+     0,
+     -1
+    ],
+    "limit": 1,
+    "order": "lowest",
+    "axis": "z"
+   }
+  },
+  {
+   "call": "nx_create_draft",
+   "args": {
+    "faces": [
+     "$side.data.items.0.id"
+    ],
+    "stationary_face": "$bot.data.items.0.id",
+    "direction": {
+     "principal": "z"
+    },
+    "angle": 5
+   },
+   "expect": {
+    "data.volume": {
+     "close": 7912.511336474076,
+     "tol": 0.0001
+    },
+    "data.angles.0": {
+     "close": 5,
+     "tol": 0.05
+    }
+   }
+  },
+  {
+   "call": "nx_create_datum_axis",
+   "setup": true,
+   "save": "ax",
+   "args": {
+    "method": "point_direction",
+    "origin": [
+     0,
+     0,
+     0
+    ],
+    "direction": [
+     0,
+     0,
+     1
+    ]
+   }
+  },
+  {
+   "call": "nx_find_geometry",
+   "setup": true,
+   "save": "front",
+   "args": {
+    "owner": "$blk.data.bodies.0.id",
+    "kind": "face",
+    "geometry_type": "plane",
+    "normal": [
+     0,
+     -1,
+     0
+    ],
+    "limit": 1,
+    "order": "nearest",
+    "near": [
+     20,
+     0,
+     5
+    ]
+   }
+  },
+  {
+   "call": "nx_find_geometry",
+   "setup": true,
+   "save": "bot",
+   "args": {
+    "owner": "$blk.data.bodies.0.id",
+    "kind": "face",
+    "geometry_type": "plane",
+    "normal": [
+     0,
+     0,
+     -1
+    ],
+    "limit": 1,
+    "order": "lowest",
+    "axis": "z"
+   }
+  },
+  {
+   "call": "nx_create_draft",
+   "args": {
+    "faces": [
+     "$front.data.items.0.id"
+    ],
+    "stationary_face": "$bot.data.items.0.id",
+    "direction": "$ax.data.datum_axis.id",
+    "angle": "0.08726646259971647 rad"
+   },
+   "expect": {
+    "data.volume": {
+     "close": 7740.085431504079,
+     "tol": 0.0001
+    }
+   }
+  },
+  {
+   "call": "nx_create_sketch",
+   "setup": true,
+   "save": "blk2_sk",
+   "args": {
+    "placement": {
+     "principal": "xy"
+    }
+   }
+  },
+  {
+   "call": "nx_create_sketch_curves",
+   "setup": true,
+   "args": {
+    "sketch": "$blk2_sk.data.sketch.id",
+    "curves": [
+     {
+      "type": "rectangle",
+      "corner1": [
+       0,
+       50
+      ],
+      "corner2": [
+       40,
+       70
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "call": "nx_finish_sketch",
+   "setup": true,
+   "args": {
+    "sketch": "$blk2_sk.data.sketch.id"
+   }
+  },
+  {
+   "call": "nx_create_extrude",
+   "save": "blk2",
+   "args": {
+    "sketch": "$blk2_sk.data.sketch.id",
+    "end": {
+     "type": "distance",
+     "value": 10
+    }
+   },
+   "setup": true
+  },
+  {
+   "call": "nx_find_geometry",
+   "setup": true,
+   "save": "side2",
+   "args": {
+    "owner": "$blk2.data.bodies.0.id",
+    "kind": "face",
+    "geometry_type": "plane",
+    "normal": [
+     1,
+     0,
+     0
+    ],
+    "limit": 1,
+    "order": "nearest",
+    "near": [
+     40,
+     60,
+     5
+    ]
+   }
+  },
+  {
+   "call": "nx_find_geometry",
+   "setup": true,
+   "save": "bot2",
+   "args": {
+    "owner": "$blk2.data.bodies.0.id",
+    "kind": "face",
+    "geometry_type": "plane",
+    "normal": [
+     0,
+     0,
+     -1
+    ],
+    "limit": 1,
+    "order": "lowest",
+    "axis": "z"
+   }
+  },
+  {
+   "call": "nx_create_draft",
+   "args": {
+    "faces": [
+     "$side2.data.items.0.id"
+    ],
+    "stationary_face": "$bot2.data.items.0.id",
+    "direction": "z",
+    "angle": "5deg"
+   },
+   "expect": {
+    "data.volume": {
+     "close": 7912.511336474076,
+     "tol": 0.0001
+    }
+   }
+  },
+  {
+   "call": "nx_find_geometry",
+   "setup": true,
+   "save": "bot",
+   "args": {
+    "owner": "$blk.data.bodies.0.id",
+    "kind": "face",
+    "geometry_type": "plane",
+    "normal": [
+     0,
+     0,
+     -1
+    ],
+    "limit": 1,
+    "order": "lowest",
+    "axis": "z"
+   }
+  },
+  {
+   "call": "nx_create_draft",
+   "args": {
+    "faces": [
+     "$bot.data.items.0.id"
+    ],
+    "stationary_face": "$bot.data.items.0.id",
+    "direction": [
+     0,
+     0,
+     1
+    ],
+    "angle": 5
+   },
+   "expect": {
+    "error.category": "invalid_argument",
+    "error.field": "/faces/0"
+   }
+  },
+  {
+   "call": "nx_create_draft",
+   "args": {
+    "faces": [
+     "$bot.data.items.0.id"
+    ],
+    "stationary_face": "$bot.data.items.0.id",
+    "direction": [
+     0,
+     0,
+     1
+    ],
+    "angle": 90
+   },
+   "expect": {
+    "error.category": "invalid_argument",
+    "mutation_outcome": "not_started",
+    "error.field": "/angle"
+   }
+  },
+  {
+   "call": "nx_check_model",
+   "args": {},
+   "expect": {
+    "data.healthy": true
+   }
+  }
+ ]
+}

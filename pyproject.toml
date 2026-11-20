@@ -4,15 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nx-mcp"
-version = "0.2.0.dev0"
-description = "MCP server for Siemens NX (UG) CAD operations"
+dynamic = ["version"]
+description = "NXonaut: community MCP server for Siemens NX (not affiliated with Siemens)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 dependencies = [
-    "mcp>=2.2,<3",
-    "pydantic>=2.12,<3",
+    "mcp>=1.27,<2",
+    "pydantic>=2.11,<3",
 ]
+
+[project.urls]
+Repository = "https://github.com/MichaelHaldimann-png/NXonaut"
 
 [project.optional-dependencies]
 dev = [
@@ -26,19 +29,18 @@ dev = [
 
 [project.scripts]
 nx-mcp = "nx_mcp.server:main"
-nx-mcp-smoke = "nx_mcp.real_smoke:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.dynamic]
+version = {attr = "nx_mcp.__version__"}
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = ["-ra", "--strict-markers"]
 markers = [
-    "integration: exercises an MCP or bridge boundary without a live NX session",
-    "fake_nx: exercises a fake NXOpen implementation and is not real-NX validation",
-    "legacy: covers opt-in 0.1 legacy tools outside the certified default surface",
     "real_nx: requires a dedicated Windows runner with Siemens NX and a started bridge",
 ]
 
@@ -67,19 +69,25 @@ known-first-party = ["nx_mcp"]
 quote-style = "double"
 
 [tool.mypy]
+# NX runs on Windows only: check the Windows code paths on every OS (CI runs Linux).
+platform = "win32"
 python_version = "3.10"
 warn_unreachable = true
 warn_redundant_casts = true
-warn_unused_ignores = false
-# NX-runtime modules depend on the Siemens NXOpen SDK, which ships only inside a
-# live NX session (Windows) and has no type stubs. They cannot be statically
-# type-checked in CI, so they are excluded from the gate.
-exclude = [
-    "src/nx_mcp/nx_bridge.py",
-    "src/nx_mcp/tools/",
-]
+warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
 # NXOpen is injected at runtime inside NX; treat it as untyped rather than erroring.
 module = "NXOpen.*"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# core.tx.Services documents the NX-side seam with empty method stubs; each concrete
+# services class implements the members it needs.
+module = "nx_mcp.core.tx"
+disable_error_code = ["empty-body"]
+
+[tool.setuptools.package-data]
+nx_mcp = [
+    "evidence/*.json",
+]

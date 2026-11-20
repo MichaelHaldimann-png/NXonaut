@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       iterations:
-        description: Number of acceptance iterations
+        description: Number of smoke iterations (plus one transport-recovery check)
         required: true
         default: 20
         type: number
@@ -24,14 +24,11 @@ jobs:
     env:
       NX_MCP_ALLOW_UNVERIFIED_PYTHON_BRIDGE: "1"
       NX_MCP_REAL_NX: "1"
-      NX_MCP_EXPECTED_BRIDGE: "python_batch"
-      # Provenance of the actual probe invocation below, not configurable launch arguments.
-      NX_MCP_RUN_JOURNAL_SWITCHES: "[]"
       NX_MCP_REAL_NX_ITERATIONS: ${{ inputs.iterations }}
       NX_MCP_REAL_NX_RUN_PREFIX: ci-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
@@ -47,32 +44,17 @@ jobs:
             throw "NX_RUN_JOURNAL does not exist: $env:NX_RUN_JOURNAL"
           }
 
-          $descriptorPath = Join-Path $env:LOCALAPPDATA 'nx-mcp\bridge.json'
-          if ((Test-Path -LiteralPath $descriptorPath) -or (Get-Process ugraf,run_journal -ErrorAction SilentlyContinue)) {
-            throw "Dedicated runner has an existing NX session or descriptor; refusing to replace it."
-          }
-
           $nxWorkspace = Join-Path $env:RUNNER_TEMP "nx-mcp-real-nx-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
           New-Item -ItemType Directory -Force -Path $nxWorkspace | Out-Null
           Add-Content -LiteralPath $env:GITHUB_ENV -Value "NX_MCP_WORKSPACE=$nxWorkspace"
           Add-Content -LiteralPath $env:GITHUB_ENV -Value "NX_MCP_BRIDGE_STOP_FILE=$(Join-Path $nxWorkspace 'stop-bridge')"
           Add-Content -LiteralPath $env:GITHUB_ENV -Value "NX_MCP_PROBE_OUTPUT=$(Join-Path $nxWorkspace 'nx-runtime-probe.json')"
-      - name: Build full C# GUI bridge against the installed NX SDK
-        shell: pwsh
-        run: |
-          if (-not $env:UGII_BASE_DIR) {
-            throw "Set UGII_BASE_DIR on the self-hosted runner to the NX installation root."
-          }
-          $output = Join-Path $env:NX_MCP_WORKSPACE 'gui-bridge-build'
-          & ./nx_gui_bridge/build.ps1 -NxRoot $env:UGII_BASE_DIR -OutputDirectory $output
-          $dll = Join-Path $output 'NxMcpGuiBridge.dll'
-          if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) {
-            throw "Full NX GUI bridge build did not produce NxMcpGuiBridge.dll."
-          }
+          # The batch bridge's descriptor (the acceptance client defaults to the interactive one).
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "NX_MCP_BRIDGE_DESCRIPTOR=$(Join-Path $env:LOCALAPPDATA 'nx-mcp\bridge.json')"
       - name: Verify NX embedded runtime
         shell: pwsh
         run: |
-          & $env:NX_RUN_JOURNAL (Join-Path $PWD 'examples\nx_runtime_probe.py')
+          & $env:NX_RUN_JOURNAL -nx (Join-Path $PWD 'scripts\nx_runtime_probe.py')
           if ($LASTEXITCODE -ne 0) {
             throw "NX runtime probe failed with exit code $LASTEXITCODE."
           }
@@ -81,12 +63,16 @@ jobs:
           if ($null -ne $probe.bridge_import_error) {
             throw "NX bridge import failed: $($probe.bridge_import_error)"
           }
+          if ($null -ne $probe.catalogue_import_error) {
+            throw "NX tool catalogue import failed: $($probe.catalogue_import_error)"
+          }
       - name: Start NX bridge
         shell: pwsh
         run: |
           $startedAt = [DateTime]::UtcNow
-          $bridgeScript = Join-Path $PWD 'examples\start_nx_bridge.py'
+          $bridgeScript = Join-Path $PWD 'nx_app\journals\start_batch.py'
           $bridgeProcess = Start-Process -FilePath $env:NX_RUN_JOURNAL -ArgumentList @(
+            '-nx',
             "`"$bridgeScript`""
           ) -PassThru -WindowStyle Hidden
           Add-Content -LiteralPath $env:GITHUB_ENV -Value "NX_MCP_BRIDGE_PID=$($bridgeProcess.Id)"
@@ -106,16 +92,8 @@ jobs:
           if (-not (Test-Path -LiteralPath $descriptorPath) -or $descriptor.LastWriteTimeUtc -lt $startedAt) {
             throw "NX bridge did not write a fresh descriptor within two minutes."
           }
-      - name: Run real NX acceptance test
-        shell: pwsh
-        run: python -m pytest -q -p no:cacheprovider -m real_nx tests/test_real_nx.py --junitxml="$env:NX_MCP_WORKSPACE/acceptance.xml"
-      - name: Record versioned evidence from the live bridge
-        shell: pwsh
-        run: >-
-          python -m nx_mcp.evidence
-          --probe "$env:NX_MCP_PROBE_OUTPUT"
-          --output "$env:NX_MCP_WORKSPACE/evidence.json"
-          --bridge python_batch
+      - name: Run real NX smoke (catalogue tools through the acceptance client)
+        run: python -m pytest -q -p no:cacheprovider -m real_nx tests/test_real_nx.py
       - name: Stop NX bridge
         if: always()
         shell: pwsh
@@ -132,34 +110,3 @@ jobs:
               }
             }
           }
-
-      - name: Verify reconnection with separately owned NX processes
-        shell: pwsh
-        run: python -m pytest -q -p no:cacheprovider -m real_nx tests/test_real_nx_restart.py::test_real_nx_client_reconnects_after_restart --junitxml="$env:NX_MCP_WORKSPACE/restart.xml"
-
-      - name: Validate exported STEP geometry in an isolated environment
-        shell: pwsh
-        run: |
-          $stepEnv = Join-Path $env:RUNNER_TEMP "nx-mcp-step-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
-          python -m venv $stepEnv
-          if ($LASTEXITCODE -ne 0) { throw "STEP checker environment creation failed." }
-          $stepPython = Join-Path $stepEnv 'Scripts/python.exe'
-          & $stepPython -m pip install "cadquery-ocp==7.9.3.1.1"
-          if ($LASTEXITCODE -ne 0) { throw "STEP checker dependency installation failed." }
-          $inputStep = "$env:NX_MCP_REAL_NX_RUN_PREFIX/run-01.stp"
-          & $stepPython examples/validate_step_geometry.py --workspace $env:NX_MCP_WORKSPACE --input $inputStep --output-dir step-check
-          if ($LASTEXITCODE -ne 0) { throw "Independent STEP geometry check failed." }
-
-      - name: Upload allowlisted acceptance evidence
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: real-nx-evidence-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ${{ env.NX_MCP_WORKSPACE }}/nx-runtime-probe.json
-            ${{ env.NX_MCP_WORKSPACE }}/evidence.json
-            ${{ env.NX_MCP_WORKSPACE }}/acceptance.xml
-            ${{ env.NX_MCP_WORKSPACE }}/restart.xml
-            ${{ env.NX_MCP_WORKSPACE }}/step-check/report.json
-            ${{ env.NX_MCP_WORKSPACE }}/gui-bridge-build/NxMcpGuiBridge.dll
-          if-no-files-found: warn

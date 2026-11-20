@@ -1,0 +1,535 @@
+{
+ "covers": {
+  "nx_create_spline": [
+   "through_points",
+   "poles"
+  ]
+ },
+ "fixture": null,
+ "part": "new",
+ "steps": [
+  {
+   "call": "nx_create_part",
+   "setup": true,
+   "args": {
+    "path": "$part",
+    "units": "mm"
+   }
+  },
+  {
+   "call": "nx_create_spline",
+   "save": "s1",
+   "args": {
+    "points": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      10,
+      5,
+      0
+     ],
+     [
+      20,
+      0,
+      3
+     ],
+     [
+      30,
+      2,
+      1
+     ]
+    ],
+    "method": "through_points"
+   },
+   "expect": {
+    "mutation_outcome": "committed",
+    "data.degree": 3,
+    "data.periodic": false,
+    "data.start": {
+     "close": [
+      0,
+      0,
+      0
+     ],
+     "tol": 1e-06
+    },
+    "data.end": {
+     "close": [
+      30,
+      2,
+      1
+     ],
+     "tol": 1e-06
+    },
+    "data.curve.kind": "curve",
+    "changes.created": {
+     "count_kind": {
+      "feature": 1
+     }
+    }
+   }
+  },
+  {
+   "call": "nx_create_spline",
+   "args": {
+    "points": [
+     [
+      0,
+      0,
+      10
+     ],
+     [
+      35,
+      2.5,
+      13.5
+     ]
+    ],
+    "method": "through_points",
+    "degree": 1
+   },
+   "expect": {
+    "data.degree": 1,
+    "data.end": {
+     "close": [
+      35,
+      2.5,
+      13.5
+     ],
+     "tol": 1e-06
+    }
+   }
+  },
+  {
+   "call": "nx_create_spline",
+   "args": {
+    "points": [
+     [
+      0,
+      0.0,
+      20
+     ],
+     [
+      5,
+      2.0,
+      21
+     ],
+     [
+      10,
+      4.0,
+      20
+     ],
+     [
+      15,
+      0.0,
+      21
+     ],
+     [
+      20,
+      2.0,
+      20
+     ],
+     [
+      25,
+      4.0,
+      21
+     ],
+     [
+      30,
+      0.0,
+      20
+     ],
+     [
+      35,
+      2.0,
+      21
+     ]
+    ],
+    "method": "through_points",
+    "degree": 7
+   },
+   "expect": {
+    "data.degree": 7,
+    "data.end": {
+     "close": [
+      35,
+      2,
+      21
+     ],
+     "tol": 1e-06
+    }
+   }
+  },
+  {
+   "call": "nx_create_spline",
+   "args": {
+    "points": [
+     [
+      0,
+      30,
+      0
+     ],
+     [
+      10,
+      30,
+      10
+     ],
+     [
+      20,
+      30,
+      10
+     ],
+     [
+      30,
+      30,
+      0
+     ]
+    ],
+    "method": "poles",
+    "degree": 3
+   },
+   "expect": {
+    "data.degree": 3,
+    "data.start": {
+     "close": [
+      0,
+      30,
+      0
+     ],
+     "tol": 1e-06
+    },
+    "data.end": {
+     "close": [
+      30,
+      30,
+      0
+     ],
+     "tol": 1e-06
+    }
+   }
+  },
+  {
+   "call": "nx_create_spline",
+   "args": {
+    "points": [
+     [
+      0,
+      50,
+      0
+     ],
+     [
+      10,
+      50,
+      0
+     ],
+     [
+      10,
+      60,
+      0
+     ],
+     [
+      0,
+      60,
+      0
+     ]
+    ],
+    "method": "through_points",
+    "degree": 3,
+    "periodic": true
+   },
+   "expect": {
+    "data.periodic": true,
+    "data.start": {
+     "close": [
+      0,
+      50,
+      0
+     ],
+     "tol": 1e-06
+    },
+    "data.end": {
+     "close": [
+      0,
+      50,
+      0
+     ],
+     "tol": 1e-06
+    }
+   }
+  },
+  {
+   "call": "nx_create_spline",
+   "args": {
+    "points": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      2,
+      1,
+      0
+     ]
+    ],
+    "method": "poles",
+    "degree": 4
+   },
+   "expect": {
+    "error.category": "invalid_argument",
+    "error.field": "/degree",
+    "mutation_outcome": "not_started"
+   }
+  },
+  {
+   "call": "nx_create_spline",
+   "args": {
+    "points": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      2,
+      1,
+      0
+     ]
+    ],
+    "method": "poles",
+    "degree": 1
+   },
+   "expect": {
+    "error.field": "/points/1",
+    "mutation_outcome": "not_started"
+   }
+  },
+  {
+   "call": "nx_create_spline",
+   "args": {
+    "points": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      2,
+      1,
+      0
+     ]
+    ],
+    "method": "poles",
+    "degree": 8
+   },
+   "expect": {
+    "error.category": "invalid_argument",
+    "mutation_outcome": "not_started"
+   }
+  },
+  {
+   "call": "nx_create_spline",
+   "args": {
+    "points": [
+     [
+      0,
+      70,
+      0
+     ],
+     [
+      3,
+      74,
+      0
+     ]
+    ]
+   },
+   "expect": {
+    "mutation_outcome": "committed",
+    "data.degree": 1,
+    "data.length": {
+     "close": 5,
+     "tol": 1e-06
+    },
+    "data.end": {
+     "close": [
+      3,
+      74,
+      0
+     ],
+     "tol": 1e-06
+    }
+   }
+  },
+  {
+   "call": "nx_create_spline",
+   "args": {
+    "points": [
+     [
+      0,
+      80,
+      0
+     ],
+     [
+      10,
+      85,
+      0
+     ],
+     [
+      20,
+      80,
+      5
+     ]
+    ]
+   },
+   "expect": {
+    "mutation_outcome": "committed",
+    "data.degree": 2,
+    "data.start": {
+     "close": [
+      0,
+      80,
+      0
+     ],
+     "tol": 1e-06
+    },
+    "data.end": {
+     "close": [
+      20,
+      80,
+      5
+     ],
+     "tol": 1e-06
+    }
+   }
+  },
+  {
+   "call": "nx_create_spline",
+   "args": {
+    "points": [
+     [
+      0,
+      90,
+      0
+     ],
+     [
+      10,
+      95,
+      0
+     ],
+     [
+      20,
+      90,
+      5
+     ]
+    ],
+    "degree": 3
+   },
+   "expect": {
+    "error.field": "/degree",
+    "error.hint": {
+     "contains": "degree 2"
+    },
+    "mutation_outcome": "not_started"
+   }
+  },
+  {
+   "call": "nx_create_spline",
+   "intent": "Periodic with the start point repeated: the repeat is dropped",
+   "args": {
+    "points": [
+     [
+      0,
+      100,
+      60
+     ],
+     [
+      20,
+      100,
+      60
+     ],
+     [
+      20,
+      120,
+      60
+     ],
+     [
+      0,
+      120,
+      60
+     ],
+     [
+      0,
+      100,
+      60
+     ]
+    ],
+    "periodic": true
+   },
+   "expect": {
+    "mutation_outcome": "committed",
+    "data.periodic": true,
+    "data.degree": 3,
+    "data.start": {
+     "close": [
+      0,
+      100,
+      60
+     ],
+     "tol": 1e-06
+    },
+    "data.end": {
+     "close": [
+      0,
+      100,
+      60
+     ],
+     "tol": 1e-06
+    },
+    "warnings.0.code": "NX_NOTE"
+   }
+  },
+  {
+   "call": "nx_create_spline",
+   "intent": "A periodic spline through 2 points cannot close: refused before NX",
+   "args": {
+    "points": [
+     [
+      0,
+      130,
+      0
+     ],
+     [
+      10,
+      130,
+      0
+     ]
+    ],
+    "periodic": true
+   },
+   "expect": {
+    "error.code": "NX_INVALID_ARGUMENT",
+    "error.field": "/points",
+    "mutation_outcome": "not_started"
+   }
+  },
+  {
+   "call": "nx_check_model",
+   "args": {},
+   "expect": {
+    "data.healthy": true
+   }
+  }
+ ]
+}

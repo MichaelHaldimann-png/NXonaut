@@ -1,242 +1,230 @@
-"""Real-NX acceptance runner for the certified v0.2 workflow."""
+"""Real-NX smoke: a short modeling workflow, repeated, plus transport recovery.
+
+Every call goes through the acceptance runner's client (a fresh stdio
+``python -m nx_mcp.server``, agent profile, catalogue tools through
+``nx_invoke``/``nx_invoke_read``) and is checked with the runner's ``expect``
+vocabulary. Each iteration builds a block in a new part under
+``smoke/<run>/<n>/``, checks the exact retry of a committed call (replayed, no
+second body) and a conflicting reuse of its operation id, undoes and recreates
+the extrude, exports STEP and closes the part unsaved.
+
+Transport recovery runs once: a mutation sent straight to the bridge whose
+connection is dropped before the answer must still commit, report ``committed``
+through ``nx_get_operation`` and replay (not run again) when retried.
+
+The full per-tool acceptance is ``python -m nx_mcp.acceptance run``.
+"""
 
 from __future__ import annotations
 
 import argparse
 import asyncio
 import json
-import os
-import sys
+import socket
+import time
+import uuid
 from pathlib import Path
 from typing import Any
 
-from mcp.client import Client
-from mcp.client.stdio import StdioServerParameters
+from nx_mcp.acceptance import runner
+from nx_mcp.bridge import BRIDGE_PROTOCOL_VERSION
 
-from nx_mcp.workspace import Workspace
+PROFILE = "$profile.data.sketch.id"
+EXTRUDE = {"sketch": PROFILE, "end": {"type": "distance", "value": 12.5}}
+
+STEPS: list[dict[str, Any]] = [
+    {
+        "call": "nx_get_status",
+        "args": {"include": ["bridge"]},
+        "expect": {"data.bridge.state": "connected"},
+    },
+    {"call": "nx_create_part", "setup": True, "args": {"path": "$part", "units": "mm"}},
+    {
+        "call": "nx_create_sketch",
+        "setup": True,
+        "save": "profile",
+        "args": {"placement": {"principal": "xy"}, "name": "PROFILE"},
+    },
+    {
+        "call": "nx_create_sketch_curves",
+        "setup": True,
+        "args": {
+            "sketch": PROFILE,
+            "curves": [{"type": "rectangle", "corner1": [0, 0], "corner2": [20, 10]}],
+        },
+    },
+    {"call": "nx_finish_sketch", "setup": True, "args": {"sketch": PROFILE}},
+    {
+        "call": "nx_create_extrude",
+        "save": "extrude",
+        "args": EXTRUDE,
+        "expect": {"mutation_outcome": "committed", "data.bodies": {"count": 1}},
+    },
+    {
+        "call": "nx_create_extrude",
+        "args": {**EXTRUDE, "operation_id": "$extrude.operation_id"},
+        "intent": "Smoke: retry a committed extrude with its operation id",
+        "expect": {"replayed": True, "data.bodies": {"count": 1}},
+    },
+    {
+        "call": "nx_create_extrude",
+        "args": {
+            **EXTRUDE,
+            "end": {"type": "distance", "value": 3},
+            "operation_id": "$extrude.operation_id",
+        },  # fmt: skip
+        "intent": "Smoke: reuse the operation id with other arguments",
+        "expect": {"error.code": "NX_IDEMPOTENCY_CONFLICT", "mutation_outcome": "not_started"},
+    },
+    {"call": "nx_list_objects", "args": {"kind": "body"}, "expect": {"page.total": 1}},
+    {
+        "call": "nx_measure_mass",
+        "args": {"scope": "part"},
+        "expect": {"data.volume": {"close": 2500, "tol": 1e-6}},
+    },
+    {"call": "nx_set_camera", "args": {"fit": True}},
+    {"call": "nx_undo_operation", "args": {}, "expect": {"mutation_outcome": "committed"}},
+    {"call": "nx_list_objects", "args": {"kind": "body"}, "expect": {"page.total": 0}},
+    {"call": "nx_list_objects", "save": "sketches", "args": {"kind": "sketch"}},
+    {
+        "call": "nx_create_extrude",
+        "save": "again",
+        "args": {"sketch": "$sketches.data.items.0.id", "end": {"type": "distance", "value": 12.5}},
+        "expect": {"mutation_outcome": "committed", "data.bodies": {"count": 1}},
+    },
+    {
+        "call": "nx_export_model",
+        "args": {"path": "$run/block.stp", "format": "step"},
+        "expect": {"mutation_outcome": "committed"},
+    },
+]
 
 
-async def _call(client: Client, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-    result = await client.call_tool(name, arguments)
-    if result.is_error:
-        text = getattr(result.content[0], "text", None) if result.content else None
-        message = text if isinstance(text, str) else "unknown error"
-        raise RuntimeError(f"{name} failed: {message}")
-    if result.structured_content is None:
-        raise RuntimeError(f"{name} returned no structured content")
-    return result.structured_content
+def _failures(results: list[runner.StepResult], expected: int) -> list[str]:
+    problems = [f"[{r.index}] {r.call}: {f}" for r in results for f in r.failures]
+    if len(results) < expected and not problems:
+        problems.append(f"stopped after step {len(results)} of {expected}")
+    return problems
 
 
-def _iteration_paths(workspace: Path, prefix: str, index: int) -> tuple[Path, Path]:
-    if not prefix.strip():
-        raise ValueError("run prefix must not be empty")
-    boundary = Workspace(workspace)
-    paths = (
-        boundary.resolve(f"{prefix}/run-{index:02d}.prt"),
-        boundary.resolve(f"{prefix}/run-{index:02d}.stp"),
-    )
-    if any(path.exists() for path in paths):
-        raise ValueError("Acceptance output already exists; choose a unique run prefix")
-    return paths
-
-
-def _verify_file(path: Path) -> None:
-    if not path.is_file() or path.stat().st_size == 0:
-        raise RuntimeError(f"Acceptance output was not created or is empty: {path.name}")
-
-
-def _verify_step_solid(path: Path) -> None:
-    if b"MANIFOLD_SOLID_BREP" not in path.read_bytes():
-        raise RuntimeError(f"STEP export contains no solid geometry: {path.name}")
-
-
-async def run_iteration(
-    client: Client,
-    workspace: Path,
-    index: int,
-    *,
-    prefix: str = "smoke",
-) -> dict[str, Any]:
-    expected_part, expected_step = _iteration_paths(workspace, prefix, index)
-    part_path = f"{prefix}/run-{index:02d}.prt"
-    step_path = f"{prefix}/run-{index:02d}.stp"
-    status = await _call(client, "nx_status", {})
-    if not status["connected"]:
-        raise RuntimeError("NX bridge reports disconnected")
-
-    if status.get("active_part") is not None:
-        raise RuntimeError("Acceptance requires no existing work part")
-    owned_part_id = None
+async def run_iteration(session, run_dir: Path, index: int) -> dict[str, Any]:
+    folder = run_dir / f"{index:02d}"
+    folder.mkdir(parents=True, exist_ok=True)
+    special = {"$run": str(folder), "$part": str(folder / f"smoke_{run_dir.name}_{index:02d}.prt")}
+    before = await runner.loaded_parts(session)
     try:
-        created = await _call(client, "nx_create_part", {"path": part_path, "units": "mm"})
-        owned_part_id = created["part"]["part_id"]
-        before = await _call(client, "nx_list_bodies", {})
-        sketch = await _call(client, "nx_create_sketch", {"plane": "XY", "name": "PROFILE"})
-        sketch_id = sketch["object"]["id"]
-        await _call(
-            client,
-            "nx_sketch_rectangle",
-            {
-                "sketch_id": sketch_id,
-                "corner1": {"x": 0, "y": 0},
-                "corner2": {"x": 20, "y": 10},
-            },
-        )
-        await _call(client, "nx_finish_sketch", {"sketch_id": sketch_id})
-        sketches = await _call(client, "nx_list_sketches", {})
-        if not any(value["id"] == sketch_id for value in sketches["objects"]):
-            raise RuntimeError("Created sketch is absent from the sketch list")
-        extruded = await _call(
-            client,
-            "nx_extrude",
-            {"sketch_id": sketch_id, "distance": 12.5, "reverse": False},
-        )
-        after = await _call(client, "nx_list_bodies", {})
-        features = await _call(client, "nx_list_features", {})
-        if not any(value["id"] == extruded["feature"]["id"] for value in features["objects"]):
-            raise RuntimeError("Created extrude is absent from the feature list")
-        await _call(client, "nx_fit_view", {})
-        exported = await _call(client, "nx_export_step", {"path": step_path})
-        exported_path = Workspace(workspace).ensure_inside(workspace / exported["path"])
-        if exported_path != expected_step:
-            raise RuntimeError("STEP export returned an unexpected path")
-        _verify_file(exported_path)
-        _verify_step_solid(exported_path)
-        await _call(client, "nx_undo", {})
-        after_undo = await _call(client, "nx_list_bodies", {})
-        await _call(client, "nx_save_part", {})
-        await _call(client, "nx_close_part", {"save": False})
-        owned_part_id = None
-        _verify_file(expected_part)
-        reopened = await _call(client, "nx_open_part", {"path": part_path})
-        owned_part_id = reopened["part"]["part_id"]
-        reopened_bodies = await _call(client, "nx_list_bodies", {})
-        if len(reopened_bodies["objects"]) != len(before["objects"]):
-            raise RuntimeError("Reopened part body count differs from the saved model")
-        await _call(client, "nx_close_part", {"save": False})
-        owned_part_id = None
-    except Exception:
-        if owned_part_id is not None:
-            try:
-                current = (await _call(client, "nx_status", {})).get("active_part")
-                if current is not None and current["part_id"] == owned_part_id:
-                    await _call(client, "nx_close_part", {"save": False})
-                else:
-                    print(
-                        "Acceptance cleanup skipped: current part ownership changed.",
-                        file=sys.stderr,
-                    )
-            except Exception:
-                print(
-                    "Acceptance cleanup could not confirm a safe close; inspect the disposable workspace.",
-                    file=sys.stderr,
-                )
-        else:
-            print(
-                "Acceptance did not confirm ownership of an open part; no cleanup close attempted.",
-                file=sys.stderr,
-            )
-        raise
-
-    if len(after["objects"]) != len(before["objects"]) + 1:
-        raise RuntimeError("Extrude did not add exactly one body")
-    if len(after_undo["objects"]) != len(before["objects"]):
-        raise RuntimeError(
-            "Undo did not restore the original body count "
-            f"(before={len(before['objects'])}, after_undo={len(after_undo['objects'])})"
-        )
+        results = await runner.run_steps(session, STEPS, special, label=f"smoke {index}")
+    finally:
+        cleanup = await runner.close_new_parts(session, before, "close")
+    problems = _failures(results, len(STEPS)) + cleanup["failed"]
+    if problems:
+        raise RuntimeError(f"Smoke iteration {index} failed: " + "; ".join(problems))
+    status, again = results[0].result, results[-2].result
+    if not (folder / "block.stp").is_file():
+        raise RuntimeError("The STEP export file was not created")
     return {
         "iteration": index,
-        "nx_version": status["nx_version"],
-        "bridge_implementation": status["bridge_implementation"],
-        "feature_id": extruded["feature"]["id"],
-        "body_id": extruded["body"]["id"],
+        "nx_version": status["data"]["bridge"]["nx_version"],
+        "feature_id": again["data"]["feature"]["id"],
+        "body_id": again["data"]["bodies"][0]["id"],
     }
 
 
-async def run_line_profile(client: Client, workspace: Path, prefix: str) -> None:
-    """Prove four line calls produce an extrudable closed profile through MCP."""
-    part_path, step_path = _iteration_paths(workspace, f"{prefix}/line", 1)
-    if (await _call(client, "nx_status", {}))["active_part"] is not None:
-        raise RuntimeError("Line acceptance requires no existing work part")
-    owned_part_id = None
-    failed = False
+def abandon(method: str, params: dict[str, Any]) -> None:
+    """Send one bridge request and drop the connection before the answer."""
+    path = runner.descriptor_path()
+    if path is None:
+        raise RuntimeError("No bridge descriptor (set NX_MCP_BRIDGE_DESCRIPTOR)")
+    descriptor = json.loads(path.read_text(encoding="utf-8"))
+    request = {
+        "jsonrpc": "2.0",
+        "protocol_version": BRIDGE_PROTOCOL_VERSION,
+        "id": uuid.uuid4().hex,
+        "token": descriptor["token"],
+        "method": method,
+        "params": params,
+    }
+    with socket.create_connection((descriptor["host"], descriptor["port"]), timeout=10) as link:
+        link.sendall(json.dumps(request).encode() + b"\n")
+
+
+async def transport_recovery(session, run_dir: Path, *, wait: float = 120.0) -> dict[str, Any]:
+    """An abandoned mutation commits once; its receipt answers the retry."""
+    folder = run_dir / "transport"
+    folder.mkdir(parents=True, exist_ok=True)
+    part = str(folder / f"smoke_{run_dir.name}_transport.prt")
+    operation = "op_" + uuid.uuid4().hex
+    args = {"name": "smoke_abandoned", "formula": "7", "units": "mm"}
+    before = await runner.loaded_parts(session)
     try:
-        created = await _call(
-            client,
-            "nx_create_part",
-            {"path": part_path.relative_to(workspace).as_posix(), "units": "mm"},
+        created = await runner.call_tool(
+            session, "nx_create_part", {"path": part, "units": "mm"}, intent="Smoke: transport part"
         )
-        owned_part_id = created["part"]["part_id"]
-        before = await _call(client, "nx_list_bodies", {})
-        sketch = await _call(client, "nx_create_sketch", {"plane": "XY"})
-        sketch_id = sketch["object"]["id"]
-        corners = ((0, 0), (20, 0), (20, 10), (0, 10))
-        for start, end in zip(corners, corners[1:] + corners[:1], strict=True):
-            line = await _call(
-                client,
-                "nx_sketch_line",
-                {
-                    "sketch_id": sketch_id,
-                    "start": {"x": start[0], "y": start[1]},
-                    "end": {"x": end[0], "y": end[1]},
-                },
+        if not created.get("ok"):
+            raise RuntimeError(f"nx_create_part failed: {created.get('error')}")
+        abandon("nx_set_expression", {**args, "operation_id": operation,
+                                      "intent": "Smoke: a call whose client disconnects"})  # fmt: skip
+        deadline = time.monotonic() + wait
+        while True:
+            state = await runner.call_tool(
+                session, "nx_get_operation", {"operation": operation}, intent=None
             )
-            if line["object"]["kind"] != "curve" or line["object"]["part_id"] != owned_part_id:
-                raise RuntimeError("Line returned an unexpected object reference")
-        await _call(client, "nx_finish_sketch", {"sketch_id": sketch_id})
-        await _call(client, "nx_extrude", {"sketch_id": sketch_id, "distance": 12.5})
-        after = await _call(client, "nx_list_bodies", {})
-        if len(after["objects"]) != len(before["objects"]) + 1:
-            raise RuntimeError("Line profile did not add exactly one solid body")
-        exported = await _call(
-            client, "nx_export_step", {"path": step_path.relative_to(workspace).as_posix()}
-        )
-        if Workspace(workspace).ensure_inside(exported["path"]) != step_path:
-            raise RuntimeError("Line profile export returned an unexpected path")
-        _verify_file(step_path)
-        _verify_step_solid(step_path)
-    except BaseException:
-        failed = True
-        raise
+            if (state.get("data") or {}).get("state") == "committed":
+                break
+            if time.monotonic() > deadline:
+                raise RuntimeError(f"The abandoned call never committed: {state}")
+            await asyncio.sleep(1)
+        steps = [
+            {
+                "call": "nx_set_expression",
+                "args": {**args, "operation_id": operation},
+                "expect": {"replayed": True, "data.value": {"close": 7, "tol": 1e-12}},
+            },
+            {
+                "call": "nx_set_expression",
+                "args": {**args, "formula": "8", "operation_id": operation},
+                "expect": {
+                    "error.code": "NX_IDEMPOTENCY_CONFLICT",
+                    "mutation_outcome": "not_started",
+                },  # fmt: skip
+            },
+        ]
+        results = await runner.run_steps(session, steps, {}, label="smoke transport")
     finally:
-        if owned_part_id is not None:
-            try:
-                current = (await _call(client, "nx_status", {}))["active_part"]
-                if current is None or current["part_id"] != owned_part_id:
-                    raise RuntimeError("Line acceptance cleanup cannot confirm part ownership")
-                await _call(client, "nx_close_part", {"save": False})
-            except Exception as cleanup_error:
-                if not failed:
-                    raise
-                print(f"Line acceptance cleanup failed: {cleanup_error}", file=sys.stderr)
+        cleanup = await runner.close_new_parts(session, before, "close")
+    problems = _failures(results, len(steps)) + cleanup["failed"]
+    if problems:
+        raise RuntimeError("Transport recovery failed: " + "; ".join(problems))
+    return {"operation_id": operation, "committed": True, "replayed": True}
 
 
-async def run(workspace: Path, iterations: int, prefix: str = "smoke") -> list[dict[str, Any]]:
+async def run(
+    workspace: Path, iterations: int, prefix: str = "smoke", *, transport: bool = True
+) -> list[dict[str, Any]]:
     if iterations < 1:
         raise ValueError("iterations must be at least 1")
-    workspace = workspace.resolve()
-    for index in range(1, iterations + 1):
-        _iteration_paths(workspace, prefix, index)
-    environment = dict(os.environ)
-    environment["NX_MCP_WORKSPACE"] = str(workspace)
-    parameters = StdioServerParameters(
-        command=sys.executable,
-        args=["-m", "nx_mcp.server"],
-        env=environment,
-    )
-    async with Client(parameters) as client:
-        return [
-            await run_iteration(client, workspace, index, prefix=prefix)
-            for index in range(1, iterations + 1)
-        ]
+    run_dir = workspace / "smoke" / f"{prefix}-{time.strftime('%Y%m%d-%H%M%S')}"
+    lock = runner.DevLock(workspace, f"real-smoke-{prefix}")
+    lock.acquire()
+    try:
+        async with runner.sidecar(workspace) as session:
+            results = []
+            for index in range(1, iterations + 1):
+                lock.refresh()
+                results.append(await run_iteration(session, run_dir, index))
+            if transport:
+                results.append({"transport": await transport_recovery(session, run_dir)})
+            return results
+    finally:
+        lock.release()
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--workspace", type=Path, required=True)
     parser.add_argument("--iterations", type=int, default=20)
     parser.add_argument("--run-prefix", default="smoke")
+    parser.add_argument("--no-transport", action="store_true", help="skip transport recovery")
     arguments = parser.parse_args()
     if arguments.iterations < 1:
         parser.error("--iterations must be at least 1")
@@ -244,7 +232,14 @@ def main() -> None:
         parser.error("--run-prefix must not be empty")
     workspace = arguments.workspace.resolve()
     workspace.mkdir(parents=True, exist_ok=True)
-    results = asyncio.run(run(workspace, arguments.iterations, arguments.run_prefix))
+    results = asyncio.run(
+        run(
+            workspace,
+            arguments.iterations,
+            arguments.run_prefix,
+            transport=not arguments.no_transport,
+        )
+    )
     print(json.dumps({"status": "passed", "runs": results}, indent=2, ensure_ascii=False))
 
 

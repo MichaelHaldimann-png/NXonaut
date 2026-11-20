@@ -1,211 +1,99 @@
 from pathlib import Path
 
 import pytest
-from mcp.client import Client
+from mcp.shared.memory import create_connected_server_and_client_session
 
-from nx_mcp.certified import CERTIFIED_TOOL_NAMES
-from nx_mcp.contracts import NXToolError
+from nx_mcp.core import catalogue
+from nx_mcp.core.errors import NXError
 from nx_mcp.server import create_server
+from nx_mcp.sidecar import gateways
 from nx_mcp.workspace import Workspace
-
-pytestmark = pytest.mark.integration
-
-
-class StubBridge:
-    async def call(self, method: str, params: dict):
-        return {
-            "connected": True,
-            "nx_version": "NX test",
-            "bridge_protocol": 1,
-            "bridge_implementation": "python_batch",
-            "active_part": None,
-        }
-
-
-class RecordingBridge:
-    def __init__(self, response: dict):
-        self.response = response
-        self.calls: list[tuple[str, dict]] = []
-
-    async def call(self, method: str, params: dict):
-        self.calls.append((method, params))
-        return self.response
+from tests.kit.bridges import RecordingBridge, StubBridge
 
 
 @pytest.mark.asyncio
-async def test_default_server_lists_only_certified_tools():
-    server = create_server(StubBridge())
+async def test_server_always_lists_every_tool_and_no_code_execution_tools():
+    server = create_server(StubBridge(), surface="full")
 
-    async with Client(server) as client:
-        response = await client.list_tools()
+    async with create_connected_server_and_client_session(server) as client:
+        names = {tool.name for tool in (await client.list_tools()).tools}
 
-    assert {tool.name for tool in response.tools} == CERTIFIED_TOOL_NAMES
-    assert len(response.tools) == 16
-
-
-@pytest.mark.asyncio
-async def test_status_returns_structured_content():
-    server = create_server(StubBridge())
-
-    async with Client(server) as client:
-        result = await client.call_tool("nx_status", {})
-
-    assert result.is_error is False
-    assert result.structured_content == {
-        "status": "success",
-        "connected": True,
-        "nx_version": "NX test",
-        "bridge_protocol": 1,
-        "bridge_implementation": "python_batch",
-        "active_part": None,
-        "units": None,
-    }
+    assert names <= {*gateways.NAMES, *catalogue.load()}  # only gateways and catalogue tools
+    assert not {"nx_run_journal", "nx_record_start", "nx_record_stop"} & names
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("implementation", ["python_batch", "csharp_gui", None])
-async def test_status_identifies_both_bridges_and_accepts_older_protocol_v1(implementation):
-    response = {"connected": True, "nx_version": "NX test", "bridge_protocol": 1}
-    if implementation is not None:
-        response["bridge_implementation"] = implementation
-    async with Client(create_server(RecordingBridge(response))) as client:
-        result = await client.call_tool("nx_status", {})
-    assert not result.is_error
-    assert result.structured_content["bridge_implementation"] == (implementation or "unknown")
-    assert result.structured_content["bridge_protocol"] == 1
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("implementation", ["python_batch", "csharp_gui"])
-@pytest.mark.parametrize("units", ["mm", "inch", None])
-async def test_status_preserves_explicit_native_units(implementation, units):
-    response = {
-        "connected": True,
-        "nx_version": "NX test",
-        "bridge_protocol": 1,
-        "bridge_implementation": implementation,
-        "units": units,
-    }
-    async with Client(create_server(RecordingBridge(response))) as client:
-        result = await client.call_tool("nx_status", {})
-    assert not result.is_error
-    assert result.structured_content["units"] == units
-
-
-@pytest.mark.asyncio
-async def test_status_does_not_guess_units_from_older_bridge():
-    response = {"connected": True, "nx_version": "NX test", "bridge_protocol": 1}
-    async with Client(create_server(RecordingBridge(response))) as client:
-        result = await client.call_tool("nx_status", {})
-    assert not result.is_error
-    assert result.structured_content["units"] is None
-
-
-@pytest.mark.asyncio
-async def test_certified_tools_publish_operation_hints():
-    read_only = {"nx_status", "nx_list_sketches", "nx_list_bodies", "nx_list_features"}
-    destructive = {"nx_save_part", "nx_close_part", "nx_export_step", "nx_undo"}
-    async with Client(create_server(StubBridge())) as client:
-        tools = (await client.list_tools()).tools
-    for tool in tools:
-        assert tool.annotations is not None, tool.name
-        hints = tool.annotations.model_dump(by_alias=True)
-        assert hints["readOnlyHint"] == (tool.name in read_only), tool.name
-        assert hints["destructiveHint"] == (tool.name in destructive), tool.name
-
-
-@pytest.mark.asyncio
-async def test_create_part_resolves_path_inside_workspace(tmp_path: Path):
+async def test_create_part_resolves_path_inside_workspace(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("NX_MCP_DEV", "1")  # untested catalogue tools are listed and run
     bridge = RecordingBridge(
         {
-            "part": {"id": "part-1", "kind": "part", "name": "bracket", "part_id": "part-1"},
-            "message": "created",
+            "ok": True,
+            "tool": "nx_create_part",
+            "mutation_outcome": "committed",
+            "data": {"part": {"id": "p:1", "kind": "part", "name": "bracket", "part": "p:1"}},
         }
     )
-    server = create_server(bridge, Workspace(tmp_path))
+    server = create_server(bridge, Workspace(tmp_path), surface="full")
 
-    async with Client(server) as client:
+    async with create_connected_server_and_client_session(server) as client:
         result = await client.call_tool(
             "nx_create_part", {"path": "parts/bracket.prt", "units": "mm"}
         )
 
-    assert result.is_error is False
-    assert bridge.calls == [
-        (
-            "nx_create_part",
-            {"path": str(tmp_path / "parts" / "bracket.prt"), "units": "mm"},
-        )
-    ]
+    assert result.isError is False
+    [(method, params)] = bridge.calls
+    assert method == "nx_create_part"
+    assert params["path"] == str(tmp_path / "parts" / "bracket.prt")
+    assert params["units"] == "mm"
+    assert params["operation_id"].startswith("op_")
 
 
 @pytest.mark.asyncio
-async def test_file_tool_rejects_workspace_escape_before_bridge_call(tmp_path: Path):
+async def test_file_tool_rejects_workspace_escape_before_bridge_call(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("NX_MCP_DEV", "1")
     bridge = RecordingBridge({})
-    server = create_server(bridge, Workspace(tmp_path))
+    server = create_server(bridge, Workspace(tmp_path), surface="full")
 
-    async with Client(server) as client:
+    async with create_connected_server_and_client_session(server) as client:
         result = await client.call_tool("nx_open_part", {"path": "../secret.prt"})
 
-    assert result.is_error is True
+    assert result.isError is True
     assert "NX_PATH_OUTSIDE_WORKSPACE" in result.content[0].text
     assert bridge.calls == []
 
 
 @pytest.mark.asyncio
-async def test_bridge_error_preserves_machine_readable_code():
+async def test_bridge_error_preserves_machine_readable_code(monkeypatch):
+    monkeypatch.setenv("NX_MCP_DEV", "1")
+
     class ErrorBridge:
         async def call(self, method: str, params: dict):
-            raise NXToolError("NX_NO_WORK_PART", "No work part is open")
+            raise NXError("NX_NO_WORK_PART", "No work part is open")
 
-    server = create_server(ErrorBridge())
+    server = create_server(ErrorBridge(), surface="full")
 
-    async with Client(server) as client:
+    async with create_connected_server_and_client_session(server) as client:
         result = await client.call_tool("nx_save_part", {})
 
-    assert result.is_error is True
+    assert result.isError is True
     assert "NX_NO_WORK_PART" in result.content[0].text
 
 
 @pytest.mark.asyncio
-async def test_certified_tools_publish_strict_input_and_output_schemas():
-    server = create_server(StubBridge())
+async def test_tools_publish_strict_input_and_output_schemas(monkeypatch):
+    monkeypatch.setenv("NX_MCP_DEV", "1")
+    server = create_server(StubBridge(), surface="full")
 
-    async with Client(server) as client:
+    async with create_connected_server_and_client_session(server) as client:
         tools = {tool.name: tool for tool in (await client.list_tools()).tools}
 
-    assert tools["nx_create_part"].input_schema["properties"]["units"]["enum"] == ["mm", "inch"]
-    assert tools["nx_create_sketch"].input_schema["properties"]["plane"]["enum"] == [
-        "XY",
-        "XZ",
-        "YZ",
-    ]
-    assert tools["nx_extrude"].input_schema["properties"]["distance"]["exclusiveMinimum"] == 0
-    assert all(tool.output_schema is not None for tool in tools.values())
-
-
-@pytest.mark.asyncio
-async def test_experimental_tools_require_explicit_opt_in_and_keep_journals_disabled():
-    server = create_server(StubBridge(), enable_experimental=True)
-
-    async with Client(server) as client:
-        names = {tool.name for tool in (await client.list_tools()).tools}
-
-    assert names > CERTIFIED_TOOL_NAMES
-    assert "nx_blend" in names
-    assert "nx_measure_distance" in names
-    assert "nx_run_journal" not in names
-    assert "nx_record_start" not in names
-    assert "nx_record_stop" not in names
-
-
-@pytest.mark.asyncio
-async def test_journal_tools_require_their_own_explicit_opt_in():
-    server = create_server(StubBridge(), enable_experimental=True, enable_journal=True)
-
-    async with Client(server) as client:
-        names = {tool.name for tool in (await client.list_tools()).tools}
-
-    assert {"nx_run_journal", "nx_record_start", "nx_record_stop"} <= names
+    assert tools["nx_create_part"].inputSchema["properties"]["units"]["enum"] == ["mm", "in"]
+    placement = tools["nx_create_sketch"].inputSchema["properties"]["placement"]
+    assert {"principal", "on", "path"} <= {
+        k for b in placement["anyOf"] for k in b.get("properties", {})
+    }
+    assert tools["nx_create_extrude"].inputSchema["required"] == ["sketch", "end"]
+    assert all(tool.inputSchema.get("additionalProperties") is False for tool in tools.values())
 
 
 @pytest.mark.asyncio
@@ -214,27 +102,11 @@ async def test_experimental_file_tools_still_enforce_workspace_boundary(tmp_path
     server = create_server(
         bridge,
         Workspace(tmp_path),
-        enable_experimental=True,
     )
 
-    async with Client(server) as client:
-        result = await client.call_tool("nx_screenshot", {"path": "../screen.png"})
+    async with create_connected_server_and_client_session(server) as client:
+        result = await client.call_tool("nx_capture_view", {"path": "../screen.png"})
 
-    assert result.is_error is True
+    assert result.isError is True
     assert "NX_PATH_OUTSIDE_WORKSPACE" in result.content[0].text
-    assert bridge.calls == []
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("value", ["NaN", "Infinity", "-Infinity"])
-@pytest.mark.parametrize("tool", ["nx_extrude", "nx_sketch_line"])
-async def test_nonfinite_values_fail_before_bridge_call(tmp_path, value, tool):
-    bridge = RecordingBridge({})
-    server = create_server(bridge, Workspace(tmp_path))
-    params = {"sketch_id": "unused", "distance": value}
-    if tool == "nx_sketch_line":
-        params = {"sketch_id": "unused", "start": {"x": value, "y": 0}, "end": {"x": 1, "y": 1}}
-    async with Client(server) as client:
-        result = await client.call_tool(tool, params)
-    assert result.is_error
     assert bridge.calls == []

@@ -1,0 +1,388 @@
+"""nx_create_part_family and nx_get_part_family on a fake PartFamily.TemplateManager."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from types import SimpleNamespace as NS
+
+import pytest
+
+from nx_mcp.domains.parts_files import families
+from tests.kit import NXException
+from tests.kit.objects import Collection, Expression, Object
+from tests.unit.parts_files.support import call
+
+KINDS = NS(Instance=7, Expression=9)
+
+
+class Attr:
+    AttrType = KINDS
+
+    def __init__(self, name, kind, value=""):
+        self.Name, self.Type, self.Value = name, kind, value
+
+
+class Definition:
+    def __init__(self, name):
+        self.name = name
+        self.values = {"Part_Name": name}
+
+    def SetValueOfAttribute(self, attr, text):
+        self.values[attr.Name] = text
+
+    def GetValueOfAttribute(self, attr):
+        return self.values.get(attr.Name, "")
+
+
+class Family:
+    def __init__(self, part, attrs):
+        self.part, self.attrs, self.rows = part, attrs, []
+        self.folder = None
+        self.tag = Object("FAMILY").Tag
+
+    def GetAttributes(self):
+        return list(self.attrs)
+
+    def GetMembers(self):
+        return [d.name for d in self.rows]
+
+
+class Manager:
+    """NX 2406 behaviour: work part only, columns committed by CreatePartFamily."""
+
+    def __init__(self, fake, part):
+        self.fake, self.part = fake, part
+        self.chosen = [Attr("Part_Name", KINDS.Instance)]
+        self.Importable = True
+        self.SaveDirectory = r"C:\nx-working-directory"
+        self.family = None
+        self.disposed = False
+        part.IsModified = True  # NX marks a part without a family modified here
+        fake.managers.append(self)
+
+    def _work(self):
+        if self.fake.session.Parts.Work is not self.part:
+            raise NXException(720034, "Object must belong to the work part.")
+
+    def GetChosenAttributes(self):
+        return list(self.chosen)
+
+    def GetSelectableAttributes(self, kind):
+        return [e.Name for e in self.part.Expressions if e.Name not in self.fake.locked]
+
+    def AddToChosenAttributes(self, names, kinds, index):
+        self._work()
+        assert index == len(self.chosen) and all(k == KINDS.Expression for k in kinds)
+        exps = {e.Name: e for e in self.part.Expressions}
+        self.chosen += [Attr(n, KINDS.Expression, exps[n].RightHandSide) for n in names]
+
+    def CreatePartFamily(self):
+        self._work()
+        self.family = Family(self.part, list(self.chosen))
+        self.part.family = self.family
+        return self.family
+
+    def AddInstanceDefinition(self, name, previous, other):
+        assert self.family is not None and other == ""
+        definition = Definition(name)
+        self.family.rows.append(definition)
+        return definition
+
+    def SaveFamilyAndCreateMembers(self, definitions):
+        # NX shows the modal "Save CGM" dialog per member when this is on.
+        self.fake.cgm_at_save.append(self.part.SaveOptions.DrawingCgmData)
+        folder = Path(self.SaveDirectory)
+        self.family.folder = str(folder)
+        codes = []
+        for d in definitions:
+            if d.name in self.fake.member_errors:
+                codes.append(self.fake.member_errors[d.name])
+                continue
+            path = folder / f"{d.name}.prt"
+            path.write_bytes(b"NX member")
+            self.fake.members[str(path).casefold()] = (self.part, dict(d.values))
+            codes.append(0)
+        return codes
+
+    def GetInfoMessages(self):
+        return ["member failed"]
+
+    def Dispose(self):
+        self.disposed = True
+
+
+@pytest.fixture
+def fam(nx, root):
+    nx.managers, nx.members, nx.locked, nx.member_errors = [], {}, set(), {}
+    nx.cgm_at_save = []
+    template = nx.new_part("t.prt")
+    template.Expressions = Collection()
+
+    def system_expression(formula, unit):  # NX evaluates in the template, the work part
+        work, nx.part = nx.part, template
+        try:
+            return nx._system_expression(formula, unit)
+        finally:
+            nx.part = work
+
+    template.Expressions.CreateSystemExpressionWithUnits = system_expression
+    template.Expressions.Delete = template.Expressions.remove
+    for name, value in (("length", 40.0), ("width", 20.0), ("p2", 10.0)):
+        e = Expression(name, str(int(value)))
+        e.Value = value
+        template.Expressions.append(e)
+    template.family = None
+    template.NewPartFamilyTemplateManager = lambda: Manager(nx, template)
+    template.Save()
+    opened = nx.session.Parts.OpenBase
+
+    def open_member(path):
+        part, status = opened(path)
+        owner, values = nx.members.get(str(Path(path)).casefold(), (None, {}))
+        part.member_of = owner
+        part.Expressions = Collection()
+        for name, text in values.items():
+            if name != "Part_Name":
+                e = Expression(name, text)
+                e.Value = float(text) if _number(text) else 99.0
+                part.Expressions.append(e)
+        return part, status
+
+    nx.session.Parts.OpenBase = open_member
+
+    def families_of(tag):
+        part = next(p for p in nx.session.Parts if p.Tag == tag)
+        family = getattr(part, "family", None)
+        return (1, [family.tag]) if family else (0, [])
+
+    def family(tag):
+        return next(p.family for p in nx.session.Parts if getattr(p, "family", None)
+                    and p.family.tag == tag)  # fmt: skip
+
+    def row(tag, i):
+        f = family(tag)
+        return NS(Values=[f.rows[i].values.get(a.Name, "") for a in f.attrs])
+
+    attrs = {}
+
+    def family_data(tag):
+        f = family(tag)
+        for a in f.attrs:
+            attrs[id(a)] = a
+        return NS(Name=f.part.Name.upper(), Attributes=[id(a) for a in f.attrs],
+                  MemberCount=len(f.rows))  # fmt: skip
+
+    nx.uf.Part = NS(
+        IsFamilyTemplate=lambda tag: families_of(tag)[0] == 1,
+        IsFamilyInstance=lambda tag: _member(nx, tag) is not None,
+        IsFamilyInstCurrent=lambda tag: True,
+        AskFamilies=families_of,
+        AskFamilySaveDir=lambda tag: family(tag).folder + "\\",
+    )
+    nx.uf.Fam = NS(
+        AskFamilyData=family_data,
+        AskAttributeData=lambda key: NS(Name=attrs[key].Name),
+        AskMemberRowData=row,
+    )
+    return template
+
+
+def _member(nx, tag):
+    part = next((p for p in nx.session.Parts if p.Tag == tag), None)
+    return getattr(part, "member_of", None)
+
+
+def _number(text):
+    try:
+        float(text)
+    except ValueError:
+        return False
+    return True
+
+
+MEMBERS = [
+    {"name": "plate_a", "values": [50, 12.5]},
+    {"name": "plate_b", "values": ["60", "length/4"]},
+]
+
+
+def create(nx, **args):
+    args.setdefault("part", "t")
+    args.setdefault("expressions", ["length", "width"])
+    args.setdefault("members", MEMBERS)
+    return call(nx, families.nx_create_part_family, **args)
+
+
+def test_creates_members_and_saves_the_template(nx, root, fam):
+    ok = create(nx, directory="fam")
+    assert ok.ok and ok.mutation_outcome == "committed", ok
+    manager = nx.managers[-1]
+    assert manager.Importable is False and Path(manager.SaveDirectory) == root / "fam"
+    assert [a.Name for a in fam.family.attrs] == ["Part_Name", "length", "width"]
+    assert manager.disposed and not fam.IsModified  # saved: it stores the family table
+    data = ok.data
+    assert data["template_saved"] and data["directory"] == "fam"
+    assert data["expressions"] == ["length", "width"]
+    a, b = data["members"]
+    assert a == {"name": "plate_a", "path": "fam/plate_a.prt",
+                 "values": {"length": 50.0, "width": 12.5}, "up_to_date": True}  # fmt: skip
+    assert b["values"]["length"] == 60.0  # a formula is stored as given, not checked
+    assert fam.family.rows[1].values["width"] == "length/4"
+    assert (root / "fam" / "plate_a.prt").is_file()
+    assert not [p for p in nx.session.Parts if p.Name.startswith("plate")]  # read, closed
+
+
+def test_members_are_written_without_cgm_data_and_the_template_keeps_it(nx, root, fam):
+    """A template with a drawing sheet that keeps CGM data: NX would show its modal
+    "Save CGM" dialog for every member, so the option is off while NX writes them."""
+    fam.SaveOptions.DrawingCgmData = True
+    ok = create(nx, directory="fam")
+    assert ok.ok, ok
+    assert nx.cgm_at_save == [False] and fam.SaveOptions.DrawingCgmData is True
+    nx.member_errors["plate_b"] = 3
+    failed = create(nx, directory="fam2")
+    assert not failed.ok and fam.SaveOptions.DrawingCgmData is True  # restored on failure
+
+
+def test_default_folder_is_the_templates(nx, root, fam):
+    ok = create(nx, members=[{"name": "m1", "values": [1, 2]}])
+    assert ok.ok and ok.data["members"][0]["path"] == "m1.prt", ok
+
+
+def test_get_part_family_of_template_and_member(nx, root, fam):
+    none = call(nx, families.nx_get_part_family, part="t")
+    assert none.ok and none.data["role"] == "none" and none.data["members"] == []
+    assert create(nx, directory="fam").ok
+    got = call(nx, families.nx_get_part_family, part="t")
+    assert got.data["role"] == "template" and got.data["template"] == "t.prt"  # its path
+    assert got.data["columns"] == ["length", "width"] and got.data["directory"] == "fam"
+    assert got.data["members"][0] == {"name": "plate_a", "values": {"length": "50",
+                                      "width": "12.5"}, "path": "fam/plate_a.prt",
+                                      "exists": True}  # fmt: skip
+    assert got.data["up_to_date"] is True  # table saved, every member file present
+    (root / "fam" / "plate_b.prt").unlink()
+    gone = call(nx, families.nx_get_part_family, part="t").data
+    assert gone["members"][1]["exists"] is False and gone["up_to_date"] is False
+    member, status = nx.session.Parts.OpenBase(str(root / "fam" / "plate_a.prt"))
+    member.GetFamilyInstance = lambda: NS(Family=NS(TemplateName="T"))  # NX: upper case
+    nx.session.Parts.Work = member
+    got = call(nx, families.nx_get_part_family, part="plate_a")
+    assert got.data["role"] == "member" and got.data["template"] == "t.prt", got
+    assert got.data["up_to_date"] is True and got.data["columns"] == ["length", "width"]
+    assert got.data["values"] == {"length": 50.0, "width": 12.5}  # its own, evaluated
+
+
+def test_refuses_before_nx(nx, root, fam):
+    (root / "fam").mkdir()
+    (root / "fam" / "plate_b.prt").write_bytes(b"other")
+    cases = [
+        ({"directory": "fam"}, "NX_ALREADY_EXISTS", "/members/1/name"),
+        ({"expressions": ["length", "nope"]}, "NX_NOT_FOUND", "/expressions/1"),
+        ({"expressions": ["length"]}, "NX_INVALID_ARGUMENT", "/members/0/values"),
+        ({"members": [{"name": "a b", "values": [1, 2]}]}, "NX_INVALID_ARGUMENT",
+         "/members/0/name"),
+        ({"members": [{"name": "A", "values": [1, 2]}, {"name": "a", "values": [1, 2]}]},
+         "NX_INVALID_ARGUMENT", "/members/1/name"),
+        ({"members": [{"name": "t", "values": [1, 2]}]}, "NX_ALREADY_EXISTS",
+         "/members/0/name"),
+        ({"members": [{"name": "m", "values": [1, "x;y"]}]}, "NX_INVALID_ARGUMENT",
+         "/members/0/values/1"),
+    ]  # fmt: skip
+    for extra, code, field in cases:
+        bad = create(nx, **extra)
+        assert bad.error["code"] == code and bad.error["field"] == field, (extra, bad)
+        assert bad.mutation_outcome == "not_started"
+    assert not nx.managers and not fam.IsModified
+    outside = create(nx, directory="../elsewhere")
+    assert outside.error["code"] == "NX_PATH_OUTSIDE_WORKSPACE"
+
+
+def test_refuses_a_second_family_and_locked_columns(nx, root, fam):
+    nx.locked = {"width"}
+    bad = create(nx)
+    assert bad.error["code"] == "NX_INVALID_ARGUMENT" and bad.error["field"] == "/expressions/1"
+    assert fam.family is None and nx.managers[-1].disposed
+    nx.locked = set()
+    assert create(nx, directory="one").ok
+    again = create(nx, directory="two", members=[{"name": "x", "values": [1, 2]}])
+    assert again.error["code"] == "NX_ALREADY_EXISTS" and again.mutation_outcome == "not_started"
+
+
+def test_failed_member_removes_written_files(nx, root, fam):
+    nx.member_errors = {"plate_b": 5}
+    bad = create(nx, directory="fam")
+    assert bad.error["code"] == "NX_ERROR" and bad.mutation_outcome == "partial", bad
+    assert bad.error["details"]["codes"] == {"plate_a": 0, "plate_b": 5}
+    assert "template_note" in bad.error["details"]
+    assert not (root / "fam" / "plate_a.prt").exists()
+
+
+def test_values_with_units_are_converted_to_the_expressions_units(nx, root, fam):
+    """NX takes a family value as a formula, where '10 mm' is a syntax error that leaves a
+    half-made family: unit strings are converted before NX, or refused."""
+    exps = {e.Name: e for e in fam.Expressions}
+    exps["length"].Units = NS(Name="MilliMeter", Abbreviation="mm")
+    exps["width"].Units = NS(Name="Inch", Abbreviation="in")
+    ok = create(nx, directory="fam", members=[{"name": "m1", "values": ["10 mm", "25.4 mm"]},
+                                              {"name": "m2", "values": ["1 in", " 2 in "]}])  # fmt: skip
+    assert ok.ok, ok
+    assert fam.family.rows[0].values["length"] == "10" and fam.family.rows[0].values["width"] == "1"
+    assert (
+        fam.family.rows[1].values["length"] == "25.4" and fam.family.rows[1].values["width"] == "2"
+    )
+
+
+def test_a_unit_the_expression_cannot_take_is_refused_before_nx(nx, root, fam):
+    exps = {e.Name: e for e in fam.Expressions}
+    exps["length"].Units = NS(Name="MilliMeter", Abbreviation="mm")
+    for values, field in ((["10 deg", 1], "/members/0/values/0"),
+                          ([1, "10 mm"], "/members/0/values/1"),  # width is unitless
+                          (["10 cm", 1], "/members/0/values/0")):  # fmt: skip
+        bad = create(nx, directory="fam", members=[{"name": "m1", "values": values}])
+        assert bad.error["code"] == "NX_INVALID_ARGUMENT" and bad.error["field"] == field, bad
+        assert bad.mutation_outcome == "not_started"
+    assert not nx.managers
+
+
+def test_a_template_left_with_an_unsaved_family_says_how_to_retry(nx, root, fam):
+    nx.member_errors = {"plate_b": 5}
+    bad = create(nx, directory="fam")
+    assert "nx_open_part" in bad.error["details"]["template_note"]
+    again = create(nx, directory="fam2")
+    assert again.error["code"] == "NX_ALREADY_EXISTS", again
+    assert "unsaved" in again.error["message"] and "nx_close_part" in again.error["hint"]
+    assert again.error["details"]["template"]["kind"] == "part"
+
+
+def test_member_values_are_verified(nx, root, fam, monkeypatch):
+    real = Manager.SaveFamilyAndCreateMembers
+
+    def wrong(self, definitions):
+        codes = real(self, definitions)
+        key = next(iter(self.fake.members))
+        owner, values = self.fake.members[key]
+        self.fake.members[key] = (owner, {**values, "length": "1"})
+        return codes
+
+    monkeypatch.setattr(Manager, "SaveFamilyAndCreateMembers", wrong)
+    bad = create(nx, directory="fam")
+    assert bad.error["code"] == "NX_VERIFICATION_FAILED", bad
+    assert "template_note" in bad.error["details"]
+
+
+def test_a_formula_nx_refuses_is_refused_before_the_family_table_exists(nx, root, fam):
+    """NX accepts any text as a member value and refuses it only while writing the
+    members, leaving a phantom member and a modified template: every formula is evaluated
+    first, in the column's units, and nothing of the family is made."""
+    count = len(fam.Expressions)
+    for value, code in (("abc+", None), ("length*", "NX_INVALID_FORMULA")):
+        bad = create(nx, directory="fam", members=[{"name": "m1", "values": [1, value]}])
+        assert bad.error["field"] == "/members/0/values/1", bad
+        assert bad.error["code"] in ({code} if code else {"NX_INVALID_FORMULA",
+                                                           "NX_INVALID_ARGUMENT"})  # fmt: skip
+        assert bad.mutation_outcome == "not_started" and value in bad.error["message"]
+    assert not nx.managers and fam.family is None and not fam.IsModified
+    assert len(fam.Expressions) == count  # the temporary expressions are gone
+    assert not (root / "fam" / "m1.prt").exists()
+    ok = create(nx, directory="fam", members=[{"name": "m1", "values": [1, "length/4"]}])
+    assert ok.ok and fam.family.rows[0].values["width"] == "length/4", ok
