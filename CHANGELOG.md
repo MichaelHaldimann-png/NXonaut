@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- New drawing sheets get a small «made with NXonaut» note top right, as one named note
+  (NXONAUT_MARK) you can delete in one step; `nxonaut_mark: false` leaves it out.
+
 **New**
 - Engineering rules built in: Claude reads them before it designs shafts, fits, threads
   or drawings (`nx_get_design_rules`). Profiles ISO, CH, DE and US, chosen at install

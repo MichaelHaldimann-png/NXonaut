@@ -857,6 +857,7 @@ Create a drawing sheet from a standard or custom size or a sheet template, and o
 | `projection` | `first_angle` \| `third_angle` | `"third_angle"` |  |
 | `template` | string | optional | Installed template, e.g. 'A3' |
 | `template_path` | string | optional | Workspace path (.prt) |
+| `nxonaut_mark` | boolean | `true` | Small 'made with NXonaut' note top right |
 
 ### `nx_create_drawing_symbol`
 
