@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "nxonaut",
   "display_name": "NXonaut for Siemens NX",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Let Claude model, inspect and export in Siemens NX: parts, sketches, assemblies with constraints, drawings and STEP export.",
   "long_description": "NXonaut is a community MCP server for Siemens NX (Windows). Claude works next to you in NX: it creates parts and sketches, builds assemblies with constraints, measures and checks clearances, makes drawings and exports STEP, PDF or DXF.\n\n**Start it in NX once:** after installing, press Alt+F8 in NX and play `Start NXonaut.py` from your workspace folder (default `C:\\Users\\<you>\\NX_MCP_WORKSPACE`). With *Start with NX* switched on, NX starts it by itself after the next NX restart. A small NX MCP panel shows what Claude does.\n\nClaude changes only parts it created, or parts you allow on the panel, and reads and writes files only in the workspace folder.\n\nNot affiliated with or endorsed by Siemens; you need your own licensed NX. Builds on skyf0l/siemens-nx-mcp, DreamEnding/NX_MCP, xuio/NX_MCP and LT60/nx-agent (MIT).",
   "author": {
