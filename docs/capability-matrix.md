@@ -3,14 +3,14 @@
 Generated from the catalogue (`nx_mcp.core.catalogue`) with the acceptance evidence in `src/nx_mcp/evidence/`; do not edit this table by hand.
 Run `python scripts/generate_capability_matrix.py` to regenerate, or add `--check` to detect drift.
 
-Canonical SHA-256 (catalogue evidence): `18254bc2033b4e46ed30803a65de635eaf0951465bf1d49bde1a1c205e595074`.
+Canonical SHA-256 (catalogue evidence): `bf51e41565992986f6c60595cf8d4420180ebf66efe3a4665301187effeec944`.
 
 These labels report recorded evidence, not certification or independent verification of its claims. A catalogue tool is Native-tested when the acceptance runner recorded machine-checked scenario evidence for an NX build (listed per variant); only that scope and build are covered. Without it the tool is Experimental, hidden from discovery and refused in production.
 
 | Tool classification | Count |
 | --- | ---: |
 | Native-tested | 271 |
-| Experimental | 1 |
+| Experimental | 4 |
 
 ## Catalogue tools
 
@@ -133,6 +133,7 @@ These labels report recorded evidence, not certification or independent verifica
 | nx_create_sketch_curves | Native-tested | sketch | model | v2406: all variants; 18 checks in acceptance/sketch/sketch_spline.json |
 | nx_create_sketch_dimensions | Native-tested | sketch | model | v2406: all variants; 88 checks in acceptance/sketch/sketch_safety.json |
 | nx_create_sketch_projection | Native-tested | sketch | model | v2406: all variants; 88 checks in acceptance/sketch/sketch_safety.json |
+| nx_create_snapshot | Experimental | parts_files | file | no acceptance evidence: hidden and refused in production |
 | nx_create_spline | Native-tested | freeform | model | v2406: all variants; 45 checks in acceptance/freeform/spline.json |
 | nx_create_surface_analysis | Native-tested | inspection | model | v2406: all variants; 27 checks in acceptance/inspection/surface_quality_values.json |
 | nx_create_sweep | Native-tested | modeling | model | v2406: tested; 29 checks in acceptance/modeling/sweep.json |
@@ -232,6 +233,7 @@ These labels report recorded evidence, not certification or independent verifica
 | nx_list_materials | Native-tested | modeling | read | v2406: tested; 42 checks in acceptance/modeling/material_library.json |
 | nx_list_objects | Native-tested | inspection | read | v2406: tested; 52 checks in acceptance/inspection/measure_details.json |
 | nx_list_parts | Native-tested | parts_files | read | v2406: tested; 19 checks in acceptance/parts_files/list_parts.json |
+| nx_list_snapshots | Experimental | parts_files | read | no acceptance evidence: hidden and refused in production |
 | nx_list_thread_sizes | Native-tested | modeling | read | v2406: tested; 48 checks in acceptance/modeling/thread_natural_args.json |
 | nx_list_view_edges | Native-tested | drawing | read | v2406: tested; 38 checks in acceptance/drawing/view_visibility.json |
 | nx_list_visual_materials | Native-tested | display | read | v2406: tested; 74 checks in acceptance/display/visual_materials.json |
@@ -249,6 +251,7 @@ These labels report recorded evidence, not certification or independent verifica
 | nx_resolve_reference | Native-tested | inspection | read | v2406: tested; 18 checks in acceptance/inspection/resolve_two_parts.json |
 | nx_restore_checkpoint | Native-tested | session | model | v2406: tested; 41 checks in acceptance/session/undo_survives_load.json |
 | nx_restore_display | Native-tested | display | view | v2406: tested; 58 checks in acceptance/display/visibility_assembly.json |
+| nx_restore_snapshot | Experimental | parts_files | file | no acceptance evidence: hidden and refused in production |
 | nx_run_batch | Native-tested | session | model | v2406: tested; 43 checks in acceptance/session/run_batch.json |
 | nx_run_clearance_set | Native-tested | assembly | model | v2406: tested; 93 checks in acceptance/assembly/clearance_sets.json |
 | nx_run_motion_sweep | Native-tested | motion | read | v2406: all variants; 38 checks in acceptance/motion/steering_linkage.json |

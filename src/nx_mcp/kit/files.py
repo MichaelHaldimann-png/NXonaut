@@ -128,13 +128,13 @@ def _created_key(path, root) -> str:
 
 
 @contextlib.contextmanager
-def _created_lock(root):
-    """Exclusive access to the created-files list across processes (at most ~2 s wait;
-    an older lock than ``LOCK_SECONDS`` is a crashed writer's and is taken over)."""
+def lock_file(lock):
+    """Exclusive access across processes through the lock file ``lock`` (at most ~2 s
+    wait; an older lock than ``LOCK_SECONDS`` is a crashed writer's and is taken over)."""
     import os
     import time
 
-    lock = _created_file(root).with_suffix(".lock")
+    lock = Path(lock)
     lock.parent.mkdir(parents=True, exist_ok=True)
     handle = None
     for _ in range(40):
@@ -154,6 +154,11 @@ def _created_lock(root):
             os.close(handle)
             with contextlib.suppress(OSError):
                 lock.unlink()
+
+
+def _created_lock(root):
+    """Exclusive access to the created-files list across processes (:func:`lock_file`)."""
+    return lock_file(_created_file(root).with_suffix(".lock"))
 
 
 def _created_rows(root) -> dict:
