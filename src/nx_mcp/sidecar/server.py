@@ -75,9 +75,10 @@ AGENT_INSTRUCTIONS = (
     "and chamfer values driven by the expression; [x, y, z] points and vectors take numbers only. "
     "Options match in any case or spacing ('Through All'). When two or more parts are loaded, "
     "add the target part's file name to the arguments of every call without refs, the listed "
-    'core tools included: {"part": "housing", ...}; nx_list_parts lists them. Shafts, fits, '
-    "threads, drawings: first read nx_get_design_rules for the topic; save a convention the "
-    "engineer corrects with nx_save_design_rule once they agree."
+    'core tools included: {"part": "housing", ...}; nx_list_parts lists them. Before a part '
+    "or drawing read nx_get_design_rules (manufacturing, then the process and the drawing, "
+    "shaft or threads topic) and run its checks before done; save a convention the engineer "
+    "corrects with nx_save_design_rule once they agree."
 )
 # Every tool that can be called without references lists ``part`` in its schemas (the
 # ref-less core tools in the agent listing, every such tool in nx_get_tool_schemas and the

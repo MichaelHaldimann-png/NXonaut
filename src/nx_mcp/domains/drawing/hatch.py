@@ -66,6 +66,16 @@ DEFAULT_ANGLE = {"crosshatch": 45.0, "area_fill": 0.0}
 # CreateHatchBuilder takes either license feature (NX's NXOpen reference).
 LICENSES = ("drafting", "nx_2d_edit")
 PATTERN_COVER = 0.5  # a patterned fill's box spans at least half the region on each axis
+# Crosshatch spacing on the sheet by the region's smaller side (ISO 128-50 practice: small
+# cut areas get denser hatching than large ones), in sheet millimetres.
+AUTO_SPACING = ((8.0, 1.0), (20.0, 1.5), (40.0, 2.5), (80.0, 3.5))
+AUTO_SPACING_MAX = 5.0
+
+
+def auto_spacing(width: float, height: float) -> float:
+    """The crosshatch spacing (sheet mm) for a region of ``width`` x ``height`` on the sheet."""
+    side = min(abs(width), abs(height))
+    return next((gap for limit, gap in AUTO_SPACING if side < limit), AUTO_SPACING_MAX)
 
 
 class HatchEdit(TypedDict, total=False):
@@ -90,6 +100,7 @@ class HatchData(TypedDict, total=False):
     material: str
     angle: float
     spacing: float
+    spacing_auto: Annotated[bool, Doc("Spacing chosen from the region's size (none given)")]
     scale: float
     center: Annotated[list[float], Doc("Centre of the hatch's box on the sheet")]
     bounds: list[float]
@@ -286,7 +297,8 @@ def nx_create_hatch(
     angle: Annotated[Angle, Doc("Line or fill angle from sheet +x; default 45 (fill 0)")]
     | None = None,
     spacing: Annotated[
-        SheetLength, Doc("crosshatch: pattern distance (steel: between line pairs); default 5 mm")
+        SheetLength,
+        Doc("crosshatch: pattern distance (steel: line pairs); default by region size 1-5 mm"),
     ]
     | None = None,
     material: Annotated[Material, Doc("area_fill: NX fill pattern")] = "solid",
@@ -312,6 +324,10 @@ def nx_create_hatch(
     A, part = tx.nx.Annotations, tx.part
     with licenses.attempt(tx, LICENSES), drawing.on_sheet(tx, sheet, part) as sh:
         quiet_sheet_sketch(tx)
+        auto = type == "crosshatch" and spacing is None
+        if auto:
+            lo, hi = sh.to_sheet(box[0:2]), sh.to_sheet(box[2:4])
+            spacing = auto_spacing(hi[0] - lo[0], hi[1] - lo[1])
         start = ksketch.read(tx, IDENTITY, curves[0])["start"]
         section = builders.curve_section(tx, curves, start=[*start, 0.0])
         with builders.build(tx, part.Annotations.Hatches.CreateHatchBuilder, A.Hatch.Null) as b:
@@ -346,6 +362,8 @@ def nx_create_hatch(
                                       1e-6 * float(spacing))  # fmt: skip
             out["pattern"], out["angle"] = pattern, got["angle"]
             out["spacing"] = got["distance"] / sh.scale
+            if auto:
+                out["spacing_auto"] = True
         else:
             readback.expect(got["material"] == MATERIALS[material] and _close_angle(
                 got["fill_angle"], wanted), "material", **got)  # fmt: skip

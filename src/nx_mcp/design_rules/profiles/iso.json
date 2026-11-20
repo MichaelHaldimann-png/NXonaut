@@ -21,7 +21,8 @@
         "edges": "Undefined edges per ISO 13715, e.g. a general note 'edges -0.3' for burr-free sharp edges.",
         "title_block": "Title block per ISO 7200 at the bottom right: title, drawing number, revision, material, scale, sheet n/N, projection symbol, general tolerance, created by, date of issue (YYYY-MM-DD). Created by: NXonaut.",
         "no_overlaps": "Nothing overlaps: no text, symbol or frame on top of a line, edge, hatch or other annotation; no leader crossing a dimension, symbol or frame. Move or re-anchor the annotation, shorten its leader, or move the view until every item stands free. Check the whole sheet in a capture before export.",
-        "layout": "Clean, balanced layout: views aligned on their projection axes, even gaps, notes grouped above the title block, nothing overlapping."
+        "layout": "Clean, balanced layout: views aligned on their projection axes, even gaps, notes grouped above the title block, nothing overlapping.",
+        "hatching": "Hatching per ISO 128-50: thin lines at 45 deg; spacing by the size of the cut area, small areas denser (about 1 mm below 8 mm, 1.5 mm below 20 mm, 2.5 mm below 40 mm, 3.5 mm below 80 mm, 5 mm above; nx_create_hatch picks this when spacing is omitted). Adjacent parts in an assembly section get another angle (45/135 deg) or spacing; one part keeps the same hatching in every view. Shafts, keys, bolts, pins and ribs cut lengthwise are not hatched."
       }
     },
     "tolerances": {
@@ -38,22 +39,170 @@
       "tables": {
         "iso286": {
           "title": "IT grades and fundamental deviations in micrometres (diameter over-up to, mm)",
-          "columns": ["over", "to", "IT6", "IT7", "g_es", "k_ei", "m_ei", "n_ei", "p_ei", "j6_es", "j6_ei"],
+          "columns": [
+            "over",
+            "to",
+            "IT6",
+            "IT7",
+            "g_es",
+            "k_ei",
+            "m_ei",
+            "n_ei",
+            "p_ei",
+            "j6_es",
+            "j6_ei"
+          ],
           "rows": [
-            [3, 6, 8, 12, -4, 1, 4, 8, 12, 6, -2],
-            [6, 10, 9, 15, -5, 1, 6, 10, 15, 7, -2],
-            [10, 18, 11, 18, -6, 1, 7, 12, 18, 8, -3],
-            [18, 30, 13, 21, -7, 2, 8, 15, 22, 9, -4],
-            [30, 50, 16, 25, -9, 2, 9, 17, 26, 11, -5],
-            [50, 80, 19, 30, -10, 2, 11, 20, 32, 12, -7],
-            [80, 120, 22, 35, -12, 3, 13, 23, 37, 13, -9],
-            [120, 180, 25, 40, -14, 3, 15, 27, 43, 14, -11]
+            [
+              3,
+              6,
+              8,
+              12,
+              -4,
+              1,
+              4,
+              8,
+              12,
+              6,
+              -2
+            ],
+            [
+              6,
+              10,
+              9,
+              15,
+              -5,
+              1,
+              6,
+              10,
+              15,
+              7,
+              -2
+            ],
+            [
+              10,
+              18,
+              11,
+              18,
+              -6,
+              1,
+              7,
+              12,
+              18,
+              8,
+              -3
+            ],
+            [
+              18,
+              30,
+              13,
+              21,
+              -7,
+              2,
+              8,
+              15,
+              22,
+              9,
+              -4
+            ],
+            [
+              30,
+              50,
+              16,
+              25,
+              -9,
+              2,
+              9,
+              17,
+              26,
+              11,
+              -5
+            ],
+            [
+              50,
+              80,
+              19,
+              30,
+              -10,
+              2,
+              11,
+              20,
+              32,
+              12,
+              -7
+            ],
+            [
+              80,
+              120,
+              22,
+              35,
+              -12,
+              3,
+              13,
+              23,
+              37,
+              13,
+              -9
+            ],
+            [
+              120,
+              180,
+              25,
+              40,
+              -14,
+              3,
+              15,
+              27,
+              43,
+              14,
+              -11
+            ]
           ]
         },
         "iso2768_m": {
           "title": "ISO 2768-m general length tolerances in mm (over-up to: +/-)",
-          "columns": ["over", "to", "plus_minus"],
-          "rows": [[0.5, 3, 0.1], [3, 6, 0.1], [6, 30, 0.2], [30, 120, 0.3], [120, 400, 0.5], [400, 1000, 0.8], [1000, 2000, 1.2]]
+          "columns": [
+            "over",
+            "to",
+            "plus_minus"
+          ],
+          "rows": [
+            [
+              0.5,
+              3,
+              0.1
+            ],
+            [
+              3,
+              6,
+              0.1
+            ],
+            [
+              6,
+              30,
+              0.2
+            ],
+            [
+              30,
+              120,
+              0.3
+            ],
+            [
+              120,
+              400,
+              0.5
+            ],
+            [
+              400,
+              1000,
+              0.8
+            ],
+            [
+              1000,
+              2000,
+              1.2
+            ]
+          ]
         }
       }
     },
@@ -75,24 +224,213 @@
       "tables": {
         "keys_din6885": {
           "title": "Parallel keys DIN 6885-1: shaft diameter over-up to, key b x h, shaft depth t1, hub depth t2 (mm)",
-          "columns": ["d_over", "d_to", "b", "h", "t1", "t2"],
+          "columns": [
+            "d_over",
+            "d_to",
+            "b",
+            "h",
+            "t1",
+            "t2"
+          ],
           "rows": [
-            [6, 8, 2, 2, 1.2, 1.0], [8, 10, 3, 3, 1.8, 1.4], [10, 12, 4, 4, 2.5, 1.8],
-            [12, 17, 5, 5, 3.0, 2.3], [17, 22, 6, 6, 3.5, 2.8], [22, 30, 8, 7, 4.0, 3.3],
-            [30, 38, 10, 8, 5.0, 3.3], [38, 44, 12, 8, 5.0, 3.3], [44, 50, 14, 9, 5.5, 3.8],
-            [50, 58, 16, 10, 6.0, 4.3], [58, 65, 18, 11, 7.0, 4.4], [65, 75, 20, 12, 7.5, 4.9],
-            [75, 85, 22, 14, 9.0, 5.4], [85, 95, 25, 14, 9.0, 5.4], [95, 110, 28, 16, 10.0, 6.4],
-            [110, 130, 32, 18, 11.0, 7.4], [130, 150, 36, 20, 12.0, 8.4]
+            [
+              6,
+              8,
+              2,
+              2,
+              1.2,
+              1.0
+            ],
+            [
+              8,
+              10,
+              3,
+              3,
+              1.8,
+              1.4
+            ],
+            [
+              10,
+              12,
+              4,
+              4,
+              2.5,
+              1.8
+            ],
+            [
+              12,
+              17,
+              5,
+              5,
+              3.0,
+              2.3
+            ],
+            [
+              17,
+              22,
+              6,
+              6,
+              3.5,
+              2.8
+            ],
+            [
+              22,
+              30,
+              8,
+              7,
+              4.0,
+              3.3
+            ],
+            [
+              30,
+              38,
+              10,
+              8,
+              5.0,
+              3.3
+            ],
+            [
+              38,
+              44,
+              12,
+              8,
+              5.0,
+              3.3
+            ],
+            [
+              44,
+              50,
+              14,
+              9,
+              5.5,
+              3.8
+            ],
+            [
+              50,
+              58,
+              16,
+              10,
+              6.0,
+              4.3
+            ],
+            [
+              58,
+              65,
+              18,
+              11,
+              7.0,
+              4.4
+            ],
+            [
+              65,
+              75,
+              20,
+              12,
+              7.5,
+              4.9
+            ],
+            [
+              75,
+              85,
+              22,
+              14,
+              9.0,
+              5.4
+            ],
+            [
+              85,
+              95,
+              25,
+              14,
+              9.0,
+              5.4
+            ],
+            [
+              95,
+              110,
+              28,
+              16,
+              10.0,
+              6.4
+            ],
+            [
+              110,
+              130,
+              32,
+              18,
+              11.0,
+              7.4
+            ],
+            [
+              130,
+              150,
+              36,
+              20,
+              12.0,
+              8.4
+            ]
           ],
           "note": "Standard key lengths: 6 8 10 12 14 16 18 20 22 25 28 32 36 40 45 50 56 63 70 80 90 100 110 125 140 160 180 200."
         },
         "undercuts_din509": {
           "title": "Undercut DIN 509 (form E/F), radius r x depth t1 by shaft diameter (mm)",
-          "columns": ["d_over", "d_to", "r", "t1", "load"],
+          "columns": [
+            "d_over",
+            "d_to",
+            "r",
+            "t1",
+            "load"
+          ],
           "rows": [
-            [3, 10, 0.4, 0.2, "normal"], [10, 18, 0.6, 0.2, "normal"], [18, 80, 0.6, 0.3, "normal"],
-            [80, 500, 1.0, 0.4, "normal"], [18, 50, 1.6, 0.3, "fatigue"], [50, 80, 2.5, 0.4, "fatigue"],
-            [80, 125, 4.0, 0.5, "fatigue"]
+            [
+              3,
+              10,
+              0.4,
+              0.2,
+              "normal"
+            ],
+            [
+              10,
+              18,
+              0.6,
+              0.2,
+              "normal"
+            ],
+            [
+              18,
+              80,
+              0.6,
+              0.3,
+              "normal"
+            ],
+            [
+              80,
+              500,
+              1.0,
+              0.4,
+              "normal"
+            ],
+            [
+              18,
+              50,
+              1.6,
+              0.3,
+              "fatigue"
+            ],
+            [
+              50,
+              80,
+              2.5,
+              0.4,
+              "fatigue"
+            ],
+            [
+              80,
+              125,
+              4.0,
+              0.5,
+              "fatigue"
+            ]
           ],
           "note": "Take the width and the face allowance from the standard for the chosen form."
         }
@@ -110,12 +448,79 @@
       "tables": {
         "metric_coarse": {
           "title": "Metric coarse threads: pitch and tap drill (mm)",
-          "columns": ["size", "pitch", "tap_drill", "clearance_medium"],
+          "columns": [
+            "size",
+            "pitch",
+            "tap_drill",
+            "clearance_medium"
+          ],
           "rows": [
-            ["M3", 0.5, 2.5, 3.4], ["M4", 0.7, 3.3, 4.5], ["M5", 0.8, 4.2, 5.5], ["M6", 1.0, 5.0, 6.6],
-            ["M8", 1.25, 6.8, 9.0], ["M10", 1.5, 8.5, 11.0], ["M12", 1.75, 10.2, 13.5],
-            ["M16", 2.0, 14.0, 17.5], ["M20", 2.5, 17.5, 22.0], ["M24", 3.0, 21.0, 26.0],
-            ["M30", 3.5, 26.5, 33.0]
+            [
+              "M3",
+              0.5,
+              2.5,
+              3.4
+            ],
+            [
+              "M4",
+              0.7,
+              3.3,
+              4.5
+            ],
+            [
+              "M5",
+              0.8,
+              4.2,
+              5.5
+            ],
+            [
+              "M6",
+              1.0,
+              5.0,
+              6.6
+            ],
+            [
+              "M8",
+              1.25,
+              6.8,
+              9.0
+            ],
+            [
+              "M10",
+              1.5,
+              8.5,
+              11.0
+            ],
+            [
+              "M12",
+              1.75,
+              10.2,
+              13.5
+            ],
+            [
+              "M16",
+              2.0,
+              14.0,
+              17.5
+            ],
+            [
+              "M20",
+              2.5,
+              17.5,
+              22.0
+            ],
+            [
+              "M24",
+              3.0,
+              21.0,
+              26.0
+            ],
+            [
+              "M30",
+              3.5,
+              26.5,
+              33.0
+            ]
           ],
           "note": "clearance_medium: through hole for a screw, ISO 273 medium series."
         }
@@ -127,6 +532,265 @@
         "designation": "Name steels per EN 10027 (C45E, 1.1191 in brackets), aluminium per EN 573 (EN AW-6082 T6).",
         "defaults": "Machined steel parts S235JR or C45E; shafts C45E or 42CrMo4; housings EN AW-6082 T6 or EN-GJL-250; stainless 1.4301 (sheet) or 1.4305 (machined); plastic POM-C or PA6.",
         "density": "Set the NX material so the mass is right: steel 7.85, aluminium 2.70, cast iron 7.2, stainless 7.9, POM 1.41 g/cm3."
+      }
+    },
+    "manufacturing": {
+      "title": "Choose the process first: which topic applies, and the check step",
+      "rules": {
+        "process_first": "Before the first feature, decide how the part is made: casting, machining, sheet_metal, thermoforming, welding or additive (ask the engineer when it is not clear) and read that topic. Model to it from the start: a cast or formed part gets its draft before its blends, and its blends before details.",
+        "check_step": "Before calling a part done, run every row of its process topic's checks table and also nx_check_model. Fix what fails; report what cannot be fixed with the measured value and the rule id.",
+        "mixed": "A cast or welded part with machined faces follows both topics: the raw part by its process, the functional faces by machining (allowance, datums, tolerances only there).",
+        "drawing": "Name the process on the drawing: cast parts get the casting tolerance grade and a note for unspecified radii and draft; welded parts weld symbols per ISO 2553; sheet metal a flat pattern or bend data."
+      }
+    },
+    "casting": {
+      "title": "Cast parts (sand, gravity, die casting)",
+      "rules": {
+        "draft": "Every wall parallel to the pull direction gets draft: sand casting 1-2 deg outside and 2-3 deg inside, die casting 0.5-1 deg outside and 1-2 deg inside. Choose the parting line first; draft away from it.",
+        "radii": "No sharp edges on cast surfaces. Internal fillets at least 1/3 to 1/2 of the wall thickness (sand casting at least R3), external radius = internal radius + wall thickness. A general note covers the rest ('unspecified radii R3').",
+        "walls": "Uniform walls; minimum about 4 mm for sand-cast aluminium, 5 mm for grey iron, 2-3 mm for die-cast aluminium. Thickness changes taper over at least 3 to 5 times the difference. No mass accumulations (hot spots): core out thick zones.",
+        "ribs": "Ribs 0.6 to 0.8 x the wall they stiffen, with draft and fillets; never a rib meeting a wall in a sharp T without a radius.",
+        "machining_allowance": "Functional faces (bearing bores, sealing and mounting faces) get a machining allowance: about 2-3 mm per side for sand casting, 0.5-1 mm for die casting, and stand on raised pads 2-3 mm above the raw surface.",
+        "undercuts": "Avoid undercuts in the pull direction; where needed use a core and say so. Bolt holes get cast bosses with a machined spot face.",
+        "tolerances": "Raw cast dimensions per ISO 8062-3 (DCTG grade, e.g. DCTG 10 for sand-cast aluminium); only machined faces carry fits and tight GD&T."
+      },
+      "tables": {
+        "checks": {
+          "title": "Checks before the part is done: what to measure, with which tool, what passes",
+          "columns": [
+            "check",
+            "tool",
+            "pass"
+          ],
+          "rows": [
+            [
+              "draft on all walls",
+              "nx_analyze_faces with pull_direction",
+              "every wall face drafted at least the minimum above; none at 0 deg except machined faces"
+            ],
+            [
+              "wall thickness",
+              "nx_measure_wall_thickness",
+              "minimum at or above the process minimum; max/min ratio below about 2.5 outside bosses"
+            ],
+            [
+              "sharp edges",
+              "nx_find_geometry (edges) and nx_get_feature on blends",
+              "no edge on a cast surface without a blend; internal radii at or above the minimum"
+            ],
+            [
+              "machining allowance",
+              "nx_measure_distance from raw to finished face",
+              "allowance present on every functional face"
+            ],
+            [
+              "model health",
+              "nx_check_model",
+              "no errors"
+            ]
+          ]
+        }
+      }
+    },
+    "machining": {
+      "title": "Machined parts (milling, turning, drilling)",
+      "rules": {
+        "internal_corners": "Pockets have internal vertical radii no smaller than the cutter radius; prefer R at least depth/3 so the cutter length stays within about 4 x its diameter. Never a sharp internal vertical corner.",
+        "access": "Every feature reachable by a standard tool in few set-ups (ideally from 1-3 directions); no closed internal shapes a tool cannot reach.",
+        "undercuts": "Undercuts only with standard tools: DIN 509 relief grooves, retaining-ring grooves, T-slots, dovetails.",
+        "holes": "Standard drill and reamer sizes, drill point 118 deg in blind holes, holes start on a face square to the drill (spot face or boss otherwise); depth up to about 5 x diameter without special tools.",
+        "walls": "Thin walls at least about 1 mm in steel and aluminium, 1.5 mm in plastics; tall thin ribs need a height/width ratio below about 4.",
+        "tolerances": "Tight tolerances, fits and fine surfaces only on functional faces; everything else by ISO 2768-mK. Break or chamfer all external edges."
+      },
+      "tables": {
+        "checks": {
+          "title": "Checks before the part is done: what to measure, with which tool, what passes",
+          "columns": [
+            "check",
+            "tool",
+            "pass"
+          ],
+          "rows": [
+            [
+              "internal corner radii",
+              "nx_analyze_faces or nx_get_feature on blends",
+              "no internal vertical corner sharper than the intended cutter radius"
+            ],
+            [
+              "wall thickness",
+              "nx_measure_wall_thickness",
+              "minimum at or above the rule"
+            ],
+            [
+              "hole sizes",
+              "nx_list_objects / nx_get_feature on holes",
+              "standard drill sizes; threads from the threads topic"
+            ],
+            [
+              "model health",
+              "nx_check_model",
+              "no errors"
+            ]
+          ]
+        }
+      }
+    },
+    "sheet_metal": {
+      "title": "Sheet metal parts (laser cut, bent)",
+      "rules": {
+        "features": "Build sheet-metal parts with NX sheet-metal features (tab, flange, bend), not as extrudes, so the flat pattern exists.",
+        "thickness": "One thickness per part from the standard range (0.5 0.75 1 1.5 2 2.5 3 4 5 6 mm).",
+        "bend_radius": "Inner bend radius at least 1 x thickness for mild and stainless steel, 1.5-2 x for aluminium 5xxx/6xxx; one radius throughout the part.",
+        "flange": "Minimum flange length about 4 x thickness (or 3 x thickness + bend radius).",
+        "holes": "Holes at least 1 x thickness in diameter, at least 2 x thickness from an edge and at least 2.5 x thickness + bend radius from a bend.",
+        "reliefs": "Bend reliefs where a bend ends at an edge: width at least the thickness, depth bend radius + thickness.",
+        "flat_pattern": "Check the flat pattern exists and nothing overlaps; export it for the laser."
+      },
+      "tables": {
+        "checks": {
+          "title": "Checks before the part is done: what to measure, with which tool, what passes",
+          "columns": [
+            "check",
+            "tool",
+            "pass"
+          ],
+          "rows": [
+            [
+              "bends and thickness",
+              "nx_get_sheet_metal",
+              "one thickness; every inner radius at or above the minimum"
+            ],
+            [
+              "holes near bends",
+              "nx_measure_distance hole edge to bend face",
+              "distance at or above 2.5 x t + r"
+            ],
+            [
+              "flat pattern",
+              "nx_export_flat_pattern (or its feature)",
+              "pattern builds without overlaps"
+            ],
+            [
+              "model health",
+              "nx_check_model",
+              "no errors"
+            ]
+          ]
+        }
+      }
+    },
+    "thermoforming": {
+      "title": "Thermoformed (vacuum-formed) plastic parts",
+      "rules": {
+        "draft": "Draft at least 2-3 deg on a male (positive) mould, at least 0.5-1 deg on a female mould; more for textured surfaces.",
+        "radii": "All edges rounded: radius at least the sheet thickness, better 3 x; no sharp corners (the sheet thins and tears there).",
+        "draw_ratio": "Depth to width at most about 1:1 on a male mould and 0.5:1 on a female one; deep corners thin out most, so choose the start sheet thickness for the thinnest spot.",
+        "undercuts": "No undercuts unless the mould has moving parts.",
+        "trim": "Model a flange or trim allowance around the part (about 10-20 mm) and the trim line."
+      },
+      "tables": {
+        "checks": {
+          "title": "Checks before the part is done: what to measure, with which tool, what passes",
+          "columns": [
+            "check",
+            "tool",
+            "pass"
+          ],
+          "rows": [
+            [
+              "draft",
+              "nx_analyze_faces with pull_direction",
+              "every side face at or above the minimum"
+            ],
+            [
+              "radii",
+              "nx_get_feature on blends / nx_find_geometry edges",
+              "no sharp edge; radius at least the sheet thickness"
+            ],
+            [
+              "model health",
+              "nx_check_model",
+              "no errors"
+            ]
+          ]
+        }
+      }
+    },
+    "welding": {
+      "title": "Welded assemblies",
+      "rules": {
+        "joints": "Prefer fillet welds; butt welds on plates over about 4 mm get a weld preparation (V 60 deg, or X for both sides).",
+        "size": "Fillet weld throat a about 0.7 x the thinner plate, at least 3 mm, not larger than needed.",
+        "access": "Leave room for the torch: at least about 45 deg and the torch diameter free at every seam; no seams in closed corners.",
+        "placement": "No seams in the most stressed spot or on functional faces; no piles of crossing seams.",
+        "machining": "Faces that need precision are machined after welding: add allowance and say so on the drawing.",
+        "hollow": "Closed hollow sections get vent or drain holes when they will be galvanized or painted by dipping.",
+        "drawing": "Weld symbols per ISO 2553 with throat, length and process; a weld table on large frames."
+      },
+      "tables": {
+        "checks": {
+          "title": "Checks before the part is done: what to measure, with which tool, what passes",
+          "columns": [
+            "check",
+            "tool",
+            "pass"
+          ],
+          "rows": [
+            [
+              "fit-up gaps",
+              "nx_check_interference / nx_measure_distance between members",
+              "no overlap; gaps at most about 1 mm where welded"
+            ],
+            [
+              "torch access",
+              "nx_measure_distance around each seam",
+              "free space for the torch at every seam"
+            ],
+            [
+              "model health",
+              "nx_check_model",
+              "no errors"
+            ]
+          ]
+        }
+      }
+    },
+    "additive": {
+      "title": "3D-printed parts (FDM, SLS, SLM)",
+      "rules": {
+        "overhangs": "Overhangs at most 45 deg from vertical without supports; chamfer instead of fillet on downward-facing edges.",
+        "walls": "Minimum wall about 1.2 mm for FDM (2-3 nozzle widths), 0.8 mm for SLS, 0.5 mm for SLM metal.",
+        "holes": "Horizontal holes as teardrops or drilled afterwards; holes below 2 mm drilled or reamed.",
+        "clearance": "Moving or mating printed parts 0.3-0.5 mm clearance (FDM), 0.2-0.3 mm (SLS).",
+        "orientation": "Orient so loads run along the layers, not across them; flat on the bed where possible.",
+        "powder": "Hollow powder-bed parts get escape holes (at least 3-5 mm)."
+      },
+      "tables": {
+        "checks": {
+          "title": "Checks before the part is done: what to measure, with which tool, what passes",
+          "columns": [
+            "check",
+            "tool",
+            "pass"
+          ],
+          "rows": [
+            [
+              "overhangs",
+              "nx_analyze_faces with pull_direction = build direction",
+              "no downward face steeper than 45 deg from vertical without support"
+            ],
+            [
+              "wall thickness",
+              "nx_measure_wall_thickness",
+              "minimum at or above the process minimum"
+            ],
+            [
+              "model health",
+              "nx_check_model",
+              "no errors"
+            ]
+          ]
+        }
       }
     }
   }

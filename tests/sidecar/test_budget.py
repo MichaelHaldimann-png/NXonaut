@@ -53,7 +53,8 @@ AGENT_LISTING_BASE, PER_DOMAIN = 17_650, 15
 AGENT_LISTING = AGENT_LISTING_BASE + PER_DOMAIN * DOMAINS  # 17,830 at 12 domains
 # The server instructions, sent once per session: 1,395 on 2026-10-13 (unbudgeted before).
 # 2026-11-20: 1,646 with the sentence on design rules (when to read and save them).
-INSTRUCTIONS_CAP = 1_700
+# 2026-11-20: 1,723 when the sentence also names the manufacturing process and its checks.
+INSTRUCTIONS_CAP = 1_800
 
 # -- Full profile ------------------------------------------------------------------------
 # A mean per listed tool (name + description + input schema with the call keys), so adding

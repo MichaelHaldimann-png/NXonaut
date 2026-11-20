@@ -40,7 +40,9 @@ in the workspace folder.
 NXonaut brings engineering rules with it, so Claude designs the way a careful engineer
 would: fits for bearing seats, keys, undercuts, chamfers and thread runouts on shafts,
 and drawings with the right projection method, general tolerances, a filled title block
-and nothing overlapping. You pick the standard once when you install: **ISO**, **CH**,
+and nothing overlapping. It also thinks about how the part is made: a cast housing gets
+draft and radii, a sheet-metal part proper bend radii, and every part is checked against
+its process before Claude calls it done. You pick the standard once when you install: **ISO**, **CH**,
 **DE** or **US** (ASME, third-angle).
 
 Your own way of working comes on top. When you correct Claude ("our shafts are always

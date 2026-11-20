@@ -20,9 +20,9 @@ NAMES = (GET, SAVE)
 NAME = {"type": "string", "maxLength": 40}
 DESCRIPTIONS = {
     GET: (
-        "Engineering rules to follow when modelling and drawing (drawing, tolerances, shaft, "
-        "threads, materials): profile ISO, CH, DE or US, then the engineer's own rules, which "
-        "win. No topic: the topic list."
+        "Engineering rules to follow when modelling and drawing: manufacturing processes "
+        "(casting, machining, sheet_metal...) with checks, drawing, tolerances, shaft, threads. "
+        "Profile ISO, CH, DE or US, then the engineer's own rules, which win. No topic: list."
     ),
     SAVE: (
         "Save a rule in the engineer's own rule file (shipped profiles never change), only "
