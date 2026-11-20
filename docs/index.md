@@ -44,6 +44,28 @@ From the prompt to the finished PDF took about 11 minutes: some 8 for the model 
   <br /><sub>Modelled and drawn by NXonaut with Claude in NX 2512, in about 11 minutes.</sub>
 </p>
 
+## Example: a gearbox shaft with a production drawing
+
+One sentence to Claude, in German:
+
+> *Modelliere eine Getriebewelle mit Fertigungszeichnung.*
+> (Model a gearbox shaft with a production drawing.)
+
+Claude built a stepped shaft in NX 2512 from one revolved profile: k6 bearing and
+coupling seats, an m6 gear seat, keyways for DIN 6885 keys, DIN 471 retaining-ring
+grooves, a thread undercut, an M30x1.5 thread, DIN 332 centre holes, shoulder radii and
+chamfers, plus the two keys as a small assembly. Then an A3 production drawing to Swiss
+practice (first-angle projection): fits on every diameter, chained lengths below the
+shaft, keyway sections, groove details, datums A and B with circular runout, surface
+finish symbols, notes and a filled-in title block, exported to PDF.
+From the prompt to the finished PDF took about 55 minutes, including one NX restart.
+
+<p align="center">
+  <img src="assets/examples/shaft.png" width="440" alt="Stepped gearbox shaft with two keys modelled in NX by Claude" />
+  <img src="assets/examples/shaft-drawing.png" width="440" alt="Production drawing of the shaft with fits, runout tolerances, sections and details" />
+  <br /><sub>Modelled and drawn by NXonaut with Claude in NX 2512, in about 55 minutes.</sub>
+</p>
+
 ## About NXonaut
 
 Community MCP server for Siemens NX, built first for Claude (Claude Desktop and Claude
