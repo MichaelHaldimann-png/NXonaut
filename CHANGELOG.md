@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.1 (2026-11-20)
+
+Same content as the published 0.2.0. A new number because an earlier test build was
+also called 0.2.0; with 0.2.1 Claude Desktop clearly sees the update.
+
+- Several Claude chats on one NX take turns, and NX gets a short pause after heavy
+  steps such as large drawing views.
+- Pure NX information dialogs such as «Ereignisliste aktualisieren» are closed with OK
+  and noted in the panel. Every other dialog is only reported, as before.
+
 ## 0.2.0 (2026-11-20)
 
 First release after trying NXonaut on a real NX 2512 with Claude Desktop.
