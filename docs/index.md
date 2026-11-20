@@ -33,6 +33,8 @@ constrained sketch driven by expressions (seat and head angle, reach, stack, tub
 11 separate steel tubes and dropouts with coped (fishmouth) ends, checked for 14 weld
 seams with no overlap. Then an A2 welding drawing with three views, main dimensions,
 ISO 2553 fillet weld symbols, a parts list and a weld table, exported to PDF.
+From the prompt to the finished PDF took about 11 minutes: some 8 for the model and
+3 for the drawing.
 
 <p align="center">
   <img src="assets/examples/bike-frame.png" width="440" alt="Red road bike frame modelled in NX by Claude" />
