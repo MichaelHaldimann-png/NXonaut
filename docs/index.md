@@ -41,6 +41,24 @@ From the prompt to the finished PDF took about 11 minutes: some 8 for the model 
   <img src="assets/examples/bike-frame-drawing.png" width="440" alt="Welding drawing of the bike frame with weld symbols, parts list and weld table" />
 </p>
 
+## Example: a pedal boat assembly
+
+Another sentence, again in German:
+
+> *Baue eine Baugruppe eines Tretboots mit zwei Schwimmern, sauber mit Constraints.*
+> (Build an assembly of a pedal boat with two floats, properly constrained.)
+
+Claude modelled seven new parts in NX 2512 (float, frame with deck and cross beams,
+seat, pedal crank, folding motor with propeller, steering stick) and placed ten
+components in an assembly with 24 constraints (touch, align, distance, concentric),
+all solved. The cranks are left free to turn in their bearings. Main sizes are
+expressions: change the half beam from 1100 to 1200 mm and both floats and motors move
+out with it. From the prompt to the finished assembly took about 11 minutes.
+
+<p align="center">
+  <img src="assets/examples/pedal-boat.png" width="640" alt="Pedal boat assembly with two floats, deck, seats, pedal cranks and motors, modelled in NX by Claude" />
+</p>
+
 ## About NXonaut
 
 Community MCP server for Siemens NX, built first for Claude (Claude Desktop and Claude
