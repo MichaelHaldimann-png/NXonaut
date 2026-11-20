@@ -121,7 +121,7 @@ One sentence to Claude, in German:
 > *Konstruiere ein einstufiges Stirnradgetriebe als Baugruppe, mit Explosionsansicht und Zusammenbauzeichnung.*
 > (Design a single-stage spur gearbox as an assembly, with an exploded view and an assembly drawing.)
 
-Claude modelled a split housing, an input shaft with an integral pinion and an output
+Claude modelled a split cast housing (cast radii on every unmachined edge, machined faces left sharp), an input shaft with an integral pinion and an output
 shaft with a gear (involute teeth, module 2, 19 and 57 teeth, ratio 3 : 1, centre
 distance 76 mm), four ball bearings, two shaft seals, four bearing caps, an inspection
 cover and the bolts. It assembled the 42 components in NX 2512 with assembly constraints
@@ -132,7 +132,7 @@ shafts, an exploded isometric view, balloons, a parts list, a gear data table an
 filled-in title block, exported to PDF.
 
 <p align="center">
-  <img src="docs/assets/examples/gearbox.png" width="440" alt="Exploded view of a single-stage spur gearbox with housing, shafts, gears, bearings and bolts, modelled in NX by Claude" />
+  <img src="docs/assets/examples/gearbox.png" width="440" alt="Coloured exploded view of a single-stage spur gearbox with a green cast housing, shafts, gears, bearings and bolts, modelled in NX by Claude" />
   <img src="docs/assets/examples/gearbox-drawing.png" width="440" alt="A2 assembly drawing of the gearbox with sections, exploded view, balloons and parts list" />
   <br /><sub>Modelled and drawn by NXonaut with Claude in NX 2512.</sub>
 </p>
