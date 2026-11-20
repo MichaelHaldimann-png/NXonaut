@@ -7,6 +7,10 @@
 Let Claude work next to you in **Siemens NX**: parts, sketches, assemblies with
 constraints, measurements, drawings and STEP export.
 
+NXonaut is built first for **Claude** (Claude Desktop and Claude Code). Other MCP
+clients such as Codex or Cursor work too: see the
+[manual install](https://michaelhaldimann-png.github.io/NXonaut/install/#manual-install).
+
 **Documentation: [michaelhaldimann-png.github.io/NXonaut](https://michaelhaldimann-png.github.io/NXonaut/)**
 
 ## Install

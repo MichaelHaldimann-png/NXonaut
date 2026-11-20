@@ -1,8 +1,8 @@
 <p align="center"><img src="assets/nxonaut-hero.svg" alt="NXonaut" /></p>
 
 
-Community MCP server for Siemens NX: let an AI assistant (Claude Code, Codex or any MCP
-client) model, inspect and draw in NX on Windows: parts, sketches, curves, features,
+Community MCP server for Siemens NX, built first for Claude (Claude Desktop and Claude
+Code) and open to any MCP client (Codex, Cursor and others): let an AI assistant model, inspect and draw in NX on Windows: parts, sketches, curves, features,
 synchronous edits and body repair, freeform surfaces, sheet metal, assemblies
 (arrangements, clearance sets, weight and centre of gravity), motion, topology
 optimization and strength checks, measurements and surface analysis, drawings, part
