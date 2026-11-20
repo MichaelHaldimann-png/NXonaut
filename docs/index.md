@@ -1,5 +1,27 @@
 <p align="center"><img src="assets/nxonaut-hero.svg" alt="NXonaut" /></p>
 
+## Install and start in 5 steps
+
+1. Download `nxonaut-<version>.mcpb` from the
+   [latest release](https://github.com/MichaelHaldimann-png/NXonaut/releases/latest).
+2. Double-click the file and click **Install** in Claude Desktop.
+3. Restart Claude Desktop.
+4. Start NX. If the small **NX MCP** panel does not appear by itself, press **Alt+F8**,
+   type the full path `C:\Users\<you>\NX_MCP_WORKSPACE\Start NXonaut.py` and click
+   **Run**.
+5. Ask Claude something, for example:
+
+   > *Create a 100 x 60 x 10 mm plate with a 10 mm hole, put a 30 mm pin in it as an
+   > assembly and show me a picture.*
+
+Claude only changes parts it made, or parts you allow on the panel, and only uses files
+in the workspace folder.
+
+**Claude Code:** `/plugin install nxonaut --marketplace MichaelHaldimann-png/nxonaut`
+(needs [uv](https://docs.astral.sh/uv/)), then steps 4 and 5.
+Other MCP clients and more options: [Install](install.md).
+
+## About NXonaut
 
 Community MCP server for Siemens NX, built first for Claude (Claude Desktop and Claude
 Code) and open to any MCP client (Codex, Cursor and others): let an AI assistant model, inspect and draw in NX on Windows: parts, sketches, curves, features,
@@ -30,5 +52,3 @@ Tested on NX 2406; NX 2412 to 2606 are expected to work (see
 [Supported NX versions](nx-versions.md)). The full list of tools is in
 [Tools](tools.md).
 
-
-Start with [Install](install.md).
