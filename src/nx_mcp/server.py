@@ -46,9 +46,10 @@ async def async_main() -> None:
         stream=sys.stderr,
     )
 
-    from nx_mcp import nx_setup
+    from nx_mcp import nx_setup, updates
 
     nx_setup.prepare(default_workspace())
+    updates.start(default_workspace())
     server = create_server()
     logger.info("NX MCP Server starting (stdio transport)")
     await server.run_stdio_async()
