@@ -17,7 +17,8 @@ clients such as Codex or Cursor work too: see the
 
 1. Download `nxonaut-<version>.mcpb` from the
    [latest release](https://github.com/MichaelHaldimann-png/NXonaut/releases/latest).
-2. Double-click the file and click **Install** in Claude Desktop.
+2. Double-click the file and click **Install** in Claude Desktop. Leave **Workspace
+   folder** empty: NXonaut then uses `C:\Users\<you>\NX_MCP_WORKSPACE`.
 3. Restart Claude Desktop.
 4. Start NX. If the small **NX MCP** panel does not appear by itself, press **Alt+F8**,
    type the full path `C:\Users\<you>\NX_MCP_WORKSPACE\Start NXonaut.py` and click
