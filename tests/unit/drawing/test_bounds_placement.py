@@ -141,3 +141,12 @@ def test_crosses_is_true_only_for_a_box_that_reaches_past_the_edges():
     assert drawing.crosses([0, 0, 5, 5], [2, 2, 10, 10])
     assert not drawing.crosses([3, 3, 5, 5], [2, 2, 10, 10])  # wholly inside
     assert not drawing.crosses([20, 20, 25, 25], [2, 2, 10, 10])  # apart
+
+
+def test_the_leader_stub_faces_the_attachment_point():
+    from nx_mcp.domains.drawing.common import stub_side
+
+    sides = NS(Inferred="inferred", Left="left", Right="right")
+    assert stub_side(sides, [230.0, 227.5], [206.0, 236.0]) == "right"
+    assert stub_side(sides, [104.0, 217.5], [120.0, 226.0]) == "left"
+    assert stub_side(sides, [104.0, 217.5], None) == "inferred"

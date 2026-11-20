@@ -413,7 +413,7 @@ def _with_leader(tx, symbol, sh, view, obj, origin, spec):
             b.SelectSymbol(str(spec["path"]))
         else:
             _configure_edge(tx, b, spec)
-        anchor = add_leader(tx, b.Leader, obj, view) if obj is not None else None
+        anchor = add_leader(tx, b.Leader, obj, view, origin) if obj is not None else None
         origin = origin if origin is not None else default_origin(sh, anchor, view)
         set_origin(tx, b.Origin, sh, origin)
         made = commit(b, "symbol")

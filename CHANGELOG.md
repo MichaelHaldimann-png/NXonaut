@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+**Fixed**
+- Drawings: a tolerance frame, surface finish symbol, weld symbol or note now starts its
+  leader on the side that faces the edge it points to. Before, NX always put it on the
+  left, so a leader to an edge on the right ran under the frame.
+- Drawings: notes, symbols, tolerance frames and dimensions warn when they lie over
+  another annotation or cross a dimension's lines.
+
 ## 0.2.1 (2026-11-20)
 
 Same content as the published 0.2.0. A new number because an earlier test build was
