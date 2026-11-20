@@ -13,27 +13,25 @@ clients such as Codex or Cursor work too: see the
 
 **Documentation: [michaelhaldimann-png.github.io/NXonaut](https://michaelhaldimann-png.github.io/NXonaut/)**
 
-## Install
+## Install and start (Claude Desktop, Windows)
 
-**Claude Desktop:** download `nxonaut-<version>.mcpb` from the
-[latest release](https://github.com/MichaelHaldimann-png/NXonaut/releases/latest),
-double-click it and click **Install**.
+1. Download `nxonaut-<version>.mcpb` from the
+   [latest release](https://github.com/MichaelHaldimann-png/NXonaut/releases/latest).
+2. Double-click the file and click **Install** in Claude Desktop.
+3. Restart Claude Desktop.
+4. Start NX. If the small **NX MCP** panel does not appear by itself, press **Alt+F8**,
+   type the full path `C:\Users\<you>\NX_MCP_WORKSPACE\Start NXonaut.py` and click
+   **Run**.
+5. Ask Claude something, for example:
 
-**Claude Code:** `/plugin install nxonaut --marketplace MichaelHaldimann-png/nxonaut`
-(needs [uv](https://docs.astral.sh/uv/)).
-
-## Start in NX
-
-Restart NX: NXonaut starts with it and a small **NX MCP** panel appears. If not, press
-**Alt+F8** and play `Start NXonaut.py` from `C:\Users\<you>\NX_MCP_WORKSPACE`.
-
-Then ask Claude, for example:
-
-> *Create a 100 x 60 x 10 mm plate with a 10 mm hole, put a 30 mm pin in it as an
-> assembly and show me a picture.*
+   > *Create a 100 x 60 x 10 mm plate with a 10 mm hole, put a 30 mm pin in it as an
+   > assembly and show me a picture.*
 
 Claude only changes parts it made, or parts you allow on the panel, and only uses files
 in the workspace folder.
+
+**Claude Code:** `/plugin install nxonaut --marketplace MichaelHaldimann-png/nxonaut`
+(needs [uv](https://docs.astral.sh/uv/)), then steps 4 and 5.
 
 ## Bugs and feedback
 
