@@ -116,3 +116,37 @@ def test_kind_horizontal_and_vertical_are_oriented_linear_dimensions():
     clash = run(nx, "nx_create_drawing_dimension", view=nx.top.ref, kind="horizontal",
                 first=nx.back.ref, orientation="vertical")  # fmt: skip
     assert clash.error["field"] == "/orientation" and clash.mutation_outcome == "not_started"
+
+
+def test_a_note_over_another_annotation_or_across_a_dimension_warns():
+    nx = notes_nx()
+    first = run(nx, "nx_create_note", text=["FIRST"], sheet=nx.sheet_obj.ref, origin=[200, 50])
+    assert first.ok
+    dim = Object("DIM")
+    dim.AnnotationOrigin = point(300.0, 60.0, 0.0)
+    dim.box = [290.0, 40.0, 0.0, 310.0, 80.0, 0.0]  # a dimension's extent: lines on its edges
+    nx.part.Dimensions = [*getattr(nx.part, "Dimensions", []), dim]
+    nx.part.DrawingSheets[0].View.AskVisibleObjects = lambda: [*nx.part.Notes, dim]
+    boxes(nx, {int(dim.Tag): dim})
+    clear = run(nx, "nx_create_note", text=["CLEAR"], sheet=nx.sheet_obj.ref, origin=[200, 20])
+    assert clear.ok and not clear.warnings
+    over = run(nx, "nx_create_note", text=["OVER"], sheet=nx.sheet_obj.ref, origin=[210, 51])
+    assert [w["code"] for w in over.warnings] == ["NX_VIEW_OVERLAP"]
+    assert "lies over or crosses" in over.warnings[0]["message"]
+    across = run(nx, "nx_create_note", text=["ACROSS"], sheet=nx.sheet_obj.ref, origin=[280, 60])
+    assert [w["code"] for w in across.warnings] == ["NX_VIEW_OVERLAP"]
+
+
+def test_crosses_is_true_only_for_a_box_that_reaches_past_the_edges():
+    assert drawing.crosses([0, 0, 5, 5], [2, 2, 10, 10])
+    assert not drawing.crosses([3, 3, 5, 5], [2, 2, 10, 10])  # wholly inside
+    assert not drawing.crosses([20, 20, 25, 25], [2, 2, 10, 10])  # apart
+
+
+def test_the_leader_stub_faces_the_attachment_point():
+    from nx_mcp.domains.drawing.common import stub_side
+
+    sides = NS(Inferred="inferred", Left="left", Right="right")
+    assert stub_side(sides, [230.0, 227.5], [206.0, 236.0]) == "right"
+    assert stub_side(sides, [104.0, 217.5], [120.0, 226.0]) == "left"
+    assert stub_side(sides, [104.0, 217.5], None) == "inferred"

@@ -231,11 +231,14 @@ def default_origin(sh, anchor, view=None):
     return spots[0]
 
 
-def add_leader(tx, leader_builder, obj, view):
+def add_leader(tx, leader_builder, obj, view, origin=None):
     """Append one filled-arrow leader attached to ``obj`` as shown in ``view``.
 
     Returns the attachment point on the sheet (sheet units). The selection point is
-    a model point (part units) on the edge or inside the face, clear of holes.
+    a model point (part units) on the edge or inside the face, clear of holes. With the
+    annotation's sheet ``origin`` the stub sits on the side that faces the attachment
+    point (NX's inferred side is always the left one, so a leader to geometry on the
+    right ran under the frame or symbol).
     """
     A = tx.nx.Annotations
     model = facts.on_object(tx, obj)
@@ -244,10 +247,19 @@ def add_leader(tx, leader_builder, obj, view):
     data.Arrowhead = A.LeaderData.ArrowheadType.FilledArrow
     data.VerticalAttachment = A.LeaderVerticalAttachment.Center
     leader_builder.Leaders.Append(data)
-    data.StubSide = A.LeaderSide.Inferred
+    anchor = drawing.to_sheet(tx, view, model)
+    data.StubSide = stub_side(A.LeaderSide, anchor, origin)
     data.Leader.SetValue(obj, view, tx.nx.Point3d(*model))
     warn_unseen(tx, obj, view)
-    return drawing.to_sheet(tx, view, model)
+    return anchor
+
+
+def stub_side(sides, anchor, origin):
+    """The leader stub side: Inferred without an ``origin``, else Right when the
+    attachment point lies right of the annotation's origin and Left otherwise."""
+    if origin is None or anchor is None:
+        return sides.Inferred
+    return sides.Right if float(anchor[0]) > float(origin[0]) else sides.Left
 
 
 EDGE_ON_TOL = 1e-6  # |normal . view direction| of a plane seen edge-on
@@ -450,4 +462,10 @@ def report_bounds(tx, out, obj, sh, what="annotation", on_views=False):
         tx.warn("NX_VIEW_OVERLAP", f"The {what} lies over view {names}: move it with "
                 "nx_edit_annotation position (see bounds and the views' bounds)")  # fmt: skip
     drawing.warn_off_sheet(tx, what, text or bounds, sh.sheet)
+    hits = drawing.clashes(tx, sh, obj)
+    if hits:
+        refs = [tx.ref(h, annotation_kind(tx, h)) for h in hits[:5]]
+        names = ", ".join(str(r.get("id")) for r in refs)
+        tx.warn("NX_VIEW_OVERLAP", f"The {what} lies over or crosses {names}: drawings must "
+                "show no overlaps; move it with nx_edit_annotation position (see bounds)")  # fmt: skip
     return out

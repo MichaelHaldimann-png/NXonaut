@@ -587,7 +587,7 @@ def _in_view(tx, kind, view_ref, obj_ref, origin, letter, frame, target):
                 b.Letter = letter
             else:
                 _configure_target(tx, b, letter, target)
-            anchor = add_leader(tx, b.Leader, obj, view)
+            anchor = add_leader(tx, b.Leader, obj, view, origin)
             origin = origin if origin is not None else default_origin(sh, anchor, view)
             set_origin(tx, b.Origin, sh, origin)
             made = commit(b, what)
