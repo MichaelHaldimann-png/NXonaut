@@ -450,4 +450,10 @@ def report_bounds(tx, out, obj, sh, what="annotation", on_views=False):
         tx.warn("NX_VIEW_OVERLAP", f"The {what} lies over view {names}: move it with "
                 "nx_edit_annotation position (see bounds and the views' bounds)")  # fmt: skip
     drawing.warn_off_sheet(tx, what, text or bounds, sh.sheet)
+    hits = drawing.clashes(tx, sh, obj)
+    if hits:
+        refs = [tx.ref(h, annotation_kind(tx, h)) for h in hits[:5]]
+        names = ", ".join(str(r.get("id")) for r in refs)
+        tx.warn("NX_VIEW_OVERLAP", f"The {what} lies over or crosses {names}: drawings must "
+                "show no overlaps; move it with nx_edit_annotation position (see bounds)")  # fmt: skip
     return out

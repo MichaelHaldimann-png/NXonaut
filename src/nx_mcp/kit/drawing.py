@@ -612,6 +612,61 @@ def sheet_annotation_bounds(tx, sheet):
     return out
 
 
+def crosses(inner, box, eps=1e-9):
+    """True when rectangle ``inner`` overlaps ``box`` without lying wholly inside it: it
+    then crosses ``box``'s edges, where a linear dimension draws its extension and
+    dimension lines."""
+    if not overlap(inner, box, eps):
+        return False
+    return not (
+        inner[0] >= box[0] - eps
+        and inner[1] >= box[1] - eps
+        and inner[2] <= box[2] + eps
+        and inner[3] <= box[3] + eps
+    )
+
+
+def clashes(tx, sh, obj):
+    """Refs of the annotations, dimensions and tables on sheet ``sh`` that ``obj`` lies
+    over: texts that overlap; a symbol, frame or note (whole extent, with its leader)
+    crossing a dimension's lines (the edges of the dimension's extent); two non-dimension
+    annotations whose extents overlap. Two dimensions are compared by their texts only:
+    chained dimensions share extension lines by design."""
+    try:
+        shown = list(sh.sheet.View.AskVisibleObjects())
+    except Exception:  # a sheet whose own view NX cannot list
+        return []
+    own = int(obj.Tag)
+    dims = {int(d.Tag) for d in tx.part.Dimensions}
+    mine, my_text = annotation_box(tx, obj, sh)
+    if mine is None:
+        return []
+    mine_dim = own in dims
+    hits = []
+    for other in shown:
+        if int(other.Tag) == own:
+            continue
+        if not (hasattr(other, "AnnotationOrigin") or type(other).__name__ == "TableSection"):
+            continue
+        bounds, text = annotation_box(tx, other, sh)
+        if bounds is None:
+            continue
+        other_dim = int(other.Tag) in dims
+        if my_text is not None and text is not None and overlap(my_text, text):
+            hit = True
+        elif mine_dim and other_dim:
+            hit = False
+        elif mine_dim:
+            hit = crosses(bounds, mine)
+        elif other_dim:
+            hit = crosses(mine, bounds)
+        else:
+            hit = overlap(mine, bounds)
+        if hit:
+            hits.append(other)
+    return hits
+
+
 def crowding(tx, sheet, box, own=()):
     """``(views, off_sheet)`` for an annotation rectangle on ``sheet``: refs of the views
     whose border it overlaps (``own`` view tags skipped) and whether it leaves the sheet."""
