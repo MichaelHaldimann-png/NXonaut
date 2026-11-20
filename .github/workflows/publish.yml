@@ -1,0 +1,59 @@
+name: Publish release
+# Publishes a GitHub release with the Claude Desktop extension whenever the version in
+# packaging/claude-desktop/manifest.json changes on master (no tag push needed).
+# The notes are the matching "## <version>" section of CHANGELOG.md.
+# An existing release of that version is left alone.
+on:
+  push:
+    branches: [master]
+    paths:
+      - packaging/claude-desktop/manifest.json
+      - .github/workflows/publish.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: publish-release
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Read version and notes
+        id: meta
+        run: |
+          version=$(python -c "import json; print(json.load(open('packaging/claude-desktop/manifest.json'))['version'])")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          python - "$version" > notes.md <<'PY'
+          import re, sys
+          version = sys.argv[1]
+          text = open("CHANGELOG.md", encoding="utf-8").read()
+          match = re.search(rf"^## {re.escape(version)}\b.*?\n(.*?)(?=^## |\Z)", text, re.M | re.S)
+          print(match.group(1).strip() if match else f"NXonaut {version}")
+          PY
+      - name: Skip if released
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v${{ steps.meta.outputs.version }}" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "v${{ steps.meta.outputs.version }} is already released"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build the extension
+        if: steps.check.outputs.exists == 'false'
+        run: python scripts/build_mcpb.py
+      - name: Create the release
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="${{ steps.meta.outputs.version }}"
+          gh release create "v$v" "dist/nxonaut-$v.mcpb" \
+            --target "$GITHUB_SHA" --title "NXonaut $v" --notes-file notes.md --latest

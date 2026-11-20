@@ -7,7 +7,8 @@ First release after trying NXonaut on a real NX 2512 with Claude Desktop.
 **New**
 - Install in five steps: download the `.mcpb`, double-click, restart Claude, start NX, ask.
 - The NX MCP panel in NX got the NXonaut look: dark night sky, the astronaut, and a
-  status pill that says Ready, Working, Waiting for you or NX dialog open.
+  status pill that says Ready, Working, Waiting for you or NX dialog open. Its step
+  history stays short: grouped by part, latest steps only, the rest in Open log.
 - Opt-in, anonymous error reports. Off until you say yes; never part names, paths or
   geometry. Reports end up as GitHub issues and feed the weekly build.
 - Documentation site with install, settings, troubleshooting and credits, and a short
