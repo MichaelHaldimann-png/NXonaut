@@ -20,16 +20,39 @@ repos:
       - id: debug-statements
       - id: name-tests-test
         args: [--pytest-test-first]
+        # Shared fixtures and fakes, not test modules.
+        exclude: ^tests/(kit/|core/(fakes|tools)\.py$|unit/[^/]+/(fakes|support)\.py$)
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.20
     hooks:
-      - id: ruff
+      - id: ruff-check
         args: [--fix]
       - id: ruff-format
 
   - repo: local
     hooks:
+      - id: capability-matrix
+        name: capability matrix matches catalogue evidence
+        entry: python scripts/generate_capability_matrix.py --check
+        language: system
+        pass_filenames: false
+        files: ^(src/nx_mcp/evidence/.*\.json|src/nx_mcp/domains/.*\.py|scripts/generate_capability_matrix\.py|docs/capability-matrix\.md)$
+      - id: tool-reference
+        name: tool reference matches the catalogue
+        entry: python scripts/generate_tool_reference.py --check
+        language: python
+        additional_dependencies: ["pydantic>=2.11,<3"]
+        pass_filenames: false
+        files: ^(src/nx_mcp/evidence/.*\.json|src/nx_mcp/domains/.*\.py|src/nx_mcp/core/(catalogue|types)\.py|src/nx_mcp/sidecar/schema\.py|scripts/generate_tool_reference\.py|docs/tools\.md)$
+      - id: budget-table
+        name: token budget table matches the measured values
+        # Imports the server (mcp, pydantic) and tests/sidecar/test_budget.py (pytest): the
+        # dev environment's python, as for the pytest hook.
+        entry: python scripts/generate_budget_table.py --check
+        language: system
+        pass_filenames: false
+        files: ^(src/nx_mcp/(evidence/.*\.json|domains/.*\.py|core/.*\.py|sidecar/.*\.py)|tests/sidecar/test_budget\.py|scripts/generate_budget_table\.py|docs/design/architecture\.md)$
       - id: pytest
         name: pytest (non-real-NX)
         entry: python -m pytest -q -p no:cacheprovider -m "not real_nx"
@@ -38,9 +61,10 @@ repos:
         always_run: true
         stages: [pre-push]
       - id: mypy
-        name: mypy sidecar
+        name: mypy src/nx_mcp
         entry: python -m mypy src/nx_mcp
-        language: system
+        language: python
+        # mypy plus the package's runtime dependencies (pyproject.toml), so imports resolve.
+        additional_dependencies: ["mypy>=1.11,<2", "pydantic>=2.11,<3", "mcp>=1.27,<2"]
         pass_filenames: false
-        always_run: true
-        stages: [pre-push]
+        files: ^(src/nx_mcp/.*\.py|pyproject\.toml)$

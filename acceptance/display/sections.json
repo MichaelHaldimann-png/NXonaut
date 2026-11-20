@@ -1,0 +1,396 @@
+{
+ "covers": {
+  "nx_create_section_view": [],
+  "nx_edit_section_view": []
+ },
+ "fixture": "fixtures/drawing_block_mm.prt",
+ "part": null,
+ "steps": [
+  {
+   "call": "nx_open_part",
+   "setup": true,
+   "save": "part",
+   "args": {
+    "path": "$fixture"
+   }
+  },
+  {
+   "call": "engineer",
+   "args": {
+    "code": "from nx_mcp.kit import parts as kp\nservices.host._remember_model()  # the development tool's own undo mark is no engineer edit\np = [x for x in session.Parts if str(x.Leaf).lower().startswith('display_sections') and str(x.FullPath).lower().startswith(r'$run'.lower())][0]\nkp.show(NXOpen, session.Parts, p)\nresult = p.Leaf"
+   },
+   "intent": "Acceptance: the engineer looks at the scenario's part (a tab click, no edit): it is the displayed part whatever NX showed before (engineer tab guard)",
+   "expect": {
+    "ok": true,
+    "data.noticed": false
+   }
+  },
+  {
+   "call": "nx_list_objects",
+   "setup": true,
+   "save": "bodies",
+   "args": {
+    "kind": "body"
+   }
+  },
+  {
+   "call": "nx_set_camera",
+   "setup": true,
+   "args": {
+    "orientation": "isometric",
+    "fit": true
+   }
+  },
+  {
+   "call": "nx_list_objects",
+   "args": {
+    "kind": "section_view"
+   },
+   "expect": {
+    "data.items": {
+     "count": 0
+    }
+   }
+  },
+  {
+   "call": "nx_create_section_view",
+   "save": "sec",
+   "args": {
+    "plane": {
+     "origin": [
+      10,
+      5,
+      0
+     ],
+     "normal": [
+      2,
+      0,
+      0
+     ]
+    },
+    "name": "CUT_X"
+   },
+   "expect": {
+    "mutation_outcome": "committed",
+    "frame": "display_part_absolute",
+    "data.origin": {
+     "close": [
+      10,
+      5,
+      0
+     ],
+     "tol": 1e-09
+    },
+    "data.normal": {
+     "close": [
+      1,
+      0,
+      0
+     ],
+     "tol": 1e-12
+    },
+    "data.cap": true,
+    "data.active": true,
+    "data.sectioning": true,
+    "data.section.kind": "section_view",
+    "data.section.name": {
+     "matches": "(?i)^cut_x$"
+    },
+    "data.hidden_side": "x > 10",
+    "data.enabled": true,
+    "data.cut_face_view_from": {
+     "close": [
+      1,
+      0,
+      0
+     ],
+     "tol": 1e-12
+    },
+    "data.remove_with.tool": "nx_delete_objects",
+    "data.remove_with.arguments.objects": {
+     "count": 1
+    }
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "path": "$run/section_x.png",
+    "width": 640,
+    "height": 400,
+    "quality": "studio"
+   },
+   "expect": {
+    "data.resolution": [
+     640,
+     400
+    ]
+   }
+  },
+  {
+   "call": "nx_create_section_view",
+   "args": {
+    "plane": {
+     "origin": [
+      0,
+      0,
+      0
+     ],
+     "normal": [
+      0,
+      0,
+      1
+     ]
+    }
+   },
+   "expect": {
+    "error.category": "already_exists",
+    "error.code": "NX_ALREADY_EXISTS",
+    "mutation_outcome": "not_started",
+    "error.details.section.kind": "section_view"
+   }
+  },
+  {
+   "call": "nx_list_objects",
+   "args": {
+    "kind": "section_view"
+   },
+   "expect": {
+    "data.items": {
+     "count": 1
+    },
+    "data.items.0.type": "one_plane",
+    "data.items.0.details.origin": {
+     "close": [
+      10,
+      5,
+      0
+     ],
+     "tol": 1e-09
+    },
+    "data.items.0.details.normal": {
+     "close": [
+      1,
+      0,
+      0
+     ],
+     "tol": 1e-12
+    },
+    "data.items.0.details.active": true,
+    "data.items.0.details.sectioning": true
+   }
+  },
+  {
+   "call": "nx_edit_section_view",
+   "args": {
+    "section": "$sec.data.section.id",
+    "plane": {
+     "origin": [
+      0,
+      0,
+      3
+     ],
+     "normal": [
+      0,
+      0,
+      1
+     ]
+    },
+    "cap": false
+   },
+   "expect": {
+    "mutation_outcome": "committed",
+    "data.origin": {
+     "close": [
+      0,
+      0,
+      3
+     ],
+     "tol": 1e-09
+    },
+    "data.normal": {
+     "close": [
+      0,
+      0,
+      1
+     ],
+     "tol": 1e-12
+    },
+    "data.cap": false,
+    "data.active": true
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "path": "$run/section_z.png",
+    "width": 640,
+    "height": 400,
+    "quality": "studio"
+   },
+   "expect": {
+    "data.resolution": [
+     640,
+     400
+    ]
+   }
+  },
+  {
+   "call": "nx_edit_section_view",
+   "args": {
+    "section": "$sec.data.section.id",
+    "enabled": false
+   },
+   "expect": {
+    "data.sectioning": false
+   }
+  },
+  {
+   "call": "nx_list_objects",
+   "args": {
+    "kind": "section_view"
+   },
+   "expect": {
+    "data.items.0.details.sectioning": false,
+    "data.items.0.details.cap": false
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "path": "$run/section_off.png",
+    "width": 640,
+    "height": 400,
+    "quality": "studio"
+   },
+   "expect": {
+    "data.resolution": [
+     640,
+     400
+    ]
+   }
+  },
+  {
+   "call": "nx_edit_section_view",
+   "args": {
+    "section": "$sec.data.section.id",
+    "enabled": true
+   },
+   "expect": {
+    "data.sectioning": true,
+    "data.active": true
+   }
+  },
+  {
+   "call": "nx_edit_section_view",
+   "args": {
+    "section": "$sec.data.section.id",
+    "offset": 100000
+   },
+   "intent": "Acceptance: a plane beyond the bodies is moved and said to cut nothing",
+   "expect": {
+    "mutation_outcome": "committed",
+    "data.origin": {
+     "close": [
+      0,
+      0,
+      100003
+     ],
+     "tol": 1e-06
+    },
+    "warnings.0.message": {
+     "contains": "cuts no body"
+    }
+   }
+  },
+  {
+   "call": "nx_edit_section_view",
+   "args": {
+    "section": "$sec.data.section.id",
+    "plane": {
+     "origin": [
+      0,
+      0,
+      3
+     ]
+    }
+   },
+   "expect": {
+    "data.origin": {
+     "close": [
+      0,
+      0,
+      3
+     ],
+     "tol": 1e-09
+    }
+   }
+  },
+  {
+   "call": "nx_edit_section_view",
+   "args": {
+    "section": "$sec.data.section.id"
+   },
+   "expect": {
+    "error.category": "invalid_argument",
+    "mutation_outcome": "not_started"
+   }
+  },
+  {
+   "call": "nx_edit_section_view",
+   "args": {
+    "section": "$bodies.data.items.0.id",
+    "enabled": true
+   },
+   "expect": {
+    "error.category": "wrong_kind",
+    "mutation_outcome": "not_started"
+   }
+  },
+  {
+   "call": "nx_create_section_view",
+   "args": {
+    "plane": {
+     "origin": [
+      0,
+      0,
+      0
+     ],
+     "normal": [
+      0,
+      0,
+      0
+     ]
+    }
+   },
+   "expect": {
+    "error.category": "invalid_argument",
+    "error.field": "/plane/normal",
+    "mutation_outcome": "not_started"
+   }
+  },
+  {
+   "call": "nx_delete_objects",
+   "args": {
+    "objects": [
+     "$sec.data.section.id"
+    ]
+   },
+   "expect": {
+    "ok": true,
+    "mutation_outcome": "committed"
+   }
+  },
+  {
+   "call": "nx_list_objects",
+   "args": {
+    "kind": "section_view"
+   },
+   "expect": {
+    "data.items": {
+     "count": 0
+    }
+   }
+  }
+ ]
+}

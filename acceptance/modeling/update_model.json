@@ -1,0 +1,262 @@
+{
+ "covers": {
+  "nx_update_model": []
+ },
+ "fixture": null,
+ "part": "new",
+ "steps": [
+  {
+   "call": "nx_create_part",
+   "setup": true,
+   "args": {
+    "path": "$part",
+    "units": "mm"
+   }
+  },
+  {
+   "call": "nx_create_sketch",
+   "setup": true,
+   "save": "blk_sk",
+   "args": {
+    "placement": {
+     "principal": "xy"
+    }
+   }
+  },
+  {
+   "call": "nx_create_sketch_curves",
+   "setup": true,
+   "args": {
+    "sketch": "$blk_sk.data.sketch.id",
+    "curves": [
+     {
+      "type": "rectangle",
+      "corner1": [
+       0,
+       0
+      ],
+      "corner2": [
+       40,
+       20
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "call": "nx_finish_sketch",
+   "setup": true,
+   "args": {
+    "sketch": "$blk_sk.data.sketch.id"
+   }
+  },
+  {
+   "call": "nx_create_extrude",
+   "save": "blk",
+   "args": {
+    "sketch": "$blk_sk.data.sketch.id",
+    "end": {
+     "type": "distance",
+     "value": 10
+    }
+   },
+   "setup": true
+  },
+  {
+   "call": "nx_create_sketch",
+   "setup": true,
+   "save": "bs",
+   "args": {
+    "placement": {
+     "principal": "xy",
+     "origin": [
+      0,
+      0,
+      10
+     ]
+    }
+   }
+  },
+  {
+   "call": "nx_create_sketch_curves",
+   "setup": true,
+   "args": {
+    "sketch": "$bs.data.sketch.id",
+    "curves": [
+     {
+      "type": "circle",
+      "center": [
+       20,
+       10
+      ],
+      "radius": 5
+     }
+    ]
+   }
+  },
+  {
+   "call": "nx_finish_sketch",
+   "setup": true,
+   "args": {
+    "sketch": "$bs.data.sketch.id"
+   }
+  },
+  {
+   "call": "nx_create_extrude",
+   "setup": true,
+   "save": "boss",
+   "args": {
+    "sketch": "$bs.data.sketch.id",
+    "end": {
+     "type": "distance",
+     "value": 5
+    },
+    "combine": {
+     "operation": "unite",
+     "targets": [
+      "$blk.data.bodies.0.id"
+     ]
+    }
+   }
+  },
+  {
+   "call": "nx_find_geometry",
+   "setup": true,
+   "save": "rim",
+   "args": {
+    "owner": "$blk.data.bodies.0.id",
+    "kind": "edge",
+    "geometry_type": "circle",
+    "order": "highest",
+    "axis": "z",
+    "limit": 1
+   }
+  },
+  {
+   "call": "nx_create_blend",
+   "setup": true,
+   "save": "fil",
+   "args": {
+    "edges": [
+     "$rim.data.items.0.id"
+    ],
+    "radius": 1
+   }
+  },
+  {
+   "call": "nx_update_model",
+   "args": {},
+   "expect": {
+    "data.errors": {
+     "count": 0
+    },
+    "data.bodies_checked": 1,
+    "data.suppressed": 0,
+    "mutation_outcome": "committed",
+    "data.inactive": 0
+   }
+  },
+  {
+   "call": "nx_set_feature_suppression",
+   "setup": true,
+   "args": {
+    "features": [
+     "$fil.data.feature.id"
+    ],
+    "suppressed": true
+   }
+  },
+  {
+   "call": "nx_update_model",
+   "args": {},
+   "expect": {
+    "data.suppressed": 1,
+    "data.errors": {
+     "count": 0
+    },
+    "data.inactive": 0
+   }
+  },
+  {
+   "call": "nx_measure_mass",
+   "args": {
+    "bodies": [
+     "$blk.data.bodies.0.id"
+    ]
+   },
+   "expect": {
+    "data.volume": {
+     "close": 8392.699081698724,
+     "tol": 0.001
+    }
+   }
+  },
+  {
+   "call": "nx_set_feature_suppression",
+   "setup": true,
+   "args": {
+    "features": [
+     "$fil.data.feature.id"
+    ],
+    "suppressed": false
+   }
+  },
+  {
+   "call": "nx_set_current_feature",
+   "setup": true,
+   "args": {
+    "feature": "$blk.data.feature.id"
+   }
+  },
+  {
+   "call": "nx_update_model",
+   "args": {},
+   "expect": {
+    "data.suppressed": 0,
+    "data.inactive": 3,
+    "data.errors": {
+     "count": 0
+    }
+   }
+  },
+  {
+   "call": "nx_list_objects",
+   "args": {
+    "kind": "feature",
+    "name_contains": "blend"
+   },
+   "expect": {
+    "page.total": 1,
+    "data.items.0.details.suppressed": false,
+    "data.items.0.details.inactive": true
+   }
+  },
+  {
+   "call": "nx_set_current_feature",
+   "setup": true,
+   "args": {}
+  },
+  {
+   "call": "nx_update_model",
+   "args": {},
+   "expect": {
+    "data.suppressed": 0,
+    "data.inactive": 0
+   }
+  },
+  {
+   "call": "nx_measure_mass",
+   "args": {
+    "bodies": [
+     "$blk.data.bodies.0.id"
+    ]
+   },
+   "expect": {
+    "data.volume": {
+     "close": 8386.258351720988,
+     "tol": 0.0001
+    }
+   }
+  }
+ ]
+}

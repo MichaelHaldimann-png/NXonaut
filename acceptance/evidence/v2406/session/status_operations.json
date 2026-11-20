@@ -1,0 +1,129 @@
+{
+  "format": 2,
+  "scenario": "acceptance/session/status_operations.json",
+  "scenario_sha256": "9482cfa8c6f6e6e8bcd287607c68d8d97d6014ae69a6d8e3c96ef5560ebccd78",
+  "domain": "session",
+  "covers": {
+    "nx_get_status": [],
+    "nx_get_operation": [],
+    "nx_cancel_operation": []
+  },
+  "nx_version": "v2406",
+  "nx_build": "2406.9160",
+  "sources": {
+    "nx_get_status": "f1220e5c704dd390c0d77488fb8ee22f4a91abde2106f17ae41de586df04f930",
+    "nx_get_operation": "f1220e5c704dd390c0d77488fb8ee22f4a91abde2106f17ae41de586df04f930",
+    "nx_cancel_operation": "f1220e5c704dd390c0d77488fb8ee22f4a91abde2106f17ae41de586df04f930"
+  },
+  "recorded": "2026-10-19T10:30:34Z",
+  "passed": true,
+  "checks": 62,
+  "failed_checks": 0,
+  "steps": [
+    {
+      "index": 1,
+      "call": "nx_create_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 2,
+      "call": "engineer",
+      "setup": false,
+      "passed": true,
+      "checks": 2
+    },
+    {
+      "index": 3,
+      "call": "nx_get_status",
+      "setup": false,
+      "passed": true,
+      "checks": 17
+    },
+    {
+      "index": 4,
+      "call": "nx_get_status",
+      "setup": false,
+      "passed": true,
+      "checks": 2
+    },
+    {
+      "index": 5,
+      "call": "nx_get_operation",
+      "setup": false,
+      "passed": true,
+      "checks": 4
+    },
+    {
+      "index": 6,
+      "call": "nx_get_operation",
+      "setup": false,
+      "passed": true,
+      "checks": 8
+    },
+    {
+      "index": 7,
+      "call": "nx_get_operation",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 8,
+      "call": "nx_set_attributes",
+      "setup": false,
+      "passed": true,
+      "checks": 1
+    },
+    {
+      "index": 9,
+      "call": "nx_undo_operation",
+      "setup": false,
+      "passed": true,
+      "checks": 2
+    },
+    {
+      "index": 10,
+      "call": "nx_get_operation",
+      "setup": false,
+      "passed": true,
+      "checks": 5
+    },
+    {
+      "index": 11,
+      "call": "nx_get_operation",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 12,
+      "call": "nx_cancel_operation",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 13,
+      "call": "nx_cancel_operation",
+      "setup": false,
+      "passed": true,
+      "checks": 7
+    },
+    {
+      "index": 14,
+      "call": "nx_get_operation",
+      "setup": false,
+      "passed": true,
+      "checks": 2
+    },
+    {
+      "index": 15,
+      "call": "nx_get_operation",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+"""Native release receipts must distinguish failures and changed user sessions."""
+
+import ast
+import hashlib
+import json
+import runpy
+from pathlib import Path
+
+import pytest
+
+RUNNER = runpy.run_path(
+    str(Path(__file__).resolve().parents[1] / "scripts/validate_native_release.py")
+)
+
+
+def test_session_verification_checks_placements_and_unsaved_state():
+    before = {
+        "parts": [{"path": "a.prt", "work": True, "display": True, "modified": False}],
+        "components": [{"path": "p.prt", "translation": [1, 2, 3]}],
+    }
+    RUNNER["verify_session"](before, before)
+    with pytest.raises(RuntimeError, match="component source"):
+        RUNNER["verify_session"](before, {**before, "components": []})
+    with pytest.raises(RuntimeError, match="saved state"):
+        RUNNER["verify_session"](
+            before, {**before, "parts": [{**before["parts"][0], "modified": True}]}
+        )
+
+
+def test_receipt_manifest_hashes_nested_artifacts(tmp_path):
+    (tmp_path / "sheets").mkdir()
+    (tmp_path / "sheets" / "view.png").write_bytes(b"fixture")
+    (tmp_path / "release-validation.json").write_text("not self-hashed")
+    assert RUNNER["manifest_files"](tmp_path) == [
+        {"path": "sheets/view.png", "size": 7, "sha256": hashlib.sha256(b"fixture").hexdigest()}
+    ]
+
+
+def expected_tool_count(script: Path) -> int:
+    """Evaluate a script's EXPECTED_TOOL_COUNT assignment without running the suite."""
+    tree = ast.parse(script.read_text(encoding="utf-8"))
+    (node,) = [
+        n
+        for n in tree.body
+        if isinstance(n, ast.Assign)
+        and any(getattr(t, "id", None) == "EXPECTED_TOOL_COUNT" for t in n.targets)
+    ]
+    namespace = {"__file__": str(script), "Path": Path, "runpy": runpy, "json": json}
+    exec(compile(ast.Module([node], []), str(script), "exec"), namespace)
+    return namespace["EXPECTED_TOOL_COUNT"]
+
+
+def registered_tool_count(tmp_path, monkeypatch) -> int:
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    from nx_mcp.server import create_server
+    from nx_mcp.workspace import Workspace
+
+    monkeypatch.setenv("NX_MCP_DEV", "1")  # every catalogue tool is listed
+    server = create_server(AsyncMock(), Workspace(tmp_path), surface="full")
+    return len(asyncio.run(server.list_tools()))
+
+
+def test_native_suites_accept_runner_profile_count(tmp_path, monkeypatch):
+    """Every release script expects exactly the tools the full profile lists.
+
+    The count comes from the catalogue (scripts/public_tool_count.py), so an added
+    tool must not strand a suite on a literal.
+    """
+    root = Path(__file__).resolve().parents[1]
+    registered = registered_tool_count(tmp_path, monkeypatch)
+    scripts = [root / "scripts/accept_release.py", root / "scripts/validate_native_release.py"]
+    for script in scripts:
+        assert expected_tool_count(script) == registered, script.name
+    assert RUNNER["EXPECTED_TOOL_COUNT"] == registered
+
+
+def test_native_release_replays_every_acceptance_domain():
+    from nx_mcp.core import catalogue
+
+    assert sorted(RUNNER["DOMAINS"]) == sorted(catalogue.DOMAINS)
+    assert len(RUNNER["DOMAINS"]) == len(set(RUNNER["DOMAINS"]))

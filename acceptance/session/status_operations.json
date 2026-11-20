@@ -1,0 +1,123 @@
+{
+ "covers": {
+  "nx_get_status": [],
+  "nx_get_operation": [],
+  "nx_cancel_operation": []
+ },
+ "part": "new",
+ "fixture": null,
+ "steps": [
+  {"call": "nx_create_part", "setup": true, "save": "made", "args": {"path": "$part", "units": "mm"}},
+  {"call": "engineer", "args": {"code": "from nx_mcp.kit import parts as kp\nservices.host._remember_model()  # the development tool's own undo mark is no engineer edit\np = [x for x in session.Parts if str(x.Leaf).lower().startswith('session_status_operations') and str(x.FullPath).lower().startswith(r'$run'.lower())][0]\nkp.show(NXOpen, session.Parts, p)\nresult = p.Leaf"}, "intent": "Acceptance: the engineer looks at the scenario's part (a tab click, no edit): it is the displayed part whatever NX showed before (engineer tab guard)", "expect": {"ok": true, "data.noticed": false}},
+  {
+   "call": "nx_get_status",
+   "args": {},
+   "expect": {
+    "mutation_outcome": "not_applicable",
+    "data.bridge.state": "connected",
+    "data.bridge.nx_version": "v2406",
+    "data.bridge.nx_build": {"matches": "2406"},
+    "data.bridge.interactive": true,
+    "data.bridge.answered_from": "nx",
+    "data.control.mode": "auto",
+    "data.control.mode_label": "Auto",
+    "data.control.waiting": 0,
+    "data.parts.work.path": {"matches": "session_status_operations_[0-9a-f]+[.]prt$"},
+    "data.parts.work.units": "mm",
+    "data.parts.work.modified": true,
+    "data.parts.display.path": {"matches": "session_status_operations_"},
+    "data.workspace.root": {"matches": "[A-Za-z]"},
+    "data.workspace.absolute_paths": {"contains": "inside the workspace"},
+    "data.workspace.current_directory": {"contains": "explicit paths"},
+    "data.operation": null
+   }
+  },
+  {
+   "call": "nx_get_status",
+   "args": {"include": ["workspace"]},
+   "save": "read",
+   "expect": {"data": {"count": 1}, "data.workspace.reserved": {"contains": ".nx-mcp"}}
+  },
+  {
+   "call": "nx_get_operation",
+   "args": {"operation": "$read.operation_id"},
+   "expect": {
+    "mutation_outcome": "not_applicable",
+    "data.state": "unknown",
+    "data.reason": {"contains": "read-only call"},
+    "data.result": null
+   }
+  },
+  {
+   "call": "nx_get_operation",
+   "args": {"operation": "$made.operation_id"},
+   "expect": {
+    "mutation_outcome": "not_applicable",
+    "data.state": "committed",
+    "data.tool": "nx_create_part",
+    "data.mutation_outcome": "committed",
+    "data.result": null,
+    "data.omitted": {"contains": "result"},
+    "data.cancel_requested": false,
+    "data.error": null
+   }
+  },
+  {
+   "call": "nx_get_operation",
+   "args": {"operation": "$made.operation_id", "full": true},
+   "intent": "Acceptance: the committed result only on request",
+   "expect": {"data.state": "committed", "data.result.data.units": "mm", "data.arguments.units": "mm"}
+  },
+  {"call": "nx_set_attributes", "save": "attr", "args": {"attributes": {"SO_CHECK": "A"}},
+   "expect": {"mutation_outcome": "committed"}},
+  {"call": "nx_undo_operation", "save": "un", "args": {},
+   "expect": {"mutation_outcome": "committed", "data.undone.0": "$attr.operation_id"}},
+  {
+   "call": "nx_get_operation",
+   "args": {"operation": "$attr.operation_id", "full": true},
+   "intent": "Acceptance: an undone operation reports reverted and flags its result stale",
+   "expect": {"data.state": "reverted", "data.mutation_outcome": "committed",
+              "data.reverted_by": "$un.operation_id", "data.result_stale": true,
+              "data.arguments.attributes.SO_CHECK": "A"}
+  },
+  {
+   "call": "nx_get_operation",
+   "args": {"operation": "op_s5_status_never_used"},
+   "expect": {"data.state": "unknown", "data.mutation_outcome": "unknown", "data.result": null}
+  },
+  {
+   "call": "nx_cancel_operation",
+   "args": {"operation": "op_s5_status_never_used"},
+   "intent": "Acceptance: cancel an operation id that was never used",
+   "expect": {"error.code": "NX_NOT_FOUND", "error.field": "/operation", "mutation_outcome": "not_started"}
+  },
+  {
+   "call": "nx_cancel_operation",
+   "args": {"operation": "$made.operation_id"},
+   "intent": "Acceptance: cancel a call that already committed",
+   "expect": {
+    "error.code": "NX_NOT_RUNNING",
+    "error.category": "unsupported",
+    "error.retry": "never",
+    "error.details.state": "committed",
+    "error.details.tool": "nx_create_part",
+    "error.hint": {"contains": "nx_undo_operation"},
+    "mutation_outcome": "not_started"
+   }
+  },
+  {
+   "call": "nx_get_operation",
+   "args": {"operation": "x"},
+   "expect": {"error.code": "NX_INVALID_ARGUMENT", "error.field": "/operation"}
+  },
+  {
+   "call": "nx_get_operation",
+   "args": {"operation": "short"},
+   "expect": {
+    "error.code": "NX_INVALID_ARGUMENT",
+    "error.field": "/operation",
+    "error.message": {"contains": "too short: 5 of at least 8"}
+   }
+  }
+ ]
+}

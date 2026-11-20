@@ -1,0 +1,556 @@
+"""Component patterns: associative NX patterns or independent copies (tool-surface 3.8).
+
+NX 2406 findings encoded here:
+
+- Counts include the seed; a circular pattern must not wrap onto the seed. A circular
+  ``span`` becomes the step NX stores: span / (count - 1), or 360 / count for 360 (so a
+  later count edit keeps the step, not the span).
+- An edit can make NX recreate the pattern (new object, old one deleted), for
+  example when the second direction is switched off: the object ``Commit`` returns
+  is read back, and ``replaced`` says the old reference is stale.
+- Every instance pose is read back against the layout (seed pose plus the step).
+- NX names every instance of an associative pattern like its seed (one name, one path
+  for all of them); instances may be renamed, but an edit adds new ones under the seed's
+  name again: instances that carry the seed's name are renamed ``<SEED>_2``, ``_3``...
+  after a create or an edit. NX refuses to pattern a mirrored (reflected) component.
+"""
+
+from __future__ import annotations
+
+import contextlib
+from typing import Annotated, TypedDict
+
+from nx_mcp.core.catalogue import restorer, tool
+from nx_mcp.core.errors import fail, native
+from nx_mcp.core.tx import Tx
+from nx_mcp.core.types import (
+    Angle,
+    Axis,
+    ComponentRef,
+    Direction,
+    Doc,
+    Length,
+    Range,
+    RefTo,
+    forbid_extra,
+)
+from nx_mcp.domains.assembly import common, structure
+from nx_mcp.domains.assembly.common import MAX_INSTANCES, ComponentRow
+from nx_mcp.kit import builders, geom, model, readback, result, select
+from nx_mcp.kit import pose as kpose
+
+Count = Annotated[int, Range(ge=2, le=MAX_INSTANCES), Doc("Instances including the seed")]
+Count2 = Annotated[int, Range(ge=1, le=MAX_INSTANCES), Doc("Rows in the second direction")]
+Spacing = Annotated[Length, Doc("Distance between instances")]
+Pitch = Annotated[Angle, Doc("Angle between instances")]
+
+
+class _LinearRequired(TypedDict):
+    direction: Direction
+    count: Count
+    spacing: Spacing
+
+
+class LinearLayout(_LinearRequired, total=False):
+    direction2: Direction
+    count2: Count2
+    spacing2: Spacing
+
+
+class _CircularRequired(TypedDict):
+    axis: Axis
+    count: Count
+    angle: Annotated[Angle, Doc("Step, or the span if span")]
+
+
+class CircularLayout(_CircularRequired, total=False):
+    span: bool
+
+
+class Linear(TypedDict):
+    linear: LinearLayout
+
+
+class Circular(TypedDict):
+    circular: CircularLayout
+
+
+forbid_extra(LinearLayout, CircularLayout, Linear, Circular)
+
+
+class PatternData(TypedDict, total=False):
+    pattern: result.Row
+    replaced: bool
+    associative: bool
+    layout: str
+    count: int
+    spacing: float
+    count2: int
+    spacing2: float
+    angle: float
+    components: list[ComponentRow]
+
+
+# ---------------------------------------------------------------------------
+# Layout math
+
+
+def _check_pitch(count, angle, field):
+    if angle <= 0 or (count - 1) * angle >= 360.0 - 1e-9:
+        fail("NX_INVALID_ARGUMENT", "Use a positive angle with (count - 1) * angle < 360",
+             field=field)  # fmt: skip
+
+
+def expected(seed, layout):
+    """Instance poses of a layout from the seed pose (seed first)."""
+    t0, r0 = seed
+    if layout["kind"] == "linear":
+        out = []
+        for j in range(layout.get("count2") or 1):
+            for i in range(layout["count"]):
+                step = geom.scale(layout["direction"], i * layout["spacing"])
+                if j:
+                    step = geom.add(step, geom.scale(layout["direction2"], j * layout["spacing2"]))
+                out.append((geom.add(t0, step), r0))
+        return out
+    return [
+        kpose.rotate_about(seed, layout["origin"], layout["axis"], i * layout["angle"])
+        for i in range(layout["count"])
+    ]
+
+
+def match(found, wanted, check="instances"):
+    """Every wanted pose has its own found instance (any order); counts are equal."""
+    readback.expect(
+        len(found) == len(wanted), f"{check}.count", "NX made a different number of instances",
+        count=len(found), wanted=len(wanted),
+    )  # fmt: skip
+    left = list(found)
+    for i, pose in enumerate(wanted):
+        tol = 1e-6 * max(1.0, *(abs(v) for v in pose[0]))
+        hit = next((k for k, p in enumerate(left) if kpose.close(p, pose, tol)), None)
+        readback.expect(
+            hit is not None, f"{check}[{i}]", "No instance at an expected pose",
+            wanted=pose[0],
+        )  # fmt: skip
+        left.pop(hit)
+
+
+# ---------------------------------------------------------------------------
+# Reading a native pattern
+
+
+def _enum(tx):
+    return tx.nx.GeometricUtilities.PatternDefinition.PatternEnum
+
+
+def members(pattern) -> list:
+    """Seed and instance occurrences of a native pattern, seed first, no repeats."""
+    found = {int(c.Tag): c for c in pattern.GetComponentsToPattern()}
+    for member in pattern.GetAllPatternMembers():
+        for c in member.GetAllComponents():
+            found.setdefault(int(c.Tag), c)
+    return list(found.values())
+
+
+def describe(tx, pattern) -> dict:
+    """Layout parameters of a native pattern (read through its builder)."""
+    out = {"pattern": tx.ref(pattern, "component_pattern")}
+    with builders.build(tx, tx.part.ComponentAssembly.CreateComponentPatternBuilder, pattern) as b:
+        service = b.PatternService
+        out["associative"] = bool(b.Associative)
+        kinds = _enum(tx)
+        if service.PatternType == kinds.Linear:
+            d = service.RectangularDefinition
+            out.update(
+                layout="linear",
+                count=int(round(d.XSpacing.NCopies.Value)),
+                spacing=float(d.XSpacing.PitchDistance.Value),
+            )
+            with contextlib.suppress(Exception):
+                out["_direction"] = geom.unit(geom.xyz(d.XDirection.Vector))
+            if d.UseYDirectionToggle:
+                out.update(
+                    count2=int(round(d.YSpacing.NCopies.Value)),
+                    spacing2=float(d.YSpacing.PitchDistance.Value),
+                )
+                with contextlib.suppress(Exception):
+                    out["_direction2"] = geom.unit(geom.xyz(d.YDirection.Vector))
+        elif service.PatternType == kinds.Circular:
+            d = service.CircularDefinition
+            out.update(
+                layout="circular",
+                count=int(round(d.AngularSpacing.NCopies.Value)),
+                angle=float(d.AngularSpacing.PitchAngle.Value),
+            )
+        else:
+            out["layout"] = result.enum_name(service.PatternType, kinds).lower()
+    return out
+
+
+def _total(info) -> int:
+    return int(info.get("count", 0)) * int(info.get("count2") or 1)
+
+
+def _name_instances(tx, comps) -> None:
+    """Give the instances (``comps[1:]``) that carry the seed's name free names."""
+    seed = comps[0]
+    key = str(seed.Name).casefold()
+    same = [c for c in comps[1:] if str(c.Name).casefold() == key]
+    if not same:
+        return
+    taken = common.sibling_names(tx.part, skip=same)
+    for i, c in enumerate(comps[1:], start=2):
+        if str(c.Name).casefold() == key and c in same:
+            result.rename(tx, c, common.free_name(f"{seed.Name}_{i}", taken))
+            taken[str(c.Name).casefold()] = c
+
+
+def _component_rows(tx, comps) -> list:
+    names = structure.paths(tx.part)
+    return [common.component_row(tx, c, names.get(int(c.Tag))) for c in comps]
+
+
+def _public(info) -> dict:
+    return {
+        k: common.tidy(v) if isinstance(v, float) else v
+        for k, v in info.items()
+        if not k.startswith("_")
+    }
+
+
+# ---------------------------------------------------------------------------
+# Tools
+
+
+def _summary(a, say):
+    layout = a.get("layout") or {}
+    kind = "linear" if "linear" in layout else "circular"
+    count = (layout.get(kind) or {}).get("count")
+    return f"Pattern {say('component')} {kind} x{count}"
+
+
+def _layout(tx, layout):
+    """A normalised layout: kind, unit directions or axis, counts and steps."""
+    if "linear" in layout:
+        lin = layout["linear"]
+        second = [lin.get(k) is not None for k in ("direction2", "count2", "spacing2")]
+        if any(second) and not all(second):
+            fail("NX_INVALID_ARGUMENT", "A second direction needs direction2, count2 and spacing2",
+                 field="/layout/linear")  # fmt: skip
+        for key in ("spacing", "spacing2") if all(second) else ("spacing",):
+            if lin[key] <= 0:
+                fail("NX_INVALID_ARGUMENT", f"{key} must be positive",
+                     field=f"/layout/linear/{key}")  # fmt: skip
+        out = {
+            "kind": "linear",
+            "count": int(lin["count"]),
+            "spacing": float(lin["spacing"]),
+            "direction": select.direction(tx, lin["direction"], "/layout/linear/direction"),
+        }
+        if all(second):
+            other = select.direction(tx, lin["direction2"], "/layout/linear/direction2")
+            if geom.parallel(out["direction"], other, 1e-6):
+                fail("NX_INVALID_ARGUMENT", "The pattern directions must not be parallel",
+                     field="/layout/linear/direction2")  # fmt: skip
+            out.update(count2=int(lin["count2"]), spacing2=float(lin["spacing2"]), direction2=other)
+        if out["count"] * (out.get("count2") or 1) > MAX_INSTANCES:
+            fail("NX_TOO_MANY_OBJECTS", f"At most {MAX_INSTANCES} instances", field="/layout")
+        return out
+    circ = layout["circular"]
+    step = float(circ["angle"])
+    if circ.get("span"):
+        if not 0 < step <= 360.0 + 1e-9:
+            fail("NX_INVALID_ARGUMENT", "A span is above 0 and at most 360 degrees",
+                 field="/layout/circular/angle")  # fmt: skip
+        # 360 spreads the instances over the full circle; else first to last instance.
+        full = abs(step - 360.0) <= 1e-9
+        step = 360.0 / circ["count"] if full else step / (circ["count"] - 1)
+    _check_pitch(circ["count"], step, "/layout/circular/angle")
+    _obj, origin, axis = select.axis(tx, circ["axis"], "/layout/circular/axis")
+    return {
+        "kind": "circular",
+        "count": int(circ["count"]),
+        "angle": step,
+        "origin": origin,
+        "axis": axis,
+    }
+
+
+def _native(tx, seed, lay):
+    part = tx.part
+    update = tx.nx.SmartObject.UpdateOption.WithinModeling
+    kinds = _enum(tx)
+    with builders.build(tx, part.ComponentAssembly.CreateComponentPatternBuilder, None) as b:
+        b.Associative = True
+        b.ComponentPatternSet.Add(seed)
+        service = b.PatternService
+        if lay["kind"] == "linear":
+            service.PatternType = kinds.Linear
+            d = service.RectangularDefinition
+            d.XDirection = builders.direction(
+                tx, lay["direction"], field="/layout/linear/direction"
+            )
+            d.XSpacing.NCopies.RightHandSide = str(lay["count"])
+            d.XSpacing.PitchDistance.RightHandSide = repr(lay["spacing"])
+            d.UseYDirectionToggle = bool(lay.get("count2"))
+            d.YSpacing.NCopies.RightHandSide = str(lay.get("count2") or 1)
+            if lay.get("count2"):
+                d.YDirection = builders.direction(tx, lay["direction2"], field="/layout/linear")
+                d.YSpacing.PitchDistance.RightHandSide = repr(lay["spacing2"])
+        else:
+            service.PatternType = kinds.Circular
+            d = service.CircularDefinition
+            point = builders.point(tx, lay["origin"])
+            smart = builders.direction(tx, lay["axis"], lay["origin"], "/layout/circular/axis")
+            d.RotationAxis = part.Axes.CreateAxis(point, smart, update)
+            d.AngularSpacing.NCopies.RightHandSide = str(lay["count"])
+            d.AngularSpacing.PitchAngle.RightHandSide = repr(lay["angle"])
+            d.RadialSpacing.NCopies.RightHandSide = "1"
+        pattern = b.Commit()
+    readback.expect(pattern is not None, "pattern", "NX created no pattern")
+    model.update(tx)
+    return pattern
+
+
+def _copies(tx, seed, poses):
+    part = tx.part
+    path = seed.Prototype.FullPath
+    reference_set = str(getattr(seed, "ReferenceSet", "") or "Entire Part")
+    taken = common.sibling_names(part)
+    out = [seed]
+    for i, (t, r) in enumerate(poses[1:], start=2):
+        tx.checkpoint(done=i - 1, total=len(poses) - 1)
+        name = common.free_name(f"{seed.Name}_{i}", taken)
+        taken[name.casefold()] = seed
+        with native(default="NX_BUILD_FAILED"):
+            c, status = part.ComponentAssembly.AddComponent(
+                path, reference_set, name, tx.nx.Point3d(*t), builders.matrix(tx, r), -1,
+            )  # fmt: skip
+        if status is not None and hasattr(status, "Dispose"):
+            status.Dispose()
+        out.append(c)
+    return out
+
+
+def _patterns_of(tx, component) -> list:
+    """Refs of the component patterns ``component`` is a member of."""
+    collection = getattr(tx.part.ComponentAssembly, "ComponentPatterns", None)
+    out = []
+    try:
+        for pattern in collection.GetAllComponentPatterns() if collection is not None else []:
+            if any(int(c.Tag) == int(component.Tag) for c in members(pattern)):
+                out.append(str(tx.ref(pattern, "component_pattern").get("id")))
+    except Exception:  # a pattern NX cannot list: no warning
+        return []
+    return out
+
+
+@tool(
+    effect="model",
+    label="Pattern component",
+    summary=_summary,
+    keywords=("component array", "component pattern", "repeat component", "assembly pattern"),
+    requires=("work_part", "no_active_sketch", "assembly"),
+    cost="heavy",
+    previewable=True,
+    invalidates="deleted",
+    example={
+        "component": "o:4",
+        "layout": {"linear": {"direction": [1, 0, 0], "count": 4, "spacing": 20}},
+    },
+)
+def nx_create_component_pattern(
+    tx: Tx,
+    *,
+    component: ComponentRef,
+    layout: Linear | Circular,
+    associative: Annotated[
+        bool, Doc("NX pattern (true) or plain copies, no pattern object")
+    ] = True,
+) -> PatternData:
+    """Pattern a direct component linearly (one or two directions) or about an axis. Counts
+    include the seed (at most 100). Circular angle is the step, or with span=true first to last
+    (360: full circle); data.angle is the step. associative=false: plain copies, no pattern
+    object."""
+    lay = _layout(tx, layout)
+    with tx.checks():
+        seed = common.component(tx, component, "/component", unsuppressed=True)
+        if kpose.reflected(structure.pose(seed)[1]):
+            fail("NX_UNSUPPORTED_OPTION", f"{component} is mirrored (its pose reflects): NX "
+                 "cannot pattern a reflected transform", field="/component",
+                 hint="Pattern its unmirrored source, then mirror the instances with "
+                 "nx_create_component_mirror")  # fmt: skip
+    already = _patterns_of(tx, seed)
+    wanted = expected(structure.pose(seed), lay)
+    if associative:
+        pattern = _native(tx, seed, lay)
+        info = describe(tx, pattern)
+        comps = members(pattern)
+        _name_instances(tx, comps)
+        readback.expect(info["associative"], "associative", "NX made the pattern non-associative")
+        readback.expect(_total(info) == len(wanted), "count", actual=_total(info))
+    else:
+        comps = _copies(tx, seed, wanted)
+        info = {"associative": False, "layout": lay["kind"], "count": lay["count"]}
+        for key in ("spacing", "count2", "spacing2", "angle"):
+            if key in lay:
+                info[key] = lay[key]
+    match([structure.pose(c) for c in comps], wanted)
+    if already:
+        tx.warn("NX_NOTE", f"{component} is already in pattern {', '.join(already)}: this "
+                "pattern adds instances beside that one's")  # fmt: skip
+    return {**_public(info), "components": _component_rows(tx, comps)}
+
+
+def _edit_summary(a, say):
+    keys = ("count", "spacing", "count2", "spacing2", "angle")
+    return f"Edit pattern {say('pattern')}: " + ", ".join(k for k in keys if a.get(k) is not None)
+
+
+@tool(
+    effect="model",
+    label="Edit component pattern",
+    summary=_edit_summary,
+    keywords=("change array count", "pattern spacing", "pattern pitch", "edit array"),
+    requires=("work_part", "no_active_sketch", "assembly"),
+    cost="heavy",
+    invalidates="deleted",
+    example={"pattern": "cp:9", "count": 5},
+)
+def nx_edit_component_pattern(
+    tx: Tx,
+    *,
+    pattern: Annotated[str, RefTo("component_pattern")],
+    count: Count | None = None,
+    spacing: Spacing | None = None,
+    count2: Count2 | None = None,
+    spacing2: Spacing | None = None,
+    angle: Pitch | None = None,
+) -> PatternData:
+    """Change the count, spacing or angle of an associative single-seed component pattern.
+    count2 and spacing2 edit two-direction patterns only. A lower count deletes the surplus
+    components and their constraints. NX may recreate the pattern: then replaced is true
+    and the old reference is stale."""
+    given = {"count": count, "spacing": spacing, "count2": count2, "spacing2": spacing2,
+             "angle": angle}  # fmt: skip
+    if all(v is None for v in given.values()):
+        fail("NX_INVALID_ARGUMENT", "Give count, spacing, count2, spacing2 or angle")
+    for name, length in (("spacing", spacing), ("spacing2", spacing2)):
+        if length is not None and float(length) <= 0:  # the kernel converted it to part units
+            fail("NX_INVALID_ARGUMENT", f"{name} must be positive", field="/" + name)
+    with tx.checks():
+        obj = select.resolve(tx, pattern, "component_pattern", field="/pattern")
+        before = describe(tx, obj)
+        seeds = list(obj.GetComponentsToPattern())
+        if not before["associative"] or len(seeds) != 1:
+            fail("NX_UNSUPPORTED_OPTION", "Only associative single-seed patterns can be edited",
+                 field="/pattern")  # fmt: skip
+        if before["layout"] == "linear":
+            if angle is not None:
+                fail("NX_INVALID_ARGUMENT", "angle needs a circular pattern", field="/angle")
+            n2 = count2 if count2 is not None else before.get("count2") or 1
+            if n2 > 1 and "count2" not in before:
+                fail("NX_UNSUPPORTED_OPTION",
+                     "This pattern has one direction; NX cannot add a second one by editing",
+                     field="/count2", hint="Delete it and recreate it with nx_create_component_"
+                     "pattern, layout.linear direction2, count2 and spacing2")  # fmt: skip
+            if spacing2 is not None and n2 == 1:
+                fail("NX_INVALID_ARGUMENT", "spacing2 needs a second direction", field="/spacing2")
+            total = (count if count is not None else before["count"]) * n2
+        elif before["layout"] == "circular":
+            for name in ("spacing", "count2", "spacing2"):
+                if given[name] is not None:
+                    fail("NX_INVALID_ARGUMENT", f"A circular pattern takes count and angle, not "
+                         f"{name}", field="/" + name)  # fmt: skip
+            total = count if count is not None else before["count"]
+            _check_pitch(total, angle if angle is not None else before["angle"], "/angle")
+        else:
+            fail("NX_UNSUPPORTED_OPTION", "Only linear and circular patterns can be edited",
+                 field="/pattern")  # fmt: skip
+        if total > MAX_INSTANCES:
+            fail("NX_TOO_MANY_OBJECTS", f"At most {MAX_INSTANCES} instances")
+    seed = seeds[0]
+    obj, replaced = _set_layout(tx, obj, given)
+    info = describe(tx, obj)
+    readback.expect(_total(info) == total, "count", actual=_total(info), wanted=total)
+    for name, value in given.items():
+        if value is not None and not (name == "count2" and value == 1):
+            readback.expect_close(info.get(name, float("nan")), value, name)
+    edited = [name for name, value in given.items() if value is not None]
+    tx.note_restore({
+        "pattern": str(tx.ref(obj, "component_pattern").get("id")),
+        "before": {name: before.get(name) for name in edited},
+        "after": {name: info.get(name) for name in edited},
+    })  # fmt: skip
+    comps = members(obj)
+    _name_instances(tx, comps)
+    if info["layout"] == "linear" and "_direction" in info:
+        lay = {"kind": "linear", "count": info["count"], "spacing": info["spacing"],
+               "direction": info["_direction"]}  # fmt: skip
+        if info.get("count2", 1) > 1 and "_direction2" in info:
+            lay.update(count2=info["count2"], spacing2=info["spacing2"],
+                       direction2=info["_direction2"])  # fmt: skip
+        match([structure.pose(c) for c in comps], expected(structure.pose(seed), lay))
+    else:
+        readback.expect(len(comps) == total, "instances.count", count=len(comps))
+    if replaced:
+        tx.warn("NX_UPDATE_WARNING", "NX recreated the pattern; use the returned pattern reference")
+    return {**_public(info), "replaced": replaced, "components": _component_rows(tx, comps)}
+
+
+def _set_layout(tx, obj, given) -> tuple:
+    """Set the given counts and steps (None: kept) on a native pattern; returns the
+    pattern NX committed and whether it is a new object (the old one replaced)."""
+    kinds = _enum(tx)
+    count, spacing, count2 = given.get("count"), given.get("spacing"), given.get("count2")
+    spacing2, angle = given.get("spacing2"), given.get("angle")
+    with builders.build(tx, tx.part.ComponentAssembly.CreateComponentPatternBuilder, obj) as b:
+        service = b.PatternService
+        if service.PatternType == kinds.Linear:
+            d = service.RectangularDefinition
+            if count is not None:
+                d.XSpacing.NCopies.RightHandSide = str(int(count))
+            if spacing is not None:
+                d.XSpacing.PitchDistance.RightHandSide = repr(float(spacing))
+            if count2 is not None:
+                d.YSpacing.NCopies.RightHandSide = str(int(count2))
+                d.UseYDirectionToggle = count2 > 1
+            if spacing2 is not None:
+                d.YSpacing.PitchDistance.RightHandSide = repr(float(spacing2))
+        else:
+            d = service.CircularDefinition
+            if count is not None:
+                d.AngularSpacing.NCopies.RightHandSide = str(int(count))
+            if angle is not None:
+                d.AngularSpacing.PitchAngle.RightHandSide = repr(float(angle))
+        committed = b.Commit()
+    replaced = committed is not None and int(committed.Tag) != int(obj.Tag)
+    model.update(tx)
+    return (committed if committed is not None else obj), replaced
+
+
+def _differs(got, value) -> bool:
+    return got is None or abs(float(got) - float(value)) > 1e-9 * max(1.0, abs(float(value)))
+
+
+@restorer("nx_edit_component_pattern")
+def _restore_pattern(tx: Tx, data: dict, *, apply: bool) -> str:
+    """Give a pattern nx_edit_component_pattern changed its previous counts and steps back
+    (the compensating undo): refused when they changed since."""
+    ref, before, after = data["pattern"], data["before"], data["after"]
+    obj = select.resolve(tx, ref, "component_pattern", field="/pattern")
+    now = describe(tx, obj)
+    for name, value in after.items():
+        if value is not None and _differs(now.get(name), value):
+            fail("NX_DEPENDENCY_ORDER", f"The {name} of {ref} changed since: it is "
+                 f"{now.get(name)}, the operation set {value}",
+                 details={"pattern": ref, name: now.get(name)})  # fmt: skip
+    wanted = {k: v for k, v in before.items() if v is not None}
+    if apply and wanted:
+        obj, _replaced = _set_layout(tx, obj, wanted)
+        got = describe(tx, obj)
+        for name, value in wanted.items():
+            readback.expect_close(got.get(name, float("nan")), value, f"previous_{name}")
+    told = ", ".join(f"{k} {common.tidy(v)}" for k, v in sorted(wanted.items()))
+    return f"{ref} back to {told}"

@@ -1,0 +1,952 @@
+"""``Tx``: a handler's only route to NX and to the services (architecture.md 3.2).
+
+Handlers never set undo marks, write receipts or touch the panel. ``tx.session``
+and ``tx.part`` mark the transaction *touched*; a handler failure while
+untouched reports ``not_started``.
+
+``Services`` documents what the kernel needs from the NX side. In production it
+is ``nx_mcp.host.services.NXServices`` (operation store, object registry, undo
+marks, snapshots and workspace); unit tests may supply their own implementation.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import os
+import shutil
+import time
+import uuid
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
+
+from nx_mcp.core.errors import WARNING_CODES, NXError, fail
+
+if TYPE_CHECKING:
+    from nx_mcp.core.references import Row
+
+# Cooperative budget per cost class (architecture.md 3.3), measured from gate 9.
+# tx.checkpoint() past the budget raises interrupted/NX_CANCELLED (reason "budget").
+COST_BUDGET_SECONDS = {"light": 30.0, "heavy": 300.0, "long": 1800.0}
+DEFAULT_BUDGET_SECONDS = 300.0
+# ``Tx.scale_budget``: seconds added per input object, and the scaled budget's ceiling.
+BUDGET_PER_ITEM_SECONDS = 0.2
+SCALED_BUDGET_CAP_SECONDS = 300.0
+_NOT_SET: Any = object()  # ``Tx.snapshot_part`` before the kernel sets it
+
+NOT_GRANTED_HINT = (
+    "The part is the engineer's: ask them in chat to tick 'Allow agent to change {name}' "
+    "in the NX MCP panel, then retry, or work in a part you create"
+)
+
+
+def check_owned(services, part, *, field: str | None = None) -> None:
+    """Gate 6: refuse to change ``part`` unless the agent owns it. Always on, in
+    development mode (``NX_MCP_DEV=1``) too: the engineer's parts stay protected."""
+    if part is None or services.owns(part):
+        return
+    path = services.part_path(part)
+    name = str(getattr(part, "Name", "") or path)
+    fail(
+        "NX_PART_NOT_GRANTED",
+        f"The part {path} belongs to the engineer: the agent may change only parts it "
+        "created or opened, or parts the engineer allowed on the NX MCP panel",
+        hint=NOT_GRANTED_HINT.format(name=name),
+        field=field,
+        details={"part": path},
+    )
+
+
+class Services:
+    """The NX-side services seam. Every member is required unless noted."""
+
+    # Untyped seams (NXOpen has no stubs; the rest are duck-typed): ``Any``.
+    nx: Any = None  # the NXOpen module
+    uf: Any = None  # the UFSession (may be None where UF is not used)
+    session: Any = None  # the NX session
+    workspace: Any = None  # nx_mcp.workspace.Workspace-like: root, resolve(path)
+    build: str | None = None  # NX version string
+    dev: bool = False  # NX_MCP_DEV=1
+    session_id = ""
+    store: Any = None  # OperationStore-like: get, put, path
+    references: Any = None  # core.references.References over this object
+    runs = "nx"  # the process these services run in: "nx", or "sidecar" (gate 1)
+    # The part a read targets when it is not NX's work part (gate 4s, core/switching.py):
+    # ``work_part`` returns it while the call runs. None: NX's work part.
+    bound: Any = None
+
+    # parts and units
+    def work_part(self): ...  # the bound part, else NX's work part
+    def parts(self) -> list: ...
+
+    # gate 4s (core/switching.py)
+    def switch(self, part, mode: str, *, application: str | None = None):
+        """Make ``part`` current in NX for one call: ``mode`` ``work`` (the work part) or
+        ``display`` (displayed and work part; ``application`` entered). Returns the
+        entered switch (``restore() -> warning text or None``, ``clean``, ``retry()``,
+        ``primitive``, ``timings``; ``kit.switching.Switch``), or None when these services
+        cannot switch (gate 4s then refuses a call that names another part)."""
+        return None
+
+    def switch_log(self) -> list:
+        """The recent switches (gate 4s): ``{tool, part, mode, primitive, switch_ms,
+        restore_ms, call_ms, restored}``, oldest first."""
+        return self.__dict__.setdefault("_switch_log", [])
+
+    def root_parts(self) -> list:
+        """The top-level loaded parts: those no loaded assembly uses as a component
+        (gate 3t). Walks each assembly's component tree (``Prototype`` of every child)."""
+        parts = list(self.parts() or [])
+        if len(parts) < 2:
+            return parts
+        used: set[int] = set()
+        for part in parts:
+            root = None
+            with contextlib.suppress(Exception):
+                root = part.ComponentAssembly.RootComponent
+            stack = [root] if root is not None else []
+            while stack:
+                node = stack.pop()
+                with contextlib.suppress(Exception):
+                    for child in node.GetChildren():
+                        prototype: Any = getattr(child, "Prototype", None)
+                        with contextlib.suppress(Exception):
+                            used.add(int(prototype.Tag))
+                        stack.append(child)
+        return [p for p in parts if int(p.Tag) not in used]
+
+    def part_key(self, part) -> str: ...
+    def part_path(self, part) -> str: ...
+    def owning_part(self, obj): ...
+    def part_units(self, part) -> str: ...  # "mm" or "in"
+    def infer_kind(self, obj) -> str: ...
+
+    # drawing sheets (gate 9: SheetLength / SheetPoint arguments)
+    def current_sheet(self): ...  # the work part's current drawing sheet or None
+    def sheet_of(self, obj): ...  # sheet that is/shows obj (+ @sheet_locator kinds) or None
+    def sheet_units(self, sheet) -> str: ...  # "mm" or "in"
+
+    # gate 9: a Length/Angle/count given as an NX expression name or formula
+    def evaluate_formula(
+        self, formula: str, dim: str, unit: str, *, field=None, scratch: bool = False
+    ) -> float:
+        """Value of ``formula`` in the work part, in ``unit`` (``mm``/``in``/``deg``/
+        ``unitless``), refused unless of dimension ``dim``. A bare expression name is read;
+        another formula needs ``scratch`` (a model tool, under its undo mark): NX evaluates
+        it in a temporary expression. Optional: without it expressions are refused."""
+        fail(
+            "NX_UNSUPPORTED_OPTION",
+            f"{field or 'value'}: NX expressions as values need the NX session",
+            field=field,
+        )
+
+    # object registry handles behind core.references
+    def register_handle(self, obj, kind: str, part) -> str: ...
+    def resolve_handle(self, handle: str): ...
+    def handle_live(self, handle: str) -> bool: ...
+    def handle_kind(self, handle: str) -> str | None: ...
+    def handle_name(self, handle: str) -> str | None: ...
+
+    # state for `requires` and ownership (gate 6)
+    def state(self) -> dict: ...
+    def owns(self, part) -> bool: ...  # created/opened by the agent, or granted
+    def own(self, part) -> None: ...
+    def modified_flags(self) -> dict: ...  # {part_key: IsModified} of parts not owned
+
+    # display state: `view` rollback and restore_id (architecture.md 3.2)
+    def display_camera(self): ...  # opaque camera snapshot of the work view
+    def display_records(self, objects, appearance: bool) -> list: ...  # [(obj, record)]
+    def highlights(self) -> list: ...  # objects the agent highlighted
+    def restore_display(self, camera, records, highlights) -> None: ...
+    def save_display_snapshot(self, records, camera) -> str: ...  # restore_id
+
+    # undo, snapshots, invalidation
+    def observe(self): ...  # context manager -> object with .touched
+    def set_mark(self, name: str, visible: bool = True): ...
+    def undo_to(self, mark) -> None: ...
+    def delete_mark(self, mark) -> None: ...
+    def snapshot(self, part) -> dict: ...  # {key: entry}; keys compare structure
+    def describe(self, entry, live: bool) -> Row: ...  # snapshot entry -> result row
+    def feature_errors(self, part, before: dict, mark) -> list: ...
+    def clear_update_errors(self) -> None: ...
+    def invalidate(self, before: dict, after: dict, topology: bool) -> set | None: ...
+    # ^ retire deleted objects (and, for ``topology``, faces/edges NX no longer has);
+    #   returns the retired registry handles (None: cannot tell)
+    def invalidate_parts(self, parts) -> None: ...
+
+    def retire_undone(self, parts) -> set | None:
+        """After an undo: retire the registry handles of ``parts`` whose object did not
+        come back (NX restores the same tags) and return them; ``None`` = every handle
+        of ``parts`` was retired (services that cannot tell)."""
+        self.invalidate_parts(parts)
+        return None
+
+    def forget_parts(self, keys) -> None: ...  # closed parts (by part_key): refs, undo, owner
+
+    def refreshers(self) -> dict:
+        """The ``@refresher`` hooks gate 13 runs, ``{kind: fn(tx, objects or None)}``.
+
+        The NX host returns every registered hook; services without NX run none."""
+        return {}
+
+    def record_history(self, mark, part, operation_id: str, tool: str) -> None: ...
+
+    # the agent's undo history and checkpoints (nx_undo_operation, nx_*_checkpoint)
+    def undo_history(self) -> list:
+        """The live list of the agent's committed model calls of every part, oldest first:
+        ``{mark, part_id, operation_id, method}``, with barriers (loads, retained closes,
+        the engineer's edits: ``core/marks.py``) where no undo may cross."""
+        return self.__dict__.setdefault("_undo_history", [])
+
+    def undo_checkpoints(self) -> dict:
+        """The live ``{checkpoint_id: {mark, part_id, index, label}}`` of this session;
+        ``index`` is the length of :meth:`undo_history` when it was created."""
+        return self.__dict__.setdefault("_undo_checkpoints", {})
+
+    def redo_steps(self) -> list:
+        """The live list of agent calls an undo or a restore reverted, next to repeat
+        first: ``{operation_id, method, part_id}`` (``nx_redo_operation``, read per
+        part). A new committed model call in a part ends that part's items; an engineer
+        edit ends them all."""
+        return self.__dict__.setdefault("_redo_steps", [])
+
+    def mark_exists(self, mark) -> bool:
+        """False once NX dropped the undo mark (a save, a part close)."""
+        return bool(self.session.DoesUndoMarkExist(mark, None))
+
+    def parked_sketches(self) -> dict:
+        """The live ``{part_key: sketch}`` of sketches left open (unfinished) and
+        deactivated between calls (``core/parking.py``)."""
+        return self.__dict__.setdefault("_parked_sketches", {})
+
+    def part_activity(self) -> dict:
+        """The live part table (``core/busy.py``): ``{"parts": {part_key: {at, tool,
+        operation_id, loaded_at, changed_at, saved_at}}, "owners": {part_key: {caller}},
+        "adopted": bool, "persisted": {parts, granted} last written to part-owners.json}``."""
+        return self.__dict__.setdefault("_part_activity", {})
+
+    def after_commit(self, spec) -> None: ...
+    def after_failure(self, spec) -> None: ...  # NX host: also (spec, mutation_outcome)
+
+    # optional members (defaults below): previews and the NX MCP panel
+    def revision(self) -> int:
+        """Counter of changes to the session: every non-read call (``after_commit``, and
+        ``after_failure`` unless its outcome is ``not_started``) and every engineer
+        change between agent calls bump it (the review epoch; previews compare the
+        per-part :meth:`part_revision`)."""
+        return 0
+
+    def part_revision(self, key) -> int:
+        """Counter of changes to one part (``part_key``): committed or rolled-back calls
+        that targeted it (never reads or view changes), and every engineer change.
+        ``nx_finish_preview`` compares it: another part's work does not age a preview."""
+        revisions = self.__dict__.setdefault("_part_revisions", {})
+        return int(revisions.get(None, 0)) + int(revisions.get(key, 0))
+
+    def bump_part_revision(self, key=None) -> None:
+        """Move one part's revision (``key``), or every part's (None)."""
+        revisions = self.__dict__.setdefault("_part_revisions", {})
+        revisions[key] = int(revisions.get(key, 0)) + 1
+
+    def control_status(self) -> dict | None:
+        """The NX MCP panel's state (mode, activity, ...), None without the panel."""
+        return None
+
+
+# ``fn(tx, path)`` hooks run for every file ``Files.publish`` published (core imports no
+# kit module: ``kit.files`` appends its ``note_written`` when it is imported).
+WRITTEN_HOOKS: list = []
+
+REPLACE_TRIES = 20  # backoff 0.05 s doubling to 0.5 s, about 6 s in all: Windows refuses a
+# replace while a scanner holds a file that was just written or read
+
+
+def replace_file(temp, target) -> None:
+    """``os.replace`` (atomic on one volume; staging is inside the workspace), retried
+    for a moment while Windows refuses it (``PermissionError``: another process, such as
+    a virus scanner or an indexer, has just opened the earlier file)."""
+    for attempt in range(REPLACE_TRIES):
+        try:
+            os.replace(temp, target)
+            return
+        except PermissionError:
+            if attempt == REPLACE_TRIES - 1:
+                raise
+            time.sleep(min(0.5, 0.05 * 2**attempt))
+
+
+def publish_new(temp, target, *, field: str | None = "/path") -> Path:
+    """Move a finished ``temp`` file to ``target`` without ever overwriting it.
+
+    ``os.link`` creates ``target`` atomically and fails when it exists, also when
+    another writer created it meanwhile (``os.replace`` would overwrite it). Where
+    hard links are unavailable the bytes are copied into an exclusively created
+    file. A file at ``target`` raises ``NX_ALREADY_EXISTS``; ``temp`` is removed
+    either way, and a partial copy never stays behind.
+    """
+    temp, target = Path(temp), Path(target)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        try:
+            os.link(temp, target)
+        except FileExistsError:
+            raise
+        except OSError:  # no hard links on this volume: exclusive create + copy
+            with temp.open("rb") as source, target.open("xb") as out:
+                try:
+                    shutil.copyfileobj(source, out, 1024 * 1024)
+                except BaseException:
+                    out.close()
+                    with contextlib.suppress(OSError):
+                        target.unlink()
+                    raise
+    except FileExistsError:
+        fail(
+            "NX_ALREADY_EXISTS",
+            f"{target.name} already exists; files are never overwritten",
+            field=field,
+            details={"path": str(target)},
+        )
+    finally:
+        with contextlib.suppress(OSError):
+            temp.unlink()
+    return target
+
+
+class Files:
+    """Atomic workspace writes: stage, then publish (architecture.md 3.2).
+
+    Staged files live in ``.nx-mcp/staging/<operation_id>/``; the kernel removes
+    that folder when the call ends, committed or not (``cleanup``). ``publish``
+    never overwrites: a target that exists fails the whole publish before any
+    file is moved. The one exception is a file staged with ``replace=True`` (a
+    ``replace`` path the caller asked to overwrite): it replaces an existing file
+    atomically (``os.replace``: the old file or the complete new one, never a part).
+    """
+
+    def __init__(self, tx: Tx) -> None:
+        self._tx = tx
+        self._staged: list[tuple[Path, Path, bool]] = []
+        self.published = False
+        self.replaced: list[Path] = []  # targets whose earlier file ``publish`` replaced
+
+    @property
+    def folder(self) -> Path:
+        root = Path(self._tx.workspace.root)
+        if not getattr(self, "_name", None):
+            self._name = self._tx.operation_id or uuid.uuid4().hex
+        return root / ".nx-mcp" / "staging" / self._name
+
+    def stage(self, path, *, replace: bool = False) -> Path:
+        """A temporary path to write; ``publish()`` moves it to ``path``. With
+        ``replace`` an existing file at ``path`` is replaced (never a directory)."""
+        target = Path(path)
+        folder = self.folder
+        folder.mkdir(parents=True, exist_ok=True)
+        temp = folder / f"{len(self._staged)}_{target.name}"
+        self._tx.touched = True
+        self._staged.append((temp, target, replace))
+        return temp
+
+    def publish(self) -> list[Path]:
+        for temp, target, replace in self._staged:
+            if not temp.exists():
+                fail("NX_EXPORT_FAILED", f"Nothing was written for {target.name}")
+            if replace and target.exists() and not target.is_file():
+                fail(
+                    "NX_WRONG_KIND",
+                    f"{target.name} is not a file; only a file can be replaced",
+                    details={"path": str(target)},
+                )
+            if not replace and target.exists():
+                fail(
+                    "NX_ALREADY_EXISTS",
+                    f"{target.name} already exists; files are never overwritten",
+                    details={"path": str(target)},
+                )
+        out: list[Path] = []
+        staged, self._staged = self._staged, []
+        try:
+            for temp, target, replace in staged:
+                if replace and target.exists():
+                    replace_file(temp, target)
+                    self.replaced.append(target)
+                else:
+                    publish_new(temp, target, field=None)
+                self.published = True
+                out.append(target)
+        except BaseException:
+            self._staged = staged[len(out) + 1 :]  # the rest stay staged until discard()
+            raise
+        self.cleanup()
+        self._note(out)
+        return out
+
+    def _note(self, paths: list[Path]) -> None:
+        """Run every :data:`WRITTEN_HOOKS` hook for each published file (the kit records it
+        as written by this call: ``nx_delete_file`` deletes only files an agent wrote).
+        Never raises."""
+        for hook in list(WRITTEN_HOOKS):
+            for path in paths:
+                with contextlib.suppress(Exception):
+                    hook(self._tx, path)
+
+    def discard(self) -> bool:
+        """Remove unpublished staged files and the staging folder; True when nothing
+        of them remains."""
+        clean = True
+        for temp, _target, _replace in self._staged:
+            try:
+                temp.unlink(missing_ok=True)
+            except OSError:
+                clean = False
+        self._staged = []
+        self.cleanup()
+        return clean
+
+    def cleanup(self) -> None:
+        """Remove this call's staging folder (and ``staging`` itself once empty)."""
+        if self._staged or self._tx.parent is not None:
+            return  # files still waiting, or a batch child: the top-level call cleans up
+        folder = self.folder
+        shutil.rmtree(folder, ignore_errors=True)
+        with contextlib.suppress(OSError):
+            folder.parent.rmdir()  # only when no other call is staging
+
+
+class Display:
+    """Display state a handler is about to change, so the kernel can restore it.
+
+    Call before changing: ``tx.display.keep_camera()``, ``tx.display.keep(objs,
+    appearance=True)`` (blank state, colour, transparency; bodies expand to their
+    faces with ``appearance``), ``tx.display.keep_highlights()``. A failed call
+    restores what was kept (``view`` tools: outcome ``rolled_back``); a successful
+    call of a ``restorable`` tool returns ``restore_id`` for ``nx_restore_display``.
+    """
+
+    def __init__(self, tx: Tx) -> None:
+        self._tx = tx
+        self.camera: Any = None  # opaque snapshot from Services.display_camera
+        self.records: dict = {}  # key -> [obj, record]
+        self.highlights: list | None = None
+
+    @property
+    def kept(self) -> bool:
+        return self.camera is not None or bool(self.records) or self.highlights is not None
+
+    def keep_camera(self) -> None:
+        if self.camera is None:
+            self.camera = self._tx.services.display_camera()
+
+    def keep(self, objects, *, appearance: bool = False) -> None:
+        for obj, record in self._tx.services.display_records(list(objects), appearance):
+            tag = getattr(obj, "Tag", None)
+            key = int(tag) if tag is not None else id(obj)
+            if key in self.records:
+                known = self.records[key][1]
+                known.update({k: v for k, v in record.items() if k not in known})
+            else:
+                self.records[key] = [obj, dict(record)]
+
+    def keep_highlights(self) -> None:
+        if self.highlights is None:
+            self.highlights = list(self._tx.services.highlights())
+
+    def restore(self) -> None:
+        """Put back everything kept: records, highlights, then the camera."""
+        self._tx.services.restore_display(
+            self.camera, [tuple(pair) for pair in self.records.values()], self.highlights
+        )
+
+    def forget(self) -> None:
+        """Drop the kept camera, records and highlights after the call's change
+        succeeded: a failure later in the call restores nothing, and a ``restorable``
+        tool returns no ``restore_id`` for this call (a restore of a restore_id must not
+        offer one back, or ``last`` toggles between two states)."""
+        self.camera = None
+        self.records.clear()
+        self.highlights = None
+
+    def snapshot(self) -> str | None:
+        """A restore_id for the kept camera and records, or None."""
+        if self.camera is None and not self.records:
+            return None
+        return self._tx.services.save_display_snapshot(
+            [tuple(pair) for pair in self.records.values()], self.camera
+        )
+
+
+class Tx:
+    def __init__(
+        self,
+        services: Services,
+        spec,
+        *,
+        operation_id: str | None,
+        receipts=None,
+        record=None,
+        parent: Tx | None = None,
+        mode: str | None = None,
+        arguments: dict | None = None,
+    ) -> None:
+        self._services = services
+        self.spec = spec
+        self.operation_id = operation_id
+        self.receipts = receipts
+        self.record = record
+        self.parent = parent
+        self.mode = mode  # None, "batch" or "preview" for children
+        # The argument names the caller sent (before defaults), for ``tx.given``.
+        self._given = frozenset(arguments) if isinstance(arguments, dict) else frozenset()
+        self.started = time.monotonic()
+        self.budget_extra = 0.0  # seconds added by scale_budget (root only)
+        self.touched = False
+        # A builder committed in NX (``kit.builders``): a refusal after it is rolled back,
+        # not "not started", even when the part has the same objects again.
+        self.built = False
+        self.frame = "work_part_absolute"
+        self.units = {"length": None, "angle": "deg"}  # + "sheet_length" (gate 9)
+        self.sheet: Any = None  # the target NX drawing sheet of a sheet tool (gate 9), or None
+        self.warnings: list[dict] = []
+        self.non_undoable_reason: str | None = None
+        self.mark: Any = None  # the NX undo mark of this call
+        self.outcome: str | None = None  # "previewed" after tx.preview()
+        self.references: str | None = None  # "part_invalidated": overrides changes
+        self.changed: list[Row] = []  # rows for changes.modified (``tx.modified``)
+        self.made: list[Row] = []  # rows for changes.created (``tx.created``)
+        self.stale_refs: list[str] = []  # refs an undo made stale (``tx.after_undo``)
+        # part_key -> (part, snapshot before the change): parts besides the work part the
+        # call changes (``tx.touch_part``).
+        self.extra_parts: dict[str, tuple[Any, dict]] = {}
+        # The part the kernel snapshotted before the handler (the work part then, None when
+        # there was none); until the kernel sets it, the current work part stands for it
+        # in ``touch_part``.
+        self.snapshot_part: Any = _NOT_SET
+        self.files = Files(self)
+        self.display = Display(self)
+        self.children: list[dict] = []
+        # The part gate 3t resolved (core.target.Target) or None; gate 4s made it current
+        # (``tx.part`` is it: the work part after a switch, the bound part of a read).
+        self.target: Any = None
+        # Gate 4s's state of this call (core.switching.Bound): a child of a call that
+        # switched NX to its target switches again when its own target differs.
+        self.bound: Any = None
+        # Keys the kernel adds to this call's undo-history entry (``compensation``: an
+        # undo by deletion, never undone itself; core/marks.py).
+        self.history_note: dict | None = None
+        # The committed call's ``changes`` block, set by the kernel before it records the
+        # undo-history entry (None until then): read by the checkpoint notes of gate 14
+        # (``core/undoable.checkpoint_notes``) before the receipt is finished.
+        self.changes: dict | None = None
+        # The part a call without a target worked in (the part nx_create_part or
+        # nx_open_part made or reused): the busy-part table's stream (core/busy.py).
+        self.worked_in: Any = None
+        # Who sends the call (``{"id", "shared"}`` from the sidecar, core/busy.py) or None;
+        # children inherit the parent's.
+        self.caller: dict | None = parent.caller if parent is not None else None
+
+    def note_restore(
+        self, data: dict, *, brings_back: bool = False, after_delete: bool = False
+    ) -> None:
+        """Keep the before-values of what this call changes, so an undo can set them back
+        when NX's undo cannot reach the call (other parts' work came after it).
+
+        A value-setting tool calls it once, after its change read back, with plain JSON
+        data (refs, names, numbers, strings: never NX objects), and registers the hook
+        that sets the values back: ``@restorer("<tool name>")`` (core/catalogue.py),
+        ``fn(tx, data, *, apply) -> str``. With ``apply`` false the hook only checks that
+        the values still read what the call set (``fail("NX_DEPENDENCY_ORDER", ...)``
+        when they changed since); with ``apply`` true it sets ``data``'s before-values
+        back in ``tx.part`` and verifies them; it returns what it set back ("PART_NO of
+        a.prt back to 'A-1'"). Without both, an undo the NX undo cannot reach is refused
+        for the call. Example (domains/session/naming.py)::
+
+            tx.note_restore({"object": ref, "before": old, "after": new})
+
+        An undo sets values back only for a call that deleted nothing besides what a
+        feature's state takes away (its bodies, datums, curves and points: suppression);
+        ``brings_back`` says the restorer also brings back the other objects the call
+        deleted (it re-creates them; their old refs stay stale). A creation the snapshots
+        do not see (an arrangement, a group, a decal) is undone the same way: report it
+        with :meth:`created` and note what the restorer needs to remove it. A creating
+        call that also changed state its objects' deletion does not revert (bodies a mirror
+        or an untrim hid) notes ``after_delete``: the undo deletes what it created through
+        the deleters, then applies its restorer (checked before the deletion).
+
+        A top-level call keeps ``data`` in its undo-history entry
+        (``history_note["restore"]``); a child of ``nx_run_batch`` or an accepted
+        ``nx_finish_preview`` adds it to its parent's entry (``child_restores``: step
+        index, tool, part key), so the parent is undone child by child."""
+        if self.parent is None:
+            note = dict(self.history_note or {})
+            note["restore"] = data
+            if brings_back:
+                note["restore_brings_back"] = True
+            if after_delete:
+                note["restore_after_delete"] = True
+            self.history_note = note
+            return
+        if self.parent.parent is not None:
+            return  # a grandchild: not kept (its parent's step is not undone by values)
+        root = self.parent
+        part = None
+        with contextlib.suppress(Exception):
+            work = self._services.work_part()
+            part = self._services.part_key(work) if work is not None else None
+        note = dict(root.history_note or {})
+        steps = list(note.get("child_restores") or [])
+        step = {"index": len(root.children), "tool": self.spec.name, "restore": data, "part": part}
+        if brings_back:
+            step["brings_back"] = True
+        if after_delete:
+            step["after_delete"] = True
+        steps.append(step)
+        note["child_restores"] = steps
+        root.history_note = note
+
+    # -- NX access ------------------------------------------------------------
+    @property
+    def nx(self):
+        return self._services.nx
+
+    @property
+    def uf(self):
+        return self._services.uf
+
+    @property
+    def session(self):
+        self.touched = True
+        return self._services.session
+
+    @property
+    def part(self):
+        part = self._services.work_part()
+        if part is None:
+            fail("NX_NO_WORK_PART", "No work part is open", hint="Open a part with nx_open_part")
+        self.touched = True
+        return part
+
+    @property
+    def workspace(self):
+        return self._services.workspace
+
+    @property
+    def dev(self) -> bool:
+        return bool(self._services.dev)
+
+    @property
+    def services(self) -> Services:
+        return self._services
+
+    def given(self, name: str) -> bool:
+        """Whether the caller passed argument ``name`` (False when the handler got the
+        schema default, or when the call's arguments are unknown)."""
+        return name in self._given
+
+    # -- references -------------------------------------------------------------
+    def resolve(self, ref: str, *kinds: str, work_part: bool = False):
+        """The live object for ``ref``: stale_reference, wrong_kind or wrong_owner.
+
+        ``work_part`` also refuses objects of other parts and occurrences, except a
+        component of the work assembly (an occurrence the work part owns)."""
+        obj = self._services.references.resolve(ref, kinds)
+        if work_part:
+            owner = self._services.owning_part(obj)
+            work = self._services.work_part()
+            occurrence = bool(getattr(obj, "IsOccurrence", False))
+            if occurrence and self._services.infer_kind(obj) == "component":
+                occurrence = False  # the work assembly's own component
+            if (
+                occurrence
+                or owner is None
+                or work is None
+                or (self._services.part_key(owner) != self._services.part_key(work))
+            ):
+                fail(
+                    "NX_WRONG_OWNER",
+                    f"{ref} is not owned by the work part",
+                    hint="Pass refs of one part: a call acts in the part its refs name",
+                    details={"ref": ref},
+                )
+        return obj
+
+    def touch_part(self, part) -> None:
+        """Declare that the call changes ``part`` besides the work part (the prototype of
+        a component edited in context). Call it before the change: the kernel snapshots
+        the part now and, after the handler, lists what was created or deleted in it in
+        ``changes`` and fails the call on its new features that do not update (gate 11),
+        as for the work part. The part the kernel snapshots itself (the work part when the
+        call started) and repeated calls are ignored; a part the call created and made the
+        work part (an import into a new part) is declared right after its creation."""
+        services = self._services
+        key = services.part_key(part)
+        watched = services.work_part() if self.snapshot_part is _NOT_SET else self.snapshot_part
+        if key in self.extra_parts or (watched is not None and services.part_key(watched) == key):
+            return
+        self.extra_parts[key] = (part, services.snapshot(part))
+        root = self
+        while root.parent is not None:
+            root = root.parent
+        note = dict(root.history_note or {})
+        if key not in (note.get("parts") or []):
+            # the undo-history entry names the other parts the call changed: an undo by
+            # compensation deletes what it created there too
+            note["parts"] = [*(note.get("parts") or []), key]
+            root.history_note = note
+
+    def require_owned(self, part, *, field: str | None = None) -> None:
+        """Refuse to save, close or change ``part`` unless the agent owns it (gate 6).
+
+        The kernel checks the work part of ``model`` tools; ``file`` and ``session``
+        tools that save or close a specific part call this before acting.
+        """
+        check_owned(self._services, part, field=field)
+
+    def kind_of(self, obj) -> str:
+        """The exact reference kind of a live NX object (``feature``, ``face``, ...)."""
+        return self._services.infer_kind(obj)
+
+    def ref(self, obj, kind: str | None = None, *, anchor: bool = False, part=None) -> Row:
+        """A result row ``{id, kind, name, part}`` (+ anchor) for ``obj``."""
+        kind = kind or self._services.infer_kind(obj)
+        return self._services.references.row(obj, kind, part=part, anchor=anchor)
+
+    def modified(self, obj, kind: str | None = None) -> Row:
+        """Report ``obj`` (an NX object or a result row) in ``changes.modified``: an
+        object the call changed without creating or deleting it (attributes, an
+        edited feature, an expression)."""
+        row = cast("Row", obj) if isinstance(obj, dict) else self.ref(obj, kind)
+        if all(r.get("id") != row.get("id") for r in self.changed):
+            self.changed.append(row)
+        return row
+
+    def created(self, obj, kind: str | None = None) -> Row:
+        """Report ``obj`` (an NX object or a result row ``{id, kind, name}``) in
+        ``changes.created``: an object the call made that the part snapshots do not list
+        (an arrangement, a component group, a decal, a display analysis). The kernel adds
+        the objects the snapshots see itself. An undo by deletion removes a created object
+        of a kind with a ``@deleter`` hook that the snapshots list; any other one needs the
+        tool's ``@restorer`` and :meth:`note_restore`, else the undo is refused."""
+        row = cast("Row", obj) if isinstance(obj, dict) else self.ref(obj, kind)
+        if all(r.get("id") != row.get("id") for r in self.made):
+            self.made.append(row)
+        return row
+
+    def after_undo(self) -> str:
+        """After the handler undid NX marks (undo, restore): keep the refs of every
+        object NX restored, re-bind moved anchored refs, retire the rest. Sets and
+        returns ``tx.references``: ``preserved`` or ``listed`` (``tx.stale_refs``)."""
+        from nx_mcp.core import kernel
+
+        summary = kernel.rebind_after_undo(self._services)
+        stale = summary.get("stale")
+        if stale is None:
+            self.references = "part_invalidated"
+        else:
+            self.stale_refs = list(stale)
+            self.references = "listed" if stale else "preserved"
+        return self.references
+
+    # -- reporting ----------------------------------------------------------------
+    def warn(self, code: str, message: str) -> None:
+        if code not in WARNING_CODES:
+            code = "NX_UPDATE_WARNING"
+        self.warnings.append({"code": code, "message": str(message)})
+
+    def checkpoint(self, done=None, total=None) -> None:
+        """Progress, cooperative cancellation and the cost budget (architecture 3.3)."""
+        root = self
+        while root.parent is not None:
+            root = root.parent
+        # A batch or preview child's own progress (curves of one step) would overwrite
+        # the parent's step count; children only check cancellation and the budget.
+        if root is self and root.receipts is not None and (done is not None or total is not None):
+            root.receipts.progress(root.record, done, total)
+        if root.receipts is not None and root.receipts.cancel_requested(root.operation_id):
+            raise NXError(
+                "NX_CANCELLED", "Cancelled by nx_cancel_operation", details={"reason": "cancel"}
+            )
+        budget = root.budget()
+        elapsed = time.monotonic() - root.started
+        if elapsed > budget:
+            raise NXError(
+                "NX_CANCELLED",
+                f"Stopped after {elapsed:.0f} s, over the {budget:g} s budget of a "
+                f"{root.spec.cost} operation",
+                hint="Split the work into smaller calls (fewer objects or steps per call); the same "
+                "call stops again",
+                details={
+                    "reason": "budget",
+                    "budget_seconds": budget,
+                    "elapsed_seconds": round(elapsed, 3),
+                },
+            )
+
+    def budget(self) -> float:
+        """This call's cost budget in seconds: its cost class plus ``scale_budget``."""
+        base = COST_BUDGET_SECONDS.get(self.spec.cost, DEFAULT_BUDGET_SECONDS)
+        if not self.budget_extra:
+            return base
+        return max(base, min(SCALED_BUDGET_CAP_SECONDS, base + self.budget_extra))
+
+    def scale_budget(self, items: int, per_item: float = BUDGET_PER_ITEM_SECONDS) -> None:
+        """Grow the cost budget with the input size: ``per_item`` seconds per object, up to
+        ``SCALED_BUDGET_CAP_SECONDS`` (never below the cost class). A tool calls it once
+        it knows how many objects one call must visit (bodies of a whole part), so a
+        large but finite input finishes while a runaway call still stops."""
+        root = self
+        while root.parent is not None:
+            root = root.parent
+        root.budget_extra = max(root.budget_extra, max(0, int(items)) * float(per_item))
+
+    def non_undoable(self, reason: str) -> None:
+        """Declare a step that undo cannot revert; a later failure reports partial."""
+        self.non_undoable_reason = str(reason)
+
+    @contextlib.contextmanager
+    def checks(self):
+        """Read-only lookups and refusals that run before the handler changes anything.
+
+        An ``NXError`` raised inside is marked ``unchanged``: the kernel reports
+        ``not_started`` although NX was read (a busy part, a name clash, a stale
+        reference). Only wrap code that changes nothing, before the first change.
+        """
+        try:
+            yield
+        except NXError as error:
+            error.unchanged = True
+            raise
+
+    # -- temporary geometry ---------------------------------------------------------
+    @contextlib.contextmanager
+    def scratch(self):
+        """Temporary geometry under a hidden mark that is always undone. A read bound to a
+        part that is not the work part (gate 4s) makes it the work part for the block, so
+        the temporary geometry is built there."""
+        services = self._services
+        part = services.work_part()
+        before = services.snapshot(part) if part is not None else {}
+        self.touched = True
+        switch = None
+        if services.bound is not None:
+            work = getattr(getattr(services.session, "Parts", None), "Work", None)
+            if work is None or int(work.Tag) != int(services.bound.Tag):
+                switch = services.switch(services.bound, "work")
+        mark = services.set_mark("NX MCP: scratch", visible=False)
+        try:
+            yield mark  # the scratch mark, e.g. for model.update(tx, mark)
+        finally:
+            try:
+                services.undo_to(mark)
+                services.delete_mark(mark)
+                after = services.snapshot(part) if part is not None else {}
+            except Exception as error:
+                raise NXError(
+                    "NX_ROLLBACK_FAILED", f"Temporary geometry was not removed: {error}"
+                ) from error
+            finally:
+                failure = switch.restore() if switch is not None else None
+                if failure:
+                    self.warn("NX_UPDATE_WARNING", f"After temporary geometry: {failure}")
+            if set(after) != set(before):
+                raise NXError(
+                    "NX_ROLLBACK_FAILED",
+                    "Temporary geometry changed the object count",
+                    details={"before": len(before), "after": len(after)},
+                )
+
+    @contextlib.contextmanager
+    def preview(self):
+        """Apply children temporarily under a visible mark that is always undone.
+
+        Success sets ``outcome`` ``previewed``. When the body fails, its own error
+        propagates and ``outcome`` says what happened to the model: ``rolled_back``,
+        or ``partial`` when the undo failed too (``details.rollback_error``); an undo
+        that fails after a successful body raises ``NX_ROLLBACK_FAILED``.
+        """
+        services = self._services
+        part = services.work_part()
+        before = services.snapshot(part) if part is not None else {}
+        self.touched = True
+        mark = services.set_mark("NX MCP: preview")
+        previous, self.mark, self.mode = self.mark, mark, "preview"
+        failed = None
+        try:
+            yield
+        except BaseException as error:
+            failed = error
+            raise
+        finally:
+            self.mark, self.mode = previous, None
+            rollback_error = None
+            try:
+                services.undo_to(mark)
+                services.delete_mark(mark)
+                services.clear_update_errors()
+                after = services.snapshot(part) if part is not None else {}
+            except Exception as error:
+                rollback_error = error
+            if rollback_error is not None or set(after) != set(before) or self.children:
+                from nx_mcp.core import kernel
+
+                with contextlib.suppress(Exception):  # the preview's parts only
+                    kernel.rebind_after_undo(
+                        services, parts=kernel.call_parts(services, self, part)
+                    )
+            if failed is not None:
+                self.outcome = "rolled_back" if rollback_error is None else "partial"
+                if (
+                    rollback_error is None
+                    and not self.children
+                    and getattr(failed, "unchanged", False)
+                ):  # the first step was refused before any change (kernel: not_started)
+                    self.outcome = "not_started"
+                if rollback_error is not None and isinstance(failed, NXError):
+                    failed.details["rollback_error"] = str(rollback_error)
+            elif rollback_error is not None:
+                self.outcome = "partial"
+                raise NXError(
+                    "NX_ROLLBACK_FAILED", f"The preview was not undone: {rollback_error}"
+                ) from rollback_error
+            else:
+                self.outcome = "previewed"
+
+    # -- nested calls -----------------------------------------------------------------
+    def run(
+        self, tool: str, args: dict, *, prior: list | None = None, mode: str | None = None
+    ) -> dict:
+        """Run a catalogue tool as a child of this call (batch or preview).
+
+        ``mode`` ``"batch"`` admits batchable tools, ``"preview"`` previewable ones
+        (default: preview inside ``tx.preview()`` or under a session tool, else batch).
+        """
+        from nx_mcp.core import catalogue, kernel
+
+        spec = catalogue.get(tool)
+        if spec is None:
+            fail("NX_UNKNOWN_TOOL", f"Unknown tool {tool}", field="/tool")
+        return kernel.run_child(spec, args, self, prior=prior, mode=mode)
+
+    def call(self, tool: str, args: dict, *, operation_id: str) -> dict:
+        """Run a catalogue tool as a top-level call of its own, as if the agent sent it
+        with ``operation_id``: its own receipt, undo mark and undo-history entry. Only a
+        session tool without an undo mark of its own (``nx_redo_operation``) does this;
+        returns the call's envelope, ``ok`` true or false (it never raises for a tool
+        failure)."""
+        from nx_mcp.core import catalogue, kernel
+
+        if self.mark is not None or self.parent is not None or self.spec.effect != "session":
+            fail("NX_ERROR", "Only a session tool outside any undo mark runs top-level calls")
+        spec = catalogue.get(tool)
+        if spec is None:
+            fail("NX_UNKNOWN_TOOL", f"Unknown tool {tool}", field="/tool")
+        services: Any = self._services
+        loaded = None
+        with contextlib.suppress(Exception):
+            loaded = services.loaded()
+        try:
+            context = kernel.Context(services, operation_id=operation_id, parent=self.target)
+            return kernel.run(spec, args, context)
+        finally:
+            if loaded is not None:  # parts the call loaded count as the agent's (host)
+                with contextlib.suppress(Exception):
+                    services.track(loaded)

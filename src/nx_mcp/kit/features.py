@@ -1,0 +1,137 @@
+"""The feature timeline as the Part Navigator shows it, and each feature's state.
+
+NX 2406 lessons:
+
+- ``part.Features`` is not in timeline order and holds internal features (a sketch's
+  own datum CSYS, ``SKETCH(1:1B)``); ``Timestamp`` orders them, ``IsInternal`` marks the
+  internal ones. Timestamps are not unique: the stable sort keeps NX's order for ties.
+- ``Feature.Suppressed`` is True both for user-suppressed features and for features
+  after the current feature (rolled back by ``nx_set_current_feature``); UF
+  ``AskSuppressFeature`` tells them apart (mask 1 = suppressed by the user,
+  16 = inactive).
+"""
+
+from __future__ import annotations
+
+import re
+
+USER_SUPPRESSED = 1  # AskSuppressFeature mask: suppressed by the user
+INACTIVE = 16  # AskSuppressFeature mask: after the current feature
+
+
+def internal(feature) -> bool:
+    """Whether NX hides the feature from the Part Navigator (``IsInternal``)."""
+    return bool(getattr(feature, "IsInternal", False))
+
+
+def timeline(part) -> list:
+    """User-visible features of ``part`` in timeline order (internal features omitted)."""
+    features = list(part.Features)
+    if features and all(hasattr(f, "Timestamp") for f in features):
+        features.sort(key=lambda f: int(f.Timestamp))
+    return [f for f in features if not internal(f)]
+
+
+def states(tx, part) -> dict:
+    """``{tag: (feature, suppressed, active)}`` in timeline order: ``suppressed`` only by
+    the user, ``active`` False for features after the current feature."""
+    order = timeline(part)
+    current = getattr(part, "CurrentFeature", None)
+    tags = [int(f.Tag) for f in order]
+    cut = tags.index(int(current.Tag)) if current is not None and int(current.Tag) in tags else None
+    ask = getattr(getattr(tx.uf, "Modeling", None), "AskSuppressFeature", None)
+    out = {}
+    for i, f in enumerate(order):
+        active = cut is None or i <= cut
+        if ask is not None:
+            code = int(ask(f.Tag))
+            suppressed = bool(code & USER_SUPPRESSED)
+            active = active and not code & INACTIVE
+        else:
+            suppressed = bool(getattr(f, "Suppressed", False)) and active
+        out[int(f.Tag)] = (f, suppressed, active)
+    return out
+
+
+# Feature message readers, by kind (NXOpen ``Feature.GetFeature<kind>Messages``).
+MESSAGE_READERS = {
+    "error": "GetFeatureErrorMessages",
+    "warning": "GetFeatureWarningMessages",
+    "information": "GetFeatureInformationalMessages",
+}
+
+
+def diagnostics(tx, part=None) -> dict:
+    """``{tag: (feature, frozenset((kind, message)))}`` of the user-visible features of
+    ``part`` (default the work part) that report errors or warnings: the same reading the
+    kernel compares before and after every model call (new ones become call warnings).
+    ``{}`` where NX cannot say."""
+    from nx_mcp.core.kernel import feature_alerts
+
+    return feature_alerts(tx.services, part if part is not None else tx.part) or {}
+
+
+def alerts(feature, kinds=("warning",)) -> list[str]:
+    """NX's own alerts on a committed ``feature``, of ``kinds`` (``error``, ``warning``,
+    ``information``), in order without repeats; ``[]`` where NX cannot say.
+
+    NX 2406 commits some features with a warning only the Part Navigator shows: a Boolean
+    with several tools, one of which only touches the target, commits with "One or more
+    tools did not intersect the target." (the tool is consumed all the same). Reading
+    never raises: a tool reports these alerts as result warnings."""
+    from nx_mcp.core.kernel import feature_messages
+
+    out: list[str] = []
+    for _kind, text in feature_messages(feature, tuple(kinds)):
+        if text not in out:
+            out.append(text)
+    return out
+
+
+# NX 2406 threaded holes (HOLE PACKAGE, probed live): the thread table drives the major
+# and minor diameters, the pitch and the thread angle ("6 // Used By ..."), and, while the
+# radial engagement is a table value ("0.75"), the tap drill diameter and the tip angle.
+# NX flags them ``IsRightHandSideLockedFromEdit`` only after the hole's first model update
+# (an edit before that commits, then locks), and refuses ``EditExpression`` on them then
+# ("This expression cannot be modified because it is locked."). A radial engagement of
+# "Custom" frees the tap drill and the tip angle; a new thread size derives the others.
+_HOLE_PARAMETER = re.compile(r"Threaded Hole\(\d+\)\s+(.+?)\)?\s*$", re.IGNORECASE)
+THREAD_TABLE = frozenset({"major diameter", "minor diameter", "pitch", "angle"})
+ENGAGEMENT_DRIVEN = frozenset({"tap drill diameter", "tip angle"})
+CUSTOM_ENGAGEMENT = '"Custom"'
+
+
+def hole_parameter(exp) -> str | None:
+    """The threaded-hole parameter an expression holds (``"tap drill diameter"``), from
+    its description "(M6 x 1.0 Threaded Hole(2) Tap Drill Diameter)"; None otherwise."""
+    match = _HOLE_PARAMETER.search(str(getattr(exp, "Description", "") or ""))
+    return match.group(1).strip().casefold() if match else None
+
+
+def engagement(feature):
+    """The radial-engagement expression of a threaded hole (``"0.75"``, ``"Custom"``), or
+    None for another feature."""
+    query = getattr(feature, "GetExpressions", None)
+    for exp in query() if query is not None else ():
+        if hole_parameter(exp) == "radial engage":
+            return exp
+    return None
+
+
+def parameter_lock(feature, exp) -> str | None:
+    """Why ``nx_edit_feature`` cannot set ``exp`` of ``feature`` directly: ``interpart``,
+    ``thread_table`` (a new thread size changes it), ``engagement`` (free once the radial
+    engagement is "Custom"), ``locked`` (NX's own lock), or None. Read from the feature's
+    own parameters, so the answer does not change after the first model update."""
+    if getattr(exp, "IsInterpartExpression", False):
+        return "interpart"
+    what = hole_parameter(exp)
+    if what in THREAD_TABLE:
+        return "thread_table"
+    if what in ENGAGEMENT_DRIVEN:
+        engage = engagement(feature)
+        if engage is not None and str(engage.RightHandSide).strip() != CUSTOM_ENGAGEMENT:
+            return "engagement"
+    if getattr(exp, "IsNoEdit", False) or getattr(exp, "IsRightHandSideLockedFromEdit", False):
+        return None if what in ENGAGEMENT_DRIVEN else "locked"
+    return None

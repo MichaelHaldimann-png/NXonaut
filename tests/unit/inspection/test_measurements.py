@@ -1,0 +1,312 @@
+"""nx_measure_distance/angle/mass/bounds/wall_thickness on the fake kit."""
+
+import math
+
+import pytest
+
+from nx_mcp.domains.inspection import measurements
+from tests.kit import run
+from tests.kit.objects import matrix, point
+from tests.unit.inspection.fakes import assembly, curve, inspection_nx
+
+
+def test_distance_between_bodies_and_feature_bodies():
+    nx = inspection_nx()
+    a = nx.block(10, 10, 10)
+    b = nx.block(10, 10, 10, origin=(25, 0, 0))
+    ok = run(nx, "nx_measure_distance", first=a.ref, second=b.ref)
+    assert ok.ok and ok.data["distance"] == 15 and ok.data["pairs"] == 1, ok
+    assert ok.data["points"][0][0] == 10 and ok.data["points"][1][0] == 25
+    assert ok.data["first"]["id"] == a.ref and ok.units["length"] == "mm"
+    same = run(nx, "nx_measure_distance", first=a.ref, second=a.ref)
+    assert same.error["code"] == "NX_INVALID_ARGUMENT" and same.error["field"] == "/second"
+
+
+def test_distance_of_components_takes_the_closest_occurrence_pair():
+    nx = inspection_nx()
+    c1, c2 = assembly(nx, ("A", [0, 0, 0, 10, 10, 10]), ("B", [13, 0, 0, 20, 10, 10]))
+    ok = run(nx, "nx_measure_distance", first=nx.ref_of(c1, "component"),
+             second=nx.ref_of(c2, "component"))  # fmt: skip
+    assert ok.data["distance"] == 3 and ok.data["first"]["kind"] == "body"
+
+
+def test_angle_between_planar_faces_edges_and_lines():
+    nx = inspection_nx()
+    body = nx.block(10, 10, 10)
+    top = next(f for f in body.faces if list(f.normal) == [0, 0, 1])
+    side = next(f for f in body.faces if list(f.normal) == [1, 0, 0])
+    ok = run(nx, "nx_measure_angle", first=top.ref, second=side.ref)
+    assert ok.data["angle"] == pytest.approx(90) and ok.data["directions"][0] == [0, 0, 1]
+    line = curve(nx)
+    line.StartPoint, line.EndPoint = point(0, 0, 0), point(1, 1, 0)
+    edge = next(e for e in body.edges if e.GetVertices()[1].X != e.GetVertices()[0].X)
+    angled = run(nx, "nx_measure_angle", first=line.ref, second=edge.ref)
+    assert angled.ok and angled.data["angle"] == pytest.approx(45)
+    arc = curve(nx, radius=2)
+    bad = run(nx, "nx_measure_angle", first=arc.ref, second=top.ref)
+    assert bad.error["code"] == "NX_WRONG_GEOMETRY" and bad.error["field"] == "/first"
+    bottom = next(f for f in body.faces if list(f.normal) == [0, 0, -1])
+    opposite = run(nx, "nx_measure_angle", first=top.ref, second=bottom.ref)
+    folded = run(nx, "nx_measure_angle", first=top.ref, second=bottom.ref, undirected=True)
+    assert opposite.data["angle"] == pytest.approx(180) and folded.data["angle"] == pytest.approx(0)
+    kind = run(nx, "nx_measure_angle", first=body.ref, second=top.ref)
+    assert kind.error["code"] == "NX_WRONG_KIND" and kind.error["field"] == "/first", kind
+    assert "nx_find_geometry" in kind.error["hint"]
+
+
+@pytest.mark.parametrize("units", ["mm", "in"])
+def test_mass_volume_inertia_in_part_units(units):
+    nx = inspection_nx(units)
+    body = nx.block(10, 20, 30)
+    ok = run(nx, "nx_measure_mass", bodies=[body.ref])
+    assert ok.ok, ok
+    data = ok.data
+    assert data["volume"] == pytest.approx(6000) and data["bodies"][0]["volume"] == pytest.approx(
+        6000
+    )
+    assert data["mass"] == pytest.approx(6000 * nx.density)
+    assert data["area"] == pytest.approx(2 * (200 + 600 + 300))
+    assert data["center_of_gravity"] == pytest.approx([5, 10, 15])
+    m = data["mass"]
+    assert data["inertia"][0][0] == pytest.approx(m * (20**2 + 30**2) / 12)
+    assert data["principal_moments"][0] == pytest.approx(m * (10**2 + 20**2) / 12)
+    assert ok.units["length"] == units
+
+
+def test_mass_rotates_inertia_from_a_rotated_wcs():
+    nx = inspection_nx()
+    nx.block(10, 20, 30)
+    nx.part.WCS.CoordinateSystem.Orientation.Element = matrix((0, 1, 0), (-1, 0, 0), (0, 0, 1))
+    ok = run(nx, "nx_measure_mass", scope="part")
+    i_wcs = ok.data["inertia"]
+    m = ok.data["mass"]
+    # WCS x is absolute y: the absolute yy moment is the WCS xx moment.
+    assert i_wcs[1][1] == pytest.approx(m * (20**2 + 30**2) / 12)
+
+
+def test_mass_rejects_sheets_and_empty_parts():
+    nx = inspection_nx()
+    empty = run(nx, "nx_measure_mass")
+    assert empty.error["code"] == "NX_NOT_FOUND"
+    sheet = nx.block(1, 1, 1)
+    sheet.IsSolidBody = False
+    bad = run(nx, "nx_measure_mass", bodies=[sheet.ref])
+    assert bad.error["code"] == "NX_WRONG_GEOMETRY"
+
+
+def test_mass_skips_empty_and_topology_result_bodies():
+    """NX 2406: a Topology Optimization feature owns a result body beside the design
+    space, faceless until solved (measuring it fails 875004 "Unknown feature type")."""
+    nx = inspection_nx()
+    design = nx.block(10, 20, 30)
+    result = nx.block(10, 20, 30)
+    study = type("TopologyOptimizationFeature", (), {})()
+    result.GetFeatures = lambda: [study]
+    result.GetFaces = lambda: []  # unsolved
+    ok = run(nx, "nx_measure_mass")
+    assert ok.ok, ok
+    assert [r["body"]["id"] for r in ok.data["bodies"]] == [design.ref]
+    assert ok.data["volume"] == pytest.approx(6000)
+    assert "Skipped 1 empty or topology result body" in ok.warnings[0]["message"]
+    alone = run(nx, "nx_measure_mass", bodies=[result.ref])
+    assert alone.error["code"] == "NX_NOT_FOUND"
+    solved = nx.block(5, 20, 30)
+    solved.GetFeatures = lambda: [study]
+    scoped = run(nx, "nx_measure_mass")  # the part: its design space, not the result too
+    assert [r["body"]["id"] for r in scoped.data["bodies"]] == [design.ref]
+    chosen = run(nx, "nx_measure_mass", bodies=[solved.ref])  # a solved result, by ref
+    assert chosen.ok and chosen.data["volume"] == pytest.approx(3000)
+    assert not [w for w in chosen.warnings if "Skipped" in w["message"]]
+
+
+def test_bounds_conservative_exact_and_wcs_refusal():
+    nx = inspection_nx()
+    a = nx.block(10, 10, 10)
+    nx.block(5, 5, 5, origin=(20, 0, -5))
+    ok = run(nx, "nx_measure_bounds", precision="exact")
+    assert ok.data["min"] == [0, 0, -5] and ok.data["max"] == [25, 10, 10]
+    assert ok.data["size"] == [25, 10, 15] and len(ok.data["bodies"]) == 2
+    one = run(nx, "nx_measure_bounds", bodies=[a.ref])
+    assert one.data["max"] == [10, 10, 10] and one.data["precision"] == "conservative"
+    nx.part.WCS.CoordinateSystem.Orientation.Element = matrix((0, 1, 0), (-1, 0, 0), (0, 0, 1))
+    refused = run(nx, "nx_measure_bounds", precision="exact")
+    assert refused.error["code"] == "NX_UNSUPPORTED_OPTION"
+    assert refused.error["field"] == "/precision"
+
+
+def test_bounds_of_assembly_occurrences_skip_suppressed():
+    nx = inspection_nx()
+    a, b = assembly(nx, ("A", [0, 0, 0, 10, 10, 10]), ("B", [50, 0, 0, 60, 10, 10]))
+    b.IsSuppressed = True
+    ok = run(nx, "nx_measure_bounds", scope="assembly")
+    assert ok.data["max"] == [10, 10, 10] and len(ok.data["bodies"]) == 1
+
+
+def test_wall_thickness_samples_inward_rays():
+    nx = inspection_nx()
+    body = nx.block(20, 10, 5)
+    top = next(f for f in body.faces if list(f.normal) == [0, 0, 1])
+    ok = run(nx, "nx_measure_wall_thickness", body=body.ref, faces=[top.ref], samples_per_axis=3)
+    assert ok.ok, ok
+    data = ok.data
+    assert data["measured"] == 9 and data["minimum"] == pytest.approx(5)
+    assert data["maximum"] == pytest.approx(5) and data["unresolved"] == 0
+    sample = data["samples"][0]
+    assert sample["opposite_face"]["kind"] == "face" and sample["status"] == "measured"
+    every = run(nx, "nx_measure_wall_thickness", body=body.ref, samples_per_axis=1)
+    assert every.data["minimum"] == pytest.approx(5) and every.data["maximum"] == pytest.approx(20)
+    other = nx.block(1, 1, 1, origin=(50, 0, 0))
+    foreign = run(nx, "nx_measure_wall_thickness", body=body.ref, faces=[other.faces[0].ref])
+    assert foreign.error["code"] == "NX_WRONG_OWNER" and foreign.error["field"] == "/faces/0"
+    many = run(nx, "nx_measure_wall_thickness", body=body.ref, samples_per_axis=50)
+    assert many.error["category"] == "invalid_argument"
+
+
+def test_distance_reports_touching():
+    nx = inspection_nx()
+    a = nx.block(10, 10, 10)
+    b = nx.block(10, 10, 10, origin=(10, 0, 0))
+    far = nx.block(1, 1, 1, origin=(30, 0, 0))
+    touching = run(nx, "nx_measure_distance", first=a.ref, second=b.ref)
+    assert touching.data["distance"] == 0 and touching.data["touching"] is True, touching
+    apart = run(nx, "nx_measure_distance", first=a.ref, second=far.ref)
+    assert apart.data["touching"] is False
+    named = run(nx, "nx_measure_distance", first="FACE 120", second=b.ref)
+    assert named.error["field"] == "/first"
+
+
+def test_angle_in_radians_on_request():
+    nx = inspection_nx()
+    body = nx.block(10, 10, 10)
+    top = next(f for f in body.faces if list(f.normal) == [0, 0, 1])
+    bottom = next(f for f in body.faces if list(f.normal) == [0, 0, -1])
+    side = next(f for f in body.faces if list(f.normal) == [1, 0, 0])
+    deg = run(nx, "nx_measure_angle", first=top.ref, second=bottom.ref, units="deg")
+    assert deg.data["angle"] == pytest.approx(180) and deg.data["units"] == "deg"
+    rad = run(nx, "nx_measure_angle", first=top.ref, second=side.ref, units="rad")
+    assert rad.data["angle"] == pytest.approx(math.pi / 2) and rad.data["units"] == "rad"
+    assert rad.units["angle"] == "rad"
+
+
+@pytest.mark.parametrize("units", ["mm", "in"])
+def test_mass_reports_the_density_it_used(units):
+    nx = inspection_nx(units)
+    body = nx.block(10, 20, 30)
+    ok = run(nx, "nx_measure_mass", bodies=[body.ref])
+    assert ok.data["density"] == pytest.approx(7850), ok.data
+    inertia = ok.data["inertia"]
+    assert inertia[0][1] == 0.0 and inertia[1][2] == 0.0
+
+
+def test_inertia_noise_is_zeroed():
+    rows = measurements._denoise([[2.0, 3e-15], [-1e-14, 5.0]])
+    assert rows == [[2.0, 0.0], [0.0, 5.0]]
+    assert measurements._denoise([[0.0, 0.0]]) == [[0.0, 0.0]]
+
+
+def test_wall_thickness_defaults_to_the_only_solid_and_summarises_faces():
+    nx = inspection_nx()
+    plate = nx.block(100, 60, 10)
+    ok = run(nx, "nx_measure_wall_thickness", samples_per_axis=1)
+    assert ok.ok and ok.data["body"]["id"] == plate.ref, ok
+    by_face = ok.data["by_face"]
+    assert len(by_face) == 6 and by_face[0]["minimum"] == pytest.approx(10)
+    assert by_face[-1]["minimum"] == pytest.approx(100)
+    assert [f["minimum"] for f in by_face] == sorted(f["minimum"] for f in by_face)
+    assert sum(f["measured"] for f in by_face) == ok.data["measured"]
+    nx.block(5, 5, 5, origin=(200, 0, 0))
+    two = run(nx, "nx_measure_wall_thickness")
+    assert two.error["field"] == "/body" and plate.ref in two.error["hint"]
+
+
+def test_wall_thickness_without_a_solid_is_not_found():
+    nx = inspection_nx()
+    sheet = nx.block(1, 1, 1)
+    sheet.IsSolidBody = False
+    bad = run(nx, "nx_measure_wall_thickness")
+    assert bad.error["code"] == "NX_NOT_FOUND" and bad.error["field"] == "/body"
+
+
+def test_angle_to_a_cylinder_points_to_its_axis():
+    nx = inspection_nx()
+    body = nx.block(10, 10, 10)
+    top = next(f for f in body.faces if list(f.normal) == [0, 0, 1])
+    bore = nx.remember(nx.face(normal=(0, 0, 1), origin=(5, 5, 0), kind="cylinder", body=body))
+    bore.radius, bore.sense = 2.0, -1
+    bad = run(nx, "nx_measure_angle", first=bore.ref, second=top.ref)
+    assert bad.error["code"] == "NX_WRONG_GEOMETRY" and bad.error["field"] == "/first", bad
+    assert "nx_find_geometry" in bad.error["hint"] and "nx_create_datum_axis" in bad.error["hint"]
+
+
+def _feature_of(nx, blocks):
+    from tests.kit.objects import Feature
+
+    feature = nx._own(Feature("EXTRUDE(1)", bodies=list(blocks)), "feature")
+    nx.part.Features.append(feature)
+    return feature
+
+
+def test_distance_between_body_sets_prunes_pairs_by_their_boxes():
+    """Pairs are measured nearest box first; a box gap past the best distance ends it."""
+    nx = inspection_nx()
+    left = _feature_of(nx, [nx.block(5, 5, 5, origin=(-10 * i, 0, 0)) for i in range(12)])
+    right = _feature_of(nx, [nx.block(5, 5, 5, origin=(20 + 10 * i, 0, 0)) for i in range(12)])
+    calls = []
+    exact = nx.session.Measurement.GetMinimumDistance
+
+    def counted(a, b):
+        calls.append((a, b))
+        return exact(a, b)
+
+    nx.session.Measurement.GetMinimumDistance = counted
+    ok = run(nx, "nx_measure_distance", first=left.ref, second=right.ref)
+    assert ok.ok and ok.data["distance"] == 15 and ok.data["pairs"] == 144, ok
+    assert ok.data["first"]["id"] == left.bodies[0].ref
+    assert ok.data["second"]["id"] == right.bodies[0].ref and len(calls) == 1
+
+
+def test_distance_ties_keep_the_first_pair():
+    nx = inspection_nx()
+    a = _feature_of(nx, [nx.block(5, 5, 5, origin=(0, 10 * i, 0)) for i in range(3)])
+    b = nx.block(5, 30, 5, origin=(8, 0, 0))
+    ok = run(nx, "nx_measure_distance", first=a.ref, second=b.ref)
+    assert ok.data["distance"] == 3 and ok.data["first"]["id"] == a.bodies[0].ref, ok
+
+
+def test_mass_of_many_bodies_reads_one_uf_call_per_body():
+    """Each body's volume and area come from one UF AskMassProps3d (no MeasureManager
+    object per body), plus one call for the mass and inertia of all of them."""
+    from types import SimpleNamespace as NS
+
+    nx = inspection_nx()
+    for i in range(40):
+        nx.block(5, 5, 5, origin=(10 * i, 0, 0))
+    calls = []
+    props = nx.uf.Modeling.AskMassProps3d
+
+    def counted(tags, *rest):
+        calls.append(len(tags))
+        return props(tags, *rest)
+
+    nx.uf.Modeling.AskMassProps3d = counted
+    nx.part.MeasureManager = NS()  # NewMassProperties is not used
+    ok = run(nx, "nx_measure_mass", scope="part")
+    assert ok.ok and len(ok.data["bodies"]) == 40, ok
+    assert ok.data["volume"] == pytest.approx(40 * 125) and ok.data["area"] == pytest.approx(6000)
+    assert sorted(calls) == [1] * 40 + [40]
+
+
+def test_wall_thickness_keeps_the_five_thinnest_rows_unless_asked():
+    nx = inspection_nx()
+    body = nx.block(20, 10, 5)
+    ok = run(nx, "nx_measure_wall_thickness", body=body.ref, samples_per_axis=3)
+    assert ok.ok and ok.data["measured"] == 54, ok
+    rows = ok.data["samples"]
+    assert len(rows) == 5 and rows[0] == ok.data["thinnest"]
+    assert all(r["thickness"] == pytest.approx(5) for r in rows)
+    assert len(ok.data["by_face"]) == 6
+    every = run(nx, "nx_measure_wall_thickness", body=body.ref, samples_per_axis=3, samples="all")
+    assert len(every.data["samples"]) == 54
+    assert every.data["samples"][-1]["thickness"] == pytest.approx(20)
+    none = run(nx, "nx_measure_wall_thickness", body=body.ref, samples_per_axis=3, samples="none")
+    assert none.data["samples"] == [] and none.data["thinnest"]["thickness"] == pytest.approx(5)

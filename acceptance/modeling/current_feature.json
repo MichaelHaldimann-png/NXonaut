@@ -1,0 +1,322 @@
+{
+ "covers": {
+  "nx_set_current_feature": []
+ },
+ "fixture": null,
+ "part": "new",
+ "steps": [
+  {
+   "call": "nx_create_part",
+   "setup": true,
+   "args": {
+    "path": "$part",
+    "units": "mm"
+   }
+  },
+  {
+   "call": "nx_create_sketch",
+   "setup": true,
+   "save": "blk_sk",
+   "args": {
+    "placement": {
+     "principal": "xy"
+    }
+   }
+  },
+  {
+   "call": "nx_create_sketch_curves",
+   "setup": true,
+   "args": {
+    "sketch": "$blk_sk.data.sketch.id",
+    "curves": [
+     {
+      "type": "rectangle",
+      "corner1": [
+       0,
+       0
+      ],
+      "corner2": [
+       40,
+       20
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "call": "nx_finish_sketch",
+   "setup": true,
+   "args": {
+    "sketch": "$blk_sk.data.sketch.id"
+   }
+  },
+  {
+   "call": "nx_create_extrude",
+   "save": "blk",
+   "args": {
+    "sketch": "$blk_sk.data.sketch.id",
+    "end": {
+     "type": "distance",
+     "value": 10
+    }
+   },
+   "setup": true
+  },
+  {
+   "call": "nx_create_sketch",
+   "setup": true,
+   "save": "bs",
+   "args": {
+    "placement": {
+     "principal": "xy",
+     "origin": [
+      0,
+      0,
+      10
+     ]
+    }
+   }
+  },
+  {
+   "call": "nx_create_sketch_curves",
+   "setup": true,
+   "args": {
+    "sketch": "$bs.data.sketch.id",
+    "curves": [
+     {
+      "type": "circle",
+      "center": [
+       20,
+       10
+      ],
+      "radius": 5
+     }
+    ]
+   }
+  },
+  {
+   "call": "nx_finish_sketch",
+   "setup": true,
+   "args": {
+    "sketch": "$bs.data.sketch.id"
+   }
+  },
+  {
+   "call": "nx_create_extrude",
+   "setup": true,
+   "save": "boss",
+   "args": {
+    "sketch": "$bs.data.sketch.id",
+    "end": {
+     "type": "distance",
+     "value": 5
+    },
+    "combine": {
+     "operation": "unite",
+     "targets": [
+      "$blk.data.bodies.0.id"
+     ]
+    }
+   }
+  },
+  {
+   "call": "nx_find_geometry",
+   "setup": true,
+   "save": "rim",
+   "args": {
+    "owner": "$blk.data.bodies.0.id",
+    "kind": "edge",
+    "geometry_type": "circle",
+    "order": "highest",
+    "axis": "z",
+    "limit": 1
+   }
+  },
+  {
+   "call": "nx_create_blend",
+   "setup": true,
+   "save": "fil",
+   "args": {
+    "edges": [
+     "$rim.data.items.0.id"
+    ],
+    "radius": 1
+   }
+  },
+  {
+   "call": "nx_set_current_feature",
+   "args": {
+    "feature": "$blk.data.feature.id"
+   },
+   "expect": {
+    "data.inactive": {
+     "contains": {
+      "name": "EXTRUDE(4)"
+     }
+    },
+    "data.current.name": "EXTRUDE(2)"
+   }
+  },
+  {
+   "call": "nx_measure_mass",
+   "args": {
+    "bodies": [
+     "$blk.data.bodies.0.id"
+    ]
+   },
+   "expect": {
+    "data.volume": {
+     "close": 8000,
+     "tol": 0.001
+    }
+   }
+  },
+  {
+   "call": "nx_set_current_feature",
+   "args": {
+    "feature": "$boss.data.feature.id"
+   },
+   "expect": {
+    "data.inactive": {
+     "count": 1
+    },
+    "data.inactive.0.name": "BLEND(5)"
+   }
+  },
+  {
+   "call": "nx_measure_mass",
+   "args": {
+    "bodies": [
+     "$blk.data.bodies.0.id"
+    ]
+   },
+   "expect": {
+    "data.volume": {
+     "close": 8392.699081698724,
+     "tol": 0.001
+    }
+   }
+  },
+  {
+   "call": "nx_set_current_feature",
+   "args": {},
+   "expect": {
+    "data.inactive": {
+     "count": 0
+    },
+    "data.current.name": "BLEND(5)"
+   }
+  },
+  {
+   "call": "nx_measure_mass",
+   "args": {
+    "bodies": [
+     "$blk.data.bodies.0.id"
+    ]
+   },
+   "expect": {
+    "data.volume": {
+     "close": 8386.258351720988,
+     "tol": 0.0001
+    }
+   }
+  },
+  {
+   "call": "nx_check_model",
+   "args": {},
+   "expect": {
+    "data.healthy": true
+   }
+  },
+  {
+   "call": "nx_create_sketch",
+   "setup": true,
+   "save": "ss",
+   "args": {
+    "placement": {
+     "principal": "xy",
+     "origin": [
+      100,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "call": "nx_create_sketch_curves",
+   "setup": true,
+   "args": {
+    "sketch": "$ss.data.sketch.id",
+    "curves": [
+     {
+      "type": "circle",
+      "center": [
+       0,
+       0
+      ],
+      "radius": 5
+     }
+    ]
+   }
+  },
+  {
+   "call": "nx_finish_sketch",
+   "setup": true,
+   "args": {
+    "sketch": "$ss.data.sketch.id"
+   }
+  },
+  {
+   "call": "nx_create_extrude",
+   "setup": true,
+   "save": "sep",
+   "args": {
+    "sketch": "$ss.data.sketch.id",
+    "end": {
+     "type": "distance",
+     "value": 5
+    }
+   }
+  },
+  {
+   "call": "nx_set_current_feature",
+   "args": {
+    "feature": "$fil.data.feature.id"
+   },
+   "intent": "Acceptance: rolling back past a feature with its own body says NX removes the body until rolled forward (live: listed as deleted with no word)",
+   "expect": {
+    "mutation_outcome": "committed",
+    "changes.deleted": {
+     "contains": {
+      "id": "$sep.data.bodies.0.id"
+     }
+    },
+    "warnings.0.code": "NX_NOTE",
+    "warnings.0.message": {
+     "contains": "removed 1 body of the now inactive features"
+    }
+   }
+  },
+  {
+   "call": "nx_set_current_feature",
+   "args": {},
+   "expect": {
+    "mutation_outcome": "committed",
+    "data.inactive": {
+     "count": 0
+    }
+   }
+  },
+  {
+   "call": "nx_set_current_feature",
+   "args": {
+    "feature": "$blk.data.bodies.0.id"
+   },
+   "expect": {
+    "error.category": "wrong_kind",
+    "mutation_outcome": "not_started"
+   }
+  }
+ ]
+}

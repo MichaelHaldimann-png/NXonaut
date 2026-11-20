@@ -1,0 +1,35 @@
+{
+ "covers": {},
+ "part": null,
+ "fixture": null,
+ "steps": [
+  {"call": "nx_create_part", "setup": true, "save": "front", "args": {"path": "$run/ap/ap_front.prt", "units": "mm"}},
+  {"call": "nx_create_part", "setup": true, "save": "back", "args": {"path": "$run/ap/ap_back.prt", "units": "mm", "display": false}},
+  {"call": "nx_activate_part", "setup": true, "args": {"part": "ap_front", "display": true}},
+
+  {"call": "nx_activate_application", "args": {"application": "modeling", "part": "ap_back"},
+   "intent": "Acceptance: Modeling for a part that is not displayed while NX already runs Modeling: nothing to switch (NX runs one application per session), no display change",
+   "expect": {"ok": true, "data.application": "modeling", "data.previous": "modeling", "data.changed": false,
+              "mutation_outcome": "not_applicable"}},
+  {"call": "nx_activate_application", "args": {"application": "sheet_metal", "part": "ap_back"},
+   "intent": "Acceptance: part names a loaded part that is not displayed: refused before the license query and any display or application switch (NX enters an application for the displayed part only)",
+   "expect": {"ok": false, "error.code": "NX_WRONG_PART_CONTEXT", "error.field": "/part",
+              "error.message": {"matches": "ap_front[.]prt.*ap_back[.]prt"},
+              "error.hint": {"matches": "nx_activate_part"},
+              "mutation_outcome": "not_started"}},
+  {"call": "nx_list_parts", "args": {"path_prefix": "$run/ap"},
+   "intent": "Acceptance: the display and work part never moved",
+   "expect": {"page.total": 2,
+              "data.items": {"contains": {"part": {"id": "$front.data.part.id"}, "display": true, "work": true}}}},
+  {"call": "nx_list_parts", "args": {"path_prefix": "$run/ap/ap_back"},
+   "expect": {"page.total": 1, "data.items.0.display": false, "data.items.0.work": false}},
+  {"call": "nx_activate_application", "args": {"application": "modeling", "part": "ap_front"},
+   "intent": "Acceptance: part naming the displayed part acts there as before",
+   "expect": {"ok": true, "data.application": "modeling", "data.previous": "modeling", "data.changed": false,
+              "part.file": "ap_front.prt"}},
+  {"call": "nx_activate_application", "args": {"application": "modeling"},
+   "intent": "Acceptance: without part the agent's displayed part is the target (two parts loaded, no ambiguity)",
+   "expect": {"ok": true, "data.application": "modeling", "data.changed": false,
+              "part.file": "ap_front.prt"}}
+ ]
+}

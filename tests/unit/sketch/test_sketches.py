@@ -1,0 +1,389 @@
+"""nx_create_sketch, nx_finish_sketch, nx_get_sketch, nx_check_sketch on the fake kit."""
+
+import pytest
+
+from nx_mcp.core import catalogue, summary
+from tests.kit import run
+from tests.kit.objects import Feature
+from tests.unit.sketch.fakes import CT, Constraint, sketch_nx
+
+
+def test_principal_xz_sketch_with_origin_and_axis_is_active_and_verified():
+    nx = sketch_nx()
+    ok = run(
+        nx,
+        "nx_create_sketch",
+        placement={"principal": "xz", "origin": [0, 5, 0], "x_axis": [0, 0, 1]},
+        name="SIDE",
+    )
+    assert ok.ok, ok
+    assert ok.data["frame"]["normal"] == pytest.approx([0, -1, 0])
+    assert ok.data["frame"]["x_axis"] == pytest.approx([0, 0, 1])
+    assert ok.data["frame"]["y_axis"] == pytest.approx([-1, 0, 0])
+    assert ok.data["frame"]["origin"] == pytest.approx([0, 5, 0])
+    assert ok.data["active"] is True and ok.data["sketch"]["kind"] == "sketch"
+    assert ok.data["parked"] is True  # open, but not active in NX between calls
+    sketch = nx.part.Sketches[-1]
+    assert nx.session.ActiveSketch is None and sketch.Name == "SIDE"
+    assert nx.live_builders == 0 and ok.mutation_outcome == "committed"
+    assert [r["kind"] for r in ok.changes["created"]] == ["sketch"]
+
+
+def test_frame_mismatch_rolls_back():
+    nx = sketch_nx()
+    nx.next_sketch = ((0, 0, 1), (1, 0, 0), (0, 1, 0))  # NX ignored the origin
+    bad = run(nx, "nx_create_sketch", placement={"principal": "xy"})
+    assert (
+        bad.error["category"] == "verification_failed" and bad.error["details"]["check"] == "origin"
+    )
+    assert bad.mutation_outcome == "rolled_back" and list(nx.part.Sketches) == []
+    assert nx.session.ActiveSketch is None
+
+
+@pytest.mark.parametrize(
+    ("placement", "field"),
+    [
+        ({"principal": "xy", "x_axis": [0, 0, 1]}, "/placement/x_axis"),
+        ({"principal": "xy", "x_axis": [0, 0, 0]}, "/placement/x_axis"),
+        ({"principal": "xy", "plane": "XY"}, "/placement/plane"),
+    ],
+)
+def test_invalid_placements_are_not_started(placement, field):
+    nx = sketch_nx()
+    bad = run(nx, "nx_create_sketch", placement=placement)
+    assert bad.error["category"] == "invalid_argument" and bad.error["field"] == field, bad
+    assert bad.mutation_outcome == "not_started" and nx.builders == []
+
+
+def test_create_refuses_while_another_sketch_is_active():
+    nx = sketch_nx()
+    nx.sketch(active=True)
+    bad = run(nx, "nx_create_sketch", placement={"principal": "xy"})
+    assert bad.error["code"] == "NX_SKETCH_ACTIVE" and "nx_finish_sketch" in bad.error["hint"]
+
+
+def test_sketch_on_face_with_x_direction_uses_a_coincident_plane():
+    nx = sketch_nx()
+    top = nx.block(10, 10, 5).face(normal=(0, 0, 1))
+    nx.next_sketch = ((0, 0, 5), (0, 1, 0), (-1, 0, 0))
+    ok = run(nx, "nx_create_sketch", placement={"on": top.ref, "x_direction": [0, 1, 0]})
+    assert ok.ok, ok
+    b = nx.last("SketchInPlaceBuilder2")
+    assert b.PlaneOption == "NewPlane" and b.OriginOption == "SpecifyPoint"
+    tilted = run(nx, "nx_finish_sketch", sketch=ok.data["sketch"]["id"])
+    assert tilted.ok
+    bad = run(nx, "nx_create_sketch", placement={"on": top.ref, "x_direction": [0, 0, 1]})
+    assert bad.error["field"] == "/placement/x_direction"
+    edge = nx.block(1, 1, 1).edges[0]
+    wrong = run(nx, "nx_create_sketch", placement={"on": edge.ref})
+    assert wrong.error["category"] == "wrong_kind"
+
+
+def test_sketch_on_a_feature_without_datum_plane_is_refused_before_building():
+    nx = sketch_nx()
+    body = nx.block(10, 10, 5)
+    extrude = nx.ref_of(Feature("EXTRUDE(1)", [body]), "feature")
+    bad = run(nx, "nx_create_sketch", placement={"on": extrude})
+    assert bad.error["code"] == "NX_WRONG_KIND" and bad.error["field"] == "/placement/on"
+    assert bad.mutation_outcome == "not_started" and nx.builders == []
+
+
+def test_path_sketch_checks_the_origin_on_the_path():
+    nx = sketch_nx()
+    edge = nx.model_edge((0, 0, 0), (10, 0, 0))
+    nx.next_sketch = ((5, 0, 0), (0, 1, 0), (0, 0, 1))  # normal +X along the edge
+    ok = run(
+        nx,
+        "nx_create_sketch",
+        placement={"path": [edge.ref], "help_point": [0, 0, 0], "percent": 50},
+    )
+    assert ok.ok, ok
+    b = nx.last("SketchAlongPathBuilder")
+    assert b.PlaneLocation.Expression.RightHandSide == "50.0"
+    assert run(nx, "nx_finish_sketch").ok  # the parked sketch
+    nx.next_sketch = ((5, 3, 0), (0, 1, 0), (0, 0, 1))  # off the path
+    bad = run(nx, "nx_create_sketch", placement={"path": [edge.ref], "help_point": [0, 0, 0]})
+    assert bad.error["details"]["check"] == "origin_on_path"
+
+
+def test_finish_deactivates_and_is_a_no_op_for_an_inactive_sketch():
+    nx = sketch_nx()
+    sk = nx.sketch(active=True)
+    ok = run(nx, "nx_finish_sketch", sketch=sk.ref)
+    assert ok.ok and ok.data["was_active"] is True and nx.session.ActiveSketch is None
+    again = run(nx, "nx_finish_sketch", sketch=sk.ref)
+    assert again.ok and again.data["was_active"] is False
+    other = nx.sketch(active=True)
+    bad = run(nx, "nx_finish_sketch", sketch=sk.ref)
+    assert bad.error["code"] == "NX_SKETCH_ACTIVE"
+    assert nx.session.ActiveSketch is other
+
+
+def test_get_sketch_reads_geometry_constraints_and_status_without_leaving_it_active():
+    nx = sketch_nx()
+    sk = nx.sketch(origin=(0, 0, 10))
+    line = nx.line(sk, (0, 0, 10), (10, 0, 10))
+    nx.arc(sk, (20, 0, 10), 5, 0, 90)
+    sk.constraints.append(Constraint(CT.Horizontal, [(line, "NotSet")], sk))
+    ok = run(nx, "nx_get_sketch", sketch=sk.ref)
+    assert ok.ok and ok.mutation_outcome == "not_applicable", ok
+    rows = ok.data["curves"]
+    assert rows[0]["type"] == "line" and rows[0]["end"] == pytest.approx([10, 0])
+    assert rows[0]["part"]["end"] == pytest.approx([10, 0, 10])
+    assert rows[1]["type"] == "arc" and rows[1]["radius"] == 5
+    assert rows[1]["start_angle"] == pytest.approx(0) and rows[1]["end_angle"] == pytest.approx(90)
+    (con,) = ok.data["constraints"]
+    assert con["type"] == "horizontal" and con["curves"] == [rows[0]["curve"]["id"]]
+    # the model says two curves are free, the fake NX one: the DOF is withheld
+    assert ok.data["status"] == {
+        "state": "under_constrained",
+        "fully_constrained": False,
+        "dof": None,
+        "free_curves": 1,
+        "dof_note": "the computed freedom disagrees with NX's count of free curves",
+    }
+    assert all("dof" not in r for r in rows)
+    assert nx.session.ActiveSketch is None and nx.undo_marks == []
+    only = run(nx, "nx_get_sketch", sketch=sk.ref, include=["geometry"])
+    assert "status" not in only.data and "constraints" not in only.data
+
+
+def test_check_sketch_reports_relieving_constraints():
+    nx = sketch_nx()
+    sk = nx.sketch()
+    line = nx.line(sk, (0, 0, 0), (10, 0, 0))
+    h = Constraint(CT.Horizontal, [(line, "NotSet")], sk)
+    v = Constraint(CT.Vertical, [(line, "NotSet")], sk)
+    sk.constraints += [h, v]
+    ok = run(nx, "nx_check_sketch", sketch=sk.ref)
+    assert ok.ok, ok
+    assert len(ok.data["explicit_conflicts"]) == 1 and ok.data["checked"] == 2
+    assert len(ok.data["relieving"]) == 2 and ok.data["complete"] is True
+    assert sk.constraints == [h, v] and nx.undo_marks == []
+    limited = run(nx, "nx_check_sketch", sketch=sk.ref, max_checks=1)
+    assert limited.data["checked"] == 1 and limited.data["complete"] is False
+    sk.constraints.remove(v)
+    calm = run(nx, "nx_check_sketch", sketch=sk.ref)
+    assert calm.data["trials"] == [] and calm.data["state"] == "under_constrained"
+
+
+# ---------------------------------------------------------------------------
+# One-call sketch: placement, curves and finish
+
+
+HOLLOW = [
+    {"type": "rectangle", "corner1": [10, 0], "corner2": [30, 40]},
+    {"type": "polyline", "points": [[15, 5], [25, 5], [25, 35], [15, 35]], "closed": True},
+]
+
+
+def test_one_call_sketch_makes_a_finished_profile_with_nested_loops():
+    nx = sketch_nx()
+    ok = run(nx, "nx_create_sketch", placement={"principal": "xz"}, curves=HOLLOW, finish=True)
+    assert ok.ok, ok
+    data = ok.data
+    assert data["loops"] == [{"closed": True, "curves": 4}, {"closed": True, "curves": 4}]
+    assert len(data["curves"]) == 8 and {c["kind"] for c in data["curves"]} == {"curve"}
+    assert data["active"] is False and nx.session.ActiveSketch is None
+    sketch = nx.part.Sketches[-1]
+    assert len(sketch.geometry) == 8
+    coincident = [c for c in sketch.constraints if c.ConstraintType == CT.Coincident]
+    assert len(coincident) == 8
+    assert ok.mutation_outcome == "committed" and nx.live_builders == 0
+    kinds = [r["kind"] for r in ok.changes["created"]]
+    assert kinds.count("sketch") == 1 and kinds.count("curve") == 8
+
+
+def test_one_call_sketch_without_finish_stays_active():
+    nx = sketch_nx()
+    ok = run(nx, "nx_create_sketch", placement={"principal": "xy"},
+             curves=[{"type": "line", "start": [0, 0], "end": [10, 0]}])  # fmt: skip
+    assert ok.ok, ok
+    assert ok.data["active"] is True and ok.data["parked"] is True
+    assert nx.session.ActiveSketch is None  # parked: reopened by the sketch tools
+    assert ok.data["loops"] == [{"closed": False, "curves": 1, "open_ends": 2}]
+
+
+def test_one_call_sketch_validates_every_curve_before_nx():
+    nx = sketch_nx()
+    bad = run(nx, "nx_create_sketch", placement={"principal": "xy"},
+              curves=[*HOLLOW, {"type": "line", "start": [1, 1], "end": [1, 1]}])  # fmt: skip
+    assert bad.error["field"] == "/curves/2/end" and bad.mutation_outcome == "not_started", bad
+    assert nx.builders == [] and list(nx.part.Sketches) == []
+
+
+def test_one_call_sketch_rolls_back_the_sketch_when_a_curve_fails():
+    nx = sketch_nx()
+    create_line = nx.part.Curves.CreateLine
+    made = []
+
+    def failing(a, b):
+        if len(made) == 5:
+            raise RuntimeError("NX refused the line")
+        made.append(create_line(a, b))
+        return made[-1]
+
+    nx.part.Curves.CreateLine = failing
+    bad = run(nx, "nx_create_sketch", placement={"principal": "xy"}, curves=HOLLOW, finish=True)
+    assert bad.mutation_outcome == "rolled_back" and "refused" in bad.error["message"], bad
+    assert list(nx.part.Sketches) == [] and nx.session.ActiveSketch is None
+
+
+@pytest.mark.parametrize(
+    ("curves", "field"),
+    [
+        ([{"type": "hyperbola", "points": [[0, 0], [1, 1]]}], "/curves/0/type"),
+        ([{"start": [0, 0], "end": [1, 1]}], "/curves/0/type"),
+        ([{"type": "circle", "center": [0, 0], "radius": 2, "sides": 3}], "/curves/0/sides"),
+        ([{"type": "circle", "center": [0, 0]}], "/curves/0/radius"),
+    ],
+)
+def test_one_call_sketch_checks_each_item_against_its_curve_type(curves, field):
+    nx = sketch_nx()
+    bad = run(nx, "nx_create_sketch", placement={"principal": "xy"}, curves=curves)
+    assert bad.error["category"] == "invalid_argument", bad
+    assert bad.error["field"] == field and bad.mutation_outcome == "not_started", bad
+    assert list(nx.part.Sketches) == []
+
+
+# ---------------------------------------------------------------------------
+# Natural argument spellings
+
+
+@pytest.mark.parametrize(
+    ("placement", "normal"),
+    [
+        ("XY", [0, 0, 1]),
+        ("xz", [0, -1, 0]),
+        ("YZ plane", [1, 0, 0]),
+        ("Front", [0, -1, 0]),
+        ({"principal": "XY", "origin": [0, 0, 10]}, [0, 0, 1]),
+        ({"principal": "x-z"}, [0, -1, 0]),
+    ],
+)
+def test_principal_planes_accept_natural_spellings(placement, normal):
+    nx = sketch_nx()
+    if isinstance(placement, dict) and "origin" in placement:
+        nx.next_sketch = ((0, 0, 10), (1, 0, 0), (0, 1, 0))
+    ok = run(nx, "nx_create_sketch", placement=placement)
+    assert ok.ok, ok
+    assert ok.data["frame"]["normal"] == pytest.approx(normal)
+    spec = catalogue.load()["nx_create_sketch"]
+    assert summary.render(spec, {"placement": placement}, strict=True).endswith(" plane")
+
+
+@pytest.mark.parametrize(
+    ("placement", "field", "text"),
+    [
+        ("ab", "/placement", "'xy', 'xz' or 'yz'"),
+        ({"principal": "XQ", "origin": [0, 0, 0]}, "/placement/principal", "did you mean"),
+        ({"principal": "zx"}, "/placement/principal", "use 'xz'"),
+    ],
+)
+def test_unknown_principal_planes_name_the_accepted_values(placement, field, text):
+    nx = sketch_nx()
+    bad = run(nx, "nx_create_sketch", placement=placement)
+    assert bad.error["category"] == "invalid_argument" and bad.error["field"] == field, bad
+    assert text in bad.error["message"] + bad.error["hint"], bad
+    assert bad.mutation_outcome == "not_started" and nx.builders == []
+
+
+def test_a_face_ref_string_is_a_sketch_on_that_face():
+    nx = sketch_nx()
+    top = nx.block(10, 10, 5).face(normal=(0, 0, 1))
+    nx.next_sketch = ((0, 0, 5), (1, 0, 0), (0, 1, 0))
+    ok = run(nx, "nx_create_sketch", placement=top.ref)
+    assert ok.ok, ok
+    b = nx.last("SketchInPlaceBuilder2")
+    assert b.PlaneOption == "NewPlane" and b.OriginOption == "SpecifyPoint"
+    assert ok.data["frame"]["origin"] == [0, 0, 5]
+
+
+def test_a_face_sketch_origin_is_the_part_origin_projected_and_read_back():
+    nx = sketch_nx()
+    body = nx.block(10, 10, 5, origin=(20, 30, 0))
+    top = body.face(normal=(0, 0, 1))
+    # NX's inferred origin would be the face centre (25, 35, 5): a wrong frame is refused.
+    nx.next_sketch = ((25, 35, 5), (1, 0, 0), (0, 1, 0))
+    bad = run(nx, "nx_create_sketch", placement={"on": top.ref})
+    assert bad.error["details"]["check"] == "origin" and bad.mutation_outcome == "rolled_back"
+    nx.next_sketch = ((0, 0, 5), (1, 0, 0), (0, 1, 0))
+    ok = run(nx, "nx_create_sketch", placement={"on": nx.ref_of(top, "face")})
+    assert ok.ok and ok.data["frame"]["origin"] == [0, 0, 5], ok
+    # On a face normal to X the local x is the absolute Y (as on the yz plane).
+    from nx_mcp.domains.sketch.sketches import face_frame
+
+    assert face_frame([30, 32, 2], [1, 0, 0]) == ([30, 0, 0], [0.0, 1.0, 0.0])
+    assert face_frame([30, 32, 2], [0, -1, 0]) == ([0, 32, 0], [1.0, 0.0, 0.0])
+
+
+def test_finish_without_a_sketch_finishes_the_active_one():
+    nx = sketch_nx()
+    sk = nx.sketch(active=True)
+    ok = run(nx, "nx_finish_sketch")
+    assert ok.ok and ok.data["was_active"] is True, ok
+    assert ok.data["sketch"]["id"] == sk.ref and nx.session.ActiveSketch is None
+    spec = catalogue.load()["nx_finish_sketch"]
+    assert summary.render(spec, {}, strict=True) == "Finish the active sketch"
+    idle = run(nx, "nx_finish_sketch")
+    assert idle.ok and idle.data == {"was_active": False}, idle
+
+
+def test_get_sketch_counts_the_constraints_on_each_curve():
+    nx = sketch_nx()
+    sk = nx.sketch()
+    line = nx.line(sk, (0, 0, 0), (10, 0, 0))
+    nx.line(sk, (0, 5, 0), (10, 5, 0))
+    sk.constraints.append(Constraint(CT.Horizontal, [(line, "NotSet")], sk))
+    ok = run(nx, "nx_get_sketch", sketch=sk.ref, include=["geometry"])
+    assert ok.ok, ok
+    assert [r["constraints"] for r in ok.data["curves"]] == [1, 0]
+
+
+def test_check_sketch_says_when_there_is_nothing_to_relieve():
+    nx = sketch_nx()
+    sk = nx.sketch()
+    nx.line(sk, (0, 0, 0), (10, 0, 0))
+    ok = run(nx, "nx_check_sketch", sketch=sk.ref)
+    assert ok.ok and ok.data["trials"] == [], ok
+    assert "under-constrained" in ok.data["note"] and ok.data["relieving"] == []
+    assert [f["curve"] for f in ok.data["free"]] == [nx.cref(sk.geometry[0])]
+
+
+def test_one_call_sketch_accepts_any_case_curve_types_and_diameters():
+    nx = sketch_nx()
+    curves = [
+        {"type": "Rounded Rectangle", "center": [0, 0], "width": 40, "height": 20, "radius": 4},
+        {"type": "CIRCLE", "center": [0, 0], "diameter": 8},
+    ]
+    ok = run(nx, "nx_create_sketch", placement="XY", curves=curves, finish=True)
+    assert ok.ok, ok
+    assert ok.data["loops"] == [{"closed": True, "curves": 8}, {"closed": True, "curves": 1}]
+
+
+def test_one_call_sketch_suggests_the_closest_curve_type():
+    nx = sketch_nx()
+    bad = run(nx, "nx_create_sketch", placement="xy",
+              curves=[{"type": "circel", "center": [0, 0], "radius": 2}])  # fmt: skip
+    assert bad.error["field"] == "/curves/0/type" and "'circle'" in bad.error["message"], bad
+    assert "rounded_rectangle" in bad.error["hint"]
+
+
+def test_an_empty_sketch_is_empty_not_fully_constrained():
+    nx = sketch_nx()
+    sk = nx.sketch()
+    out = run(nx, "nx_get_sketch", sketch=sk.ref, include=["status"])
+    assert out.ok and out.data["status"] == {
+        "state": "empty", "fully_constrained": False, "dof": 0, "free_curves": 0,
+    }, out  # fmt: skip
+
+
+def test_finishing_nothing_says_so_and_commits_nothing():
+    nx = sketch_nx()
+    out = run(nx, "nx_finish_sketch")
+    assert out.ok and out.data == {"was_active": False}, out
+    assert [w["code"] for w in out.warnings] == ["NX_NO_EFFECT"]
+    assert out.mutation_outcome == "not_applicable"
+    sk = nx.sketch(active=True)
+    done = run(nx, "nx_finish_sketch", sketch=sk.ref)
+    assert done.ok and any("no curves" in w["message"] for w in done.warnings), done

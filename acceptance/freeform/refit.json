@@ -1,0 +1,140 @@
+{
+ "covers": {
+  "nx_create_refit_face": []
+ },
+ "fixture": null,
+ "part": "new",
+ "steps": [
+  {
+   "call": "nx_create_part",
+   "setup": true,
+   "args": {
+    "path": "$part",
+    "units": "mm"
+   }
+  },
+  {
+   "call": "nx_create_spline",
+   "setup": true,
+   "save": "l1",
+   "args": {
+    "points": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      50,
+      0,
+      0
+     ]
+    ],
+    "method": "through_points",
+    "degree": 1
+   }
+  },
+  {
+   "call": "nx_create_spline",
+   "setup": true,
+   "save": "l2",
+   "args": {
+    "points": [
+     [
+      0,
+      20,
+      5
+     ],
+     [
+      50,
+      20,
+      -5
+     ]
+    ],
+    "method": "through_points",
+    "degree": 1
+   }
+  },
+  {
+   "call": "nx_create_ruled",
+   "setup": true,
+   "save": "hp",
+   "args": {
+    "first": "$l1.data.curve.id",
+    "second": "$l2.data.curve.id"
+   }
+  },
+  {
+   "call": "nx_find_geometry",
+   "setup": true,
+   "save": "hf",
+   "args": {
+    "owner": "$hp.data.bodies.0.id",
+    "kind": "face"
+   }
+  },
+  {
+   "call": "nx_create_refit_face",
+   "intent": "A twisted ruled B-surface already fits NX's default degrees and patches: the refit changes nothing, so it is refused and rolled back",
+   "args": {
+    "face": "$hf.data.items.0.id",
+    "tolerance": 0.01
+   },
+   "expect": {
+    "ok": false,
+    "error.code": "NX_UNSUPPORTED_GEOMETRY",
+    "error.field": "/face",
+    "error.details.deviation": {
+     "close": 0,
+     "tol": 1e-05
+    },
+    "mutation_outcome": "rolled_back"
+   }
+  },
+  {
+   "call": "nx_create_primitive",
+   "setup": true,
+   "save": "blk",
+   "args": {
+    "shape": "block",
+    "origin": [
+     0,
+     50,
+     0
+    ],
+    "length": 10,
+    "width": 10,
+    "height": 10
+   }
+  },
+  {
+   "call": "nx_find_geometry",
+   "setup": true,
+   "save": "flat",
+   "args": {
+    "owner": "$blk.data.bodies.0.id",
+    "kind": "face",
+    "normal": "+z"
+   }
+  },
+  {
+   "call": "nx_create_refit_face",
+   "intent": "A plane is refused before NX",
+   "args": {
+    "face": "$flat.data.items.0.id"
+   },
+   "expect": {
+    "error.code": "NX_WRONG_GEOMETRY",
+    "mutation_outcome": "not_started",
+    "error.field": "/face"
+   }
+  },
+  {
+   "call": "nx_check_model",
+   "args": {},
+   "expect": {
+    "data.healthy": true
+   }
+  }
+ ]
+}

@@ -1,0 +1,329 @@
+{
+ "covers": {
+  "nx_save_presentation": [],
+  "nx_restore_display": []
+ },
+ "fixture": "fixtures/drawing_block_mm.prt",
+ "part": null,
+ "steps": [
+  {
+   "call": "nx_open_part",
+   "setup": true,
+   "save": "part",
+   "args": {
+    "path": "$fixture"
+   }
+  },
+  {
+   "call": "engineer",
+   "args": {
+    "code": "from nx_mcp.kit import parts as kp\nservices.host._remember_model()  # the development tool's own undo mark is no engineer edit\np = [x for x in session.Parts if str(x.Leaf).lower().startswith('display_presentation') and str(x.FullPath).lower().startswith(r'$run'.lower())][0]\nkp.show(NXOpen, session.Parts, p)\nresult = p.Leaf"
+   },
+   "intent": "Acceptance: the engineer looks at the scenario's part (a tab click, no edit): it is the displayed part whatever NX showed before (engineer tab guard)",
+   "expect": {
+    "ok": true,
+    "data.noticed": false
+   }
+  },
+  {
+   "call": "nx_list_objects",
+   "setup": true,
+   "save": "bodies",
+   "args": {
+    "kind": "body"
+   }
+  },
+  {
+   "call": "nx_list_objects",
+   "setup": true,
+   "save": "faces",
+   "args": {
+    "kind": "face",
+    "owner": "$bodies.data.items.0.id",
+    "limit": 50
+   }
+  },
+  {
+   "call": "nx_set_camera",
+   "setup": true,
+   "args": {
+    "rotation": [
+     [
+      0,
+      -1,
+      0
+     ],
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      1
+     ]
+    ],
+    "origin": [
+     -20,
+     -30,
+     -5
+    ],
+    "scale": 1.5
+   }
+  },
+  {
+   "call": "nx_set_appearance",
+   "setup": true,
+   "args": {
+    "objects": [
+     "$faces.data.items.0.id"
+    ],
+    "color": "blue"
+   }
+  },
+  {
+   "call": "nx_create_section_view",
+   "setup": true,
+   "args": {
+    "plane": {
+     "origin": [
+      40,
+      0,
+      0
+     ],
+     "normal": [
+      1,
+      0,
+      0
+     ]
+    },
+    "cap": false
+   }
+  },
+  {
+   "call": "nx_save_presentation",
+   "save": "pres",
+   "args": {
+    "path": "$run/review.json"
+   },
+   "expect": {
+    "mutation_outcome": "committed",
+    "data.objects": 2,
+    "data.sections": 1,
+    "data.path": {
+     "matches": "review[.]json$"
+    },
+    "data.sha256": {
+     "matches": "^[0-9a-f]{64}$"
+    }
+   },
+   "intent": "Acceptance: a body is saved as one row and only its face coloured unlike it as a second"
+  },
+  {
+   "call": "nx_save_presentation",
+   "args": {
+    "path": "$run/review.json"
+   },
+   "expect": {
+    "error.category": "already_exists",
+    "mutation_outcome": "not_started"
+   }
+  },
+  {
+   "call": "nx_set_camera",
+   "setup": true,
+   "args": {
+    "orientation": "top",
+    "fit": true
+   }
+  },
+  {
+   "call": "nx_set_appearance",
+   "setup": true,
+   "args": {
+    "objects": [
+     "$bodies.data.items.0.id"
+    ],
+    "color": "red",
+    "transparency": 30
+   }
+  },
+  {
+   "call": "nx_list_objects",
+   "setup": true,
+   "save": "secs",
+   "args": {
+    "kind": "section_view"
+   }
+  },
+  {
+   "call": "nx_edit_section_view",
+   "setup": true,
+   "args": {
+    "section": "$secs.data.items.0.id",
+    "plane": {
+     "origin": [
+      0,
+      0,
+      10
+     ],
+     "normal": [
+      0,
+      0,
+      1
+     ]
+    },
+    "enabled": false
+   }
+  },
+  {
+   "call": "nx_restore_display",
+   "args": {
+    "presentation": "$run/review.json"
+   },
+   "expect": {
+    "mutation_outcome": "committed",
+    "data.identical": true,
+    "data.count": 2,
+    "data.sections": 1,
+    "data.camera.rotation.0": {
+     "close": [
+      0,
+      -1,
+      0
+     ],
+     "tol": 1e-09
+    },
+    "data.camera.origin": {
+     "close": [
+      -20,
+      -30,
+      -5
+     ],
+     "tol": 1e-09
+    },
+    "data.camera.scale": {
+     "close": 1.5,
+     "tol": 1e-09
+    },
+    "data.restored": {
+     "matches": "review[.]json$"
+    },
+    "data.section.kind": "section_view"
+   }
+  },
+  {
+   "call": "nx_get_appearance",
+   "args": {
+    "objects": [
+     "$bodies.data.items.0.id"
+    ]
+   },
+   "expect": {
+    "data.objects": {
+     "count": 1
+    },
+    "data.objects.0.color": 129,
+    "data.objects.0.transparency": 0,
+    "data.objects.0.faces_differ": 1,
+    "data.objects.0.faces": {
+     "contains": {
+      "color": 211,
+      "transparency": 0
+     }
+    }
+   },
+   "intent": "Acceptance: the body is back to its colour and transparency on every face but the blue one"
+  },
+  {
+   "call": "nx_list_objects",
+   "args": {
+    "kind": "section_view"
+   },
+   "expect": {
+    "data.items": {
+     "count": 1
+    },
+    "data.items.0.details.origin": {
+     "close": [
+      40,
+      0,
+      0
+     ],
+     "tol": 1e-09
+    },
+    "data.items.0.details.normal": {
+     "close": [
+      1,
+      0,
+      0
+     ],
+     "tol": 1e-12
+    },
+    "data.items.0.details.cap": false,
+    "data.items.0.details.sectioning": true
+   }
+  },
+  {
+   "call": "nx_capture_view",
+   "args": {
+    "path": "$run/restored.png",
+    "quality": "studio",
+    "width": 640,
+    "height": 400
+   },
+   "expect": {
+    "data.resolution": [
+     640,
+     400
+    ]
+   }
+  },
+  {
+   "call": "nx_delete_objects",
+   "setup": true,
+   "args": {
+    "objects": [
+     "$secs.data.items.0.id"
+    ]
+   }
+  },
+  {
+   "call": "nx_restore_display",
+   "args": {
+    "presentation": "$run/review.json"
+   },
+   "intent": "Acceptance: a section the presentation creates again is named in the result",
+   "expect": {
+    "mutation_outcome": "committed",
+    "data.section.kind": "section_view",
+    "data.sections": 1,
+    "warnings.0.message": {
+     "contains": "was created as"
+    }
+   }
+  },
+  {
+   "call": "nx_restore_display",
+   "args": {
+    "presentation": "$run/missing.json"
+   },
+   "expect": {
+    "error.category": "not_found",
+    "mutation_outcome": "not_started"
+   }
+  },
+  {
+   "call": "nx_restore_display",
+   "args": {
+    "presentation": "$run/review.json",
+    "restore_id": "display_00000000000000000000000000000000"
+   },
+   "expect": {
+    "error.category": "invalid_argument",
+    "mutation_outcome": "not_started"
+   }
+  }
+ ]
+}

@@ -1,0 +1,54 @@
+"""Evidence labels must not promote missing evidence into native claims."""
+
+import importlib.util
+from pathlib import Path
+
+SCRIPT = Path(__file__).resolve().parents[1] / "scripts/generate_capability_matrix.py"
+SPEC = importlib.util.spec_from_file_location("capability_matrix", SCRIPT)
+assert SPEC and SPEC.loader
+matrix = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(matrix)
+
+
+def test_catalogue_tools_are_classified_by_acceptance_evidence():
+    rows = [
+        {
+            "name": "nx_create_blend",
+            "domain": "modeling",
+            "effect": "model",
+            "variants": [],
+            "evidence": {
+                "v2406": {"variants": [], "scenario": "acceptance/modeling/blend.json", "checks": 9}
+            },
+        },
+        {
+            "name": "nx_create_chamfer",
+            "domain": "modeling",
+            "effect": "model",
+            "variants": ["symmetric", "two_offsets"],
+            "evidence": {"v2406": {"variants": ["symmetric"]}},
+        },
+        {
+            "name": "nx_create_widget",
+            "domain": "modeling",
+            "effect": "model",
+            "variants": [],
+            "evidence": {},
+        },
+    ]
+    rendered = matrix.render(rows)
+    assert "| Native-tested | 2 |" in rendered and "| Experimental | 1 |" in rendered
+    assert "9 checks in acceptance/modeling/blend.json" in rendered
+    assert "v2406: symmetric (untested: two_offsets)" in rendered
+    assert "| nx_create_widget | Experimental |" in rendered
+
+
+def test_default_matrix_lists_every_catalogue_tool():
+    from nx_mcp.core import catalogue
+
+    rows = matrix.load_catalogue()
+    assert {r["name"] for r in rows} == set(catalogue.load())
+    rendered = matrix.render(rows)
+    sections = [line for line in rendered.splitlines() if line.startswith("## ")]
+    assert sections == ["## Catalogue tools"]  # one section: every tool is a catalogue tool
+    assert all(f"| {r['name']} |" in rendered for r in rows)

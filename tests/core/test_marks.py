@@ -1,0 +1,169 @@
+"""core/marks.py: load barriers and the reasons of dropped undo marks."""
+
+from __future__ import annotations
+
+from types import SimpleNamespace as NS
+
+from nx_mcp.core import marks
+from nx_mcp.core.tx import Services
+
+
+class Marks(Services):
+    def __init__(self):
+        self.live = set()
+        self.loaded = [NS(Tag=1, name="a.prt")]
+        self.session = NS(Parts=NS(Display=self.loaded[0]))
+        self.warned = []
+
+    def parts(self):
+        return list(self.loaded)
+
+    def part_key(self, part):
+        return f"part_{part.Tag}"
+
+    def part_path(self, part):
+        return part.name
+
+    def mark_exists(self, mark):
+        return mark in self.live
+
+    def entry(self, mark):
+        self.live.add(mark)
+        self.undo_history().append({"mark": mark, "part_id": "part_1", "operation_id": f"op{mark}"})
+
+
+def spec(effect, name="nx_tool"):
+    return NS(effect=effect, name=name)
+
+
+def tx(services):
+    return NS(warn=lambda code, message: services.warned.append((code, message)))
+
+
+def test_a_file_or_session_load_is_a_barrier_only_when_undo_could_reach_back():
+    s = Marks()
+    seen = marks.watch(s)
+    s.loaded.append(NS(Tag=2, name="b.prt"))
+    marks.settle(s, seen, spec("file", "nx_create_part"), "op_load", tx(s))
+    assert s.undo_history() == []  # nothing to protect
+    s.entry(10)
+    for effect, loads in (("model", 1), ("session", 2), ("file", 3)):
+        seen = marks.watch(s)
+        s.loaded.append(NS(Tag=10 + loads, name=f"p{loads}.prt"))
+        marks.settle(s, seen, spec(effect), f"op_{effect}", tx(s))
+    barriers = [h for h in s.undo_history() if h.get("load") is not None]
+    assert [b["load"] for b in barriers] == [["p2.prt"], ["p3.prt"]]
+    assert barriers[0] == {"mark": None, "part_id": "part_12", "operation_id": "op_session",
+                           "method": "nx_tool", "load": ["p2.prt"]}  # fmt: skip
+    assert s.warned == []
+
+
+def test_dropped_marks_get_the_reason_the_call_shows():
+    for change, reason in (
+        ("close", "saved_or_closed"),
+        ("load", "part_loaded"),
+        ("display", "display_reset"),
+        ("save", "saved_or_closed"),
+        ("drop", "marks_dropped"),  # neither a save nor a close: NX's own doing
+    ):
+        s = Marks()
+        s.entry(1)
+        s.undo_checkpoints()["cp"] = {"mark": 2, "index": 1}
+        s.live.add(2)
+        s.loaded[0].IsModified = True
+        seen = marks.watch(s)
+        s.live.clear()
+        if change == "save":
+            s.loaded[0].IsModified = False  # a save clears the modified flag
+        if change == "close":
+            s.loaded.clear()
+        elif change == "load":
+            s.loaded.append(NS(Tag=2, name="b.prt"))
+        elif change == "display":
+            s.session.Parts.Display = NS(Tag=9)
+        marks.settle(s, seen, spec("session"), "op", tx(s))
+        assert s.undo_history()[0]["expired"] == reason, change
+        assert s.undo_checkpoints()["cp"]["expired"] == reason, change
+        assert s.undo_history()[0]["expired_tool"] == "nx_tool", change
+        assert bool(s.warned) == (reason != "saved_or_closed"), change
+    assert "nx_tool, which saved and closed nothing" in s.warned[0][1]
+
+
+def test_a_mark_drop_that_saved_nothing_is_never_the_parts_own_cut():
+    entry = {"expired": "marks_dropped", "expired_by": "part_1", "part_id": "part_1"}
+    assert not marks.own_cut(entry, "part_1") and marks.foreign_cut(entry, "part_1")
+    saved = {"expired": "saved_or_closed", "expired_by": "part_1"}
+    assert marks.own_cut(saved, "part_1") and not marks.foreign_cut(saved, "part_1")
+    s = Marks()
+    s.entry(1)
+    seen = marks.watch(s)
+    s.live.clear()
+    marks.settle(s, seen, spec("file", "nx_save_part"), "op", tx(s))  # a save tool
+    assert s.undo_history()[0]["expired"] == "saved_or_closed"
+
+
+def test_an_undo_removing_the_newest_entries_is_no_drop_and_eviction_is_noted():
+    s = Marks()
+    s.entry(1)
+    s.entry(2)
+    seen = marks.watch(s)
+    s.live.discard(2)
+    del s.undo_history()[-1]  # an undo took the newest operation off the history
+    marks.settle(s, seen, spec("model"), "op_undo", tx(s))
+    assert "expired" not in s.undo_history()[0] and s.warned == []
+    s.entry(3)
+    seen = marks.watch(s)
+    s.live.discard(1)  # NX evicted the oldest mark
+    marks.settle(s, seen, spec("model"), "op", tx(s))
+    assert s.undo_history()[0]["expired"] == "mark_evicted"
+    assert s.warned and "180 undo marks" in s.warned[0][1]
+
+
+def test_settle_never_raises():
+    s = Marks()
+    s.entry(1)
+    seen = marks.watch(s)
+    s.parts = None  # type: ignore[assignment]
+    marks.settle(s, seen, spec("file"), "op")
+    marks.settle(s, None, spec("file"), "op")
+
+
+def test_barriers_are_loads_retained_closes_and_engineer_edits():
+    assert marks.barrier({"mark": 1, "part_id": "part_1"}) is None
+    assert marks.barrier({"mark": None, "load": ["b.prt"]}) == "load"
+    assert marks.barrier({"mark": None, "close": ["b.prt"]}) == "close"
+    assert marks.barrier({"mark": None, "engineer": True}) == "engineer"
+    s = Marks()
+    marks.close_barrier(s, ["b.prt"], "part_2", "op_close", "nx_close_part")
+    assert s.undo_history() == []  # nothing to protect
+    s.entry(10)
+    marks.close_barrier(s, ["b.prt"], "part_2", "op_close", "nx_close_part")
+    assert marks.barrier(s.undo_history()[-1]) == "close"
+
+
+def test_an_engineer_change_ends_the_history_once_and_moves_every_part():
+    s = Marks()
+    s.entry(10)
+    s.undo_checkpoints()["cp"] = {"mark": 10, "part_id": "part_1", "index": 1}
+    s.redo_steps().append({"operation_id": "op9", "part_id": "part_1"})
+    marks.engineer_change(s)
+    marks.engineer_change(s)  # a second edit before the next agent call: one barrier
+    assert [marks.barrier(h) for h in s.undo_history()] == [None, "engineer"]
+    assert s.undo_checkpoints()["cp"]["expired"] == "engineer_change" and not s.redo_steps()
+    assert s.part_revision("part_1") == 2 and s.part_revision("part_9") == 2
+    s.live.clear()  # the engineer's display switch dropped the marks
+    marks.engineer_change(s, display_changed=True)
+    assert s.undo_history()[0]["expired"] == "display_reset"
+
+
+def test_removing_entries_keeps_checkpoints_at_their_place():
+    s = Marks()
+    for mark in (1, 2, 3):
+        s.entry(mark)
+    history = s.undo_history()
+    s.undo_checkpoints().update({"early": {"index": 1}, "late": {"index": 3}})
+    marks.remove_entries(s, [history[0], history[2]])
+    assert [h["mark"] for h in history] == [2]
+    assert (
+        s.undo_checkpoints()["early"]["index"] == 0 and s.undo_checkpoints()["late"]["index"] == 1
+    )

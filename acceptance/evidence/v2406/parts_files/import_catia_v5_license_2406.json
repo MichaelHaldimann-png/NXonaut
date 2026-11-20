@@ -1,0 +1,44 @@
+{
+  "format": 2,
+  "scenario": "acceptance/parts_files/import_catia_v5_license_2406.json",
+  "scenario_sha256": "1a6d2e0e62d8ffe3c3bdc91c1024b7093a384fab3ac110a6acd50a1375cde840",
+  "domain": "parts_files",
+  "covers": {},
+  "nx_version": "v2406",
+  "nx_build": "2406.9160",
+  "sources": {},
+  "recorded": "2026-10-10T11:44:25Z",
+  "passed": true,
+  "checks": 7,
+  "failed_checks": 0,
+  "steps": [
+    {
+      "index": 1,
+      "call": "nx_create_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 2,
+      "call": "nx_upload_file",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 3,
+      "call": "nx_import_model",
+      "setup": false,
+      "passed": true,
+      "checks": 6
+    },
+    {
+      "index": 4,
+      "call": "nx_list_objects",
+      "setup": false,
+      "passed": true,
+      "checks": 1
+    }
+  ]
+}

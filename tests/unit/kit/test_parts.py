@@ -1,0 +1,273 @@
+from types import SimpleNamespace as NS
+
+import pytest
+
+from nx_mcp.core.errors import NXError
+from nx_mcp.kit import parts
+from nx_mcp.workspace import Workspace
+from tests.kit import fake_nx
+from tests.kit.parts import with_parts
+
+
+@pytest.fixture
+def nx(tmp_path):
+    fake = with_parts(fake_nx(), tmp_path)
+    fake.tx.workspace = Workspace(tmp_path)
+    fake.tx.checkpoint = lambda *a, **k: None
+    return fake
+
+
+def test_check_new_name_refuses_loaded_basenames(nx, tmp_path):
+    a = nx.new_part("p/a.prt")
+    with pytest.raises(NXError) as same:
+        parts.check_new_name(nx.tx, tmp_path / "p" / "a.prt")
+    assert same.value.code == "NX_ALREADY_EXISTS"
+    with pytest.raises(NXError) as other:
+        parts.check_new_name(nx.tx, tmp_path / "q" / "A.prt", field="/x")
+    assert other.value.code == "NX_NAME_CONFLICT" and other.value.field == "/x"
+    assert other.value.details["loaded_part_path"] == "p/a.prt"  # workspace-relative
+    parts.check_new_name(nx.tx, tmp_path / "q" / "a.prt", ignore=a)  # its own new name
+    parts.check_new_name(nx.tx, tmp_path / "q" / "b.prt")
+
+
+def test_loaded_finds_a_part_by_file(nx, tmp_path):
+    a = nx.new_part("a.prt")
+    assert parts.loaded(nx.tx, tmp_path / "A.PRT") is a
+    assert parts.loaded(nx.tx, tmp_path / "b.prt") is None
+
+
+def test_a_part_nx_no_longer_has_is_a_stale_reference(nx, tmp_path):
+    # NX 2406: a closed part's wrapper reports tag 0 and FullPath raises "Object no
+    # longer exists"; file_of (and so close and in_workspace) report it by code.
+    a = nx.new_part("a.prt")
+    assert parts.file_of(a) == a.FullPath and parts.file_of(None) == ""
+    a.Tag = 0
+    for check in (parts.file_of, lambda p: parts.in_workspace(nx.tx, p)):
+        with pytest.raises(NXError) as gone:
+            check(a)
+        assert gone.value.code == "NX_STALE_REFERENCE"
+        assert gone.value.details["reason"] == "deleted_in_nx"
+
+
+def test_in_workspace_refuses_other_files(nx, tmp_path):
+    a = nx.new_part("a.prt")
+    assert parts.in_workspace(nx.tx, a) == (tmp_path / "a.prt").resolve()
+    outside = NS(FullPath=str(tmp_path.parent / "engineer.prt"))
+    with pytest.raises(NXError) as caught:
+        parts.in_workspace(nx.tx, outside)
+    assert caught.value.code == "NX_PATH_OUTSIDE_WORKSPACE" and caught.value.field == "/part"
+    reserved = NS(FullPath=str(tmp_path / ".NX-MCP" / "x.prt"))
+    with pytest.raises(NXError):
+        parts.in_workspace(nx.tx, reserved)
+    unsaved = NS(FullPath="")
+    assert parts.in_workspace(nx.tx, unsaved, allow_unsaved=True) is None
+    with pytest.raises(NXError):
+        parts.in_workspace(nx.tx, unsaved)
+
+
+def test_activate_sets_display_before_work(nx):
+    a, b = nx.new_part("a.prt"), nx.new_part("b.prt")
+    parts.activate(nx.tx, a, display=False)
+    assert nx.session.Parts.Work is a and nx.session.Parts.Display is b
+    parts.activate(nx.tx, a)
+    assert nx.session.Parts.Display is a
+
+
+def test_components_dependents_and_prototype_files(nx):
+    asm, blk = nx.new_part("asm.prt"), nx.new_part("blk.prt")
+    occurrence = nx.attach(asm, blk)
+    walked = parts.components(asm)
+    assert [(c, names) for c, names in walked] == [(occurrence, ["BLK"])]
+    assert parts.prototype_file(occurrence) == blk.FullPath
+    assert parts.dependents(nx.tx, blk) == [asm.FullPath]
+    assert parts.dependents(nx.tx, asm) == []
+
+
+def test_require_loaded_names_unsuppressed_components_not_fully_loaded(nx):
+    asm, blk, pin = nx.new_part("asm.prt"), nx.new_part("blk.prt"), nx.new_part("pin.prt")
+    block, peg = nx.attach(asm, blk), nx.attach(asm, pin)
+    parts.require_loaded(asm, "Load them")  # every prototype fully loaded
+    pin.IsFullyLoaded = False
+    assert parts.unloaded(asm) == ["PIN"]
+    with pytest.raises(NXError) as caught:
+        parts.require_loaded(asm, "Load them")
+    error = caught.value
+    assert error.code == "NX_NOT_LOADED" and error.message == "Load them"
+    assert error.details["components"] == ["PIN"] and "load_components=true" in error.hint
+    peg.IsSuppressed = True  # a suppressed component is not exported: no need to load it
+    parts.require_loaded(asm, "Load them")
+    peg.IsSuppressed, block.IsSuppressed = False, False
+    peg.Parent = NS(IsSuppressed=True, Parent=None)  # nor one under a suppressed parent
+    assert parts.suppressed(peg) and parts.unloaded(asm) == []
+
+
+def test_load_components_restores_partial_loading_and_reports_failures(nx):
+    asm, blk = nx.new_part("asm.prt"), nx.new_part("blk.prt")
+    nx.attach(asm, blk)
+    options = nx.session.Parts.LoadOptions
+    assert parts.load_components(nx.tx, asm) == 1
+    assert options.UsePartialLoading is True
+    failing = NS(
+        NumberUnloadedParts=1, GetPartName=lambda i: "x.prt", GetStatus=lambda i: 7,
+        Dispose=lambda: None,
+    )  # fmt: skip
+    asm.ComponentAssembly.OpenComponents = lambda option, comps: (failing, None)
+    assert parts.load_components(nx.tx, asm) == 1  # the occurrence is loaded after all
+    blk.IsFullyLoaded = False
+    with pytest.raises(NXError) as caught:
+        parts.load_components(nx.tx, asm)
+    assert caught.value.code == "NX_IMPORT_FAILED"
+    assert caught.value.details["parts"] == [
+        {"component": "BLK", "file": "blk.prt", "nx_code": 7,
+         "reason": "NX could not load it (NX status 7)"}
+    ]  # fmt: skip
+    assert options.UsePartialLoading is True
+    assert options.ComponentLoadMethod == "search"  # the session's option is back
+
+
+def test_load_all_loads_as_saved_then_from_the_assembly_folder(nx, tmp_path):
+    asm, blk = nx.new_part("asm.prt"), nx.new_part("sub/blk.prt")
+    nx.attach(asm, blk)
+    blk.IsFullyLoaded = False
+    options = nx.session.Parts.LoadOptions
+    nx.nx.LoadOptions.LoadMethod.SearchDirectories = "dirs"
+    options.search = (["C:/elsewhere"], [False])
+    options.GetSearchDirectories = lambda: options.search
+    calls = []
+
+    def set_dirs(dirs, subs):
+        options.search = (dirs, subs)
+
+    def open_components(option, comps):
+        calls.append((options.ComponentLoadMethod, tuple(options.search[0])))
+        if options.ComponentLoadMethod == "dirs":
+            blk.IsFullyLoaded = True
+            return None, None
+        status = NS(NumberUnloadedParts=1, GetPartName=lambda i: "blk.prt",
+                    GetStatus=lambda i: 641044, Dispose=lambda: None)  # fmt: skip
+        return status, None
+
+    options.SetSearchDirectories = set_dirs
+    asm.ComponentAssembly.OpenComponents = open_components
+    count, missing = parts.load_all(nx.tx, asm)
+    assert count == 1 and missing == []
+    assert calls == [("as_saved", ("C:/elsewhere",)), ("dirs", (str(tmp_path),))]
+    assert options.ComponentLoadMethod == "search" and options.search[0] == ["C:/elsewhere"]
+    blk.IsFullyLoaded = False
+
+    def still_missing(option, comps):
+        status = NS(NumberUnloadedParts=1, GetPartName=lambda i: "C:/x/blk.prt",
+                    GetStatus=lambda i: 641044, Dispose=lambda: None)  # fmt: skip
+        return status, None
+
+    asm.ComponentAssembly.OpenComponents = still_missing
+    _count, missing = parts.load_all(nx.tx, asm)
+    assert missing == [{"component": "BLK", "file": "blk.prt", "nx_code": 641044,
+                        "reason": parts.LOAD_STATUS[641044]}]  # fmt: skip
+
+
+def test_outside_folder_note(nx, tmp_path):
+    asm = nx.new_part("asm.prt")
+    assert parts.outside_folder_note(asm, tmp_path / "blk.prt") is None
+    note = parts.outside_folder_note(asm, tmp_path / "sub" / "blk.prt")
+    assert note and "blk.prt is not in the assembly" in note
+
+
+def test_saving_displays_a_sheet_for_cgm_data_and_restores(nx):
+    other, part = nx.new_part("other.prt"), nx.new_part("dwg.prt")
+    nx.session.Parts.Work = nx.session.Parts.Display = other
+    sheet = NS(Tag=99, Name="SHT1", opened=0)
+
+    def open_sheet():
+        sheet.opened += 1
+        part.DrawingSheets.CurrentDrawingSheet = sheet
+
+    sheet.Open = open_sheet
+    exits = []
+    part.Drafting = NS(ExitDraftingApplication=lambda: exits.append(1))
+    part.DrawingSheets.append(sheet)
+    with parts.saving(nx.tx, part):  # no CGM data: nothing happens
+        assert sheet.opened == 0
+    part.SaveOptions.DrawingCgmData = True
+    part.ModelingViews = NS(WorkView=NS())
+
+    def exit_drafting():
+        exits.append(1)
+        part.DrawingSheets.CurrentDrawingSheet = None
+
+    part.Drafting = NS(ExitDraftingApplication=exit_drafting)
+    with parts.saving(nx.tx, part):
+        assert sheet.opened == 1 and nx.session.Parts.Display is part
+    assert exits == [1] and part.DrawingSheets.CurrentDrawingSheet is None
+    assert nx.session.Parts.Work is other and nx.session.Parts.Display is other
+
+
+def test_saving_puts_a_quiet_work_part_back_and_never_fails_after_the_save(nx):
+    """Shared session: the work part was outside the display part (set quietly), so NX
+    refuses SetWork after the save ("not a descendant of the root part")."""
+    other, work, part = nx.new_part("o.prt"), nx.new_part("w.prt"), nx.new_part("dwg.prt")
+    nx.session.Parts.Display, nx.session.Parts.Work = other, work
+    sheet = NS(Tag=98, Name="SHT1")
+    sheet.Open = lambda: setattr(part.DrawingSheets, "CurrentDrawingSheet", sheet)
+    part.DrawingSheets.append(sheet)
+    part.SaveOptions.DrawingCgmData = True
+    part.ModelingViews = NS(WorkView=NS())
+    part.Drafting = NS(
+        ExitDraftingApplication=lambda: setattr(part.DrawingSheets, "CurrentDrawingSheet", None)
+    )
+    quiet = []
+
+    def quietly(tag):
+        quiet.append(tag)
+        nx.session.Parts.Work = work
+
+    nx.uf.Assem = NS(SetWorkPartQuietly=quietly)
+    with parts.saving(nx.tx, part):
+        pass
+    assert quiet == [work.Tag] and nx.session.Parts.Display is other
+    notes = []
+    nx.tx.warn = lambda code, message: notes.append((code, message))
+    nx.session.Parts.Display, nx.session.Parts.Work = other, work
+    nx.uf.Assem = NS(SetWorkPartQuietly=lambda tag: (_ for _ in ()).throw(
+        RuntimeError("Part or occurrence is not a descendant of the root part")))  # fmt: skip
+    with parts.saving(nx.tx, part):
+        pass
+    assert notes and notes[0][0] == "NX_NOTE" and "was saved" in notes[0][1]
+
+
+def test_saving_refuses_an_active_sketch(nx):
+    part = nx.new_part("dwg.prt")
+    part.DrawingSheets.append(NS(Tag=5, Name="S", Open=lambda: None))
+    part.SaveOptions.DrawingCgmData = True
+    nx.session.ActiveSketch = object()
+    with pytest.raises(NXError) as caught, parts.saving(nx.tx, part):
+        pass
+    assert caught.value.code == "NX_SKETCH_ACTIVE"
+
+
+def test_work_without_display_only_inside_the_display_assembly(nx):
+    asm, blk, other = nx.new_part("asm.prt"), nx.new_part("blk.prt"), nx.new_part("other.prt")
+    nx.session.Parts.Display = nx.session.Parts.Work = asm
+    nx.attach(asm, blk)
+    assert parts.can_be_work(nx.tx, asm) and parts.can_be_work(nx.tx, blk)
+    assert not parts.can_be_work(nx.tx, other)
+    shown = parts.present(nx.tx, blk, display=False)  # a component: NX takes it as work
+    assert shown.work and not shown.active and nx.session.Parts.Work is blk
+    nx.session.Parts.SetWork(asm)
+    shown = parts.present(nx.tx, other, display=False)  # elsewhere: never refused
+    assert not shown.work and shown.kept is asm and nx.session.Parts.Work is asm
+    nx.session.Parts.Display = None
+    assert not parts.can_be_work(nx.tx, other)  # nothing displayed: NX refuses SetWork
+
+
+def test_without_cgm_turns_the_preview_off_for_the_save_and_restores_it(nx):
+    keeps, plain = nx.new_part("keeps.prt"), nx.new_part("plain.prt")
+    keeps.SaveOptions.DrawingCgmData = True
+    with parts.without_cgm([keeps, plain, NS()]) as changed:  # NS(): no SaveOptions
+        assert changed == [keeps.SaveOptions]
+        assert keeps.SaveOptions.DrawingCgmData is False
+        assert plain.SaveOptions.DrawingCgmData is False
+    assert keeps.SaveOptions.DrawingCgmData is True and plain.SaveOptions.DrawingCgmData is False
+    with pytest.raises(RuntimeError), parts.without_cgm([keeps]):
+        raise RuntimeError("NX refused")
+    assert keeps.SaveOptions.DrawingCgmData is True  # restored on failure too

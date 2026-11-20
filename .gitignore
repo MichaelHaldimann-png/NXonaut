@@ -13,7 +13,6 @@ venv/
 .mypy_cache/
 .pytest_cache/
 .pytest-tmp*/
-.nx-smoke-workspace/
 .ruff_cache/
 .ruff/
 *.egg-info
@@ -22,3 +21,13 @@ venv/
 .coverage
 coverage.xml
 htmlcov/
+/scratchpad/
+
+# Personal Claude Code settings
+.claude/settings.local.json
+
+# Scratch files NX writes to its working directory (dev_start_nx.py runs NX elsewhere)
+udf_database.txt
+dbc_udf_ascii.def
+BodyCompare_result.html
+/outputs/
