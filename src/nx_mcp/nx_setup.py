@@ -97,9 +97,9 @@ def prepare(workspace: Path) -> None:
             elif current and not ours:
                 logger.warning("UGII_USER_DIR is already %s: NX autostart left alone", current)
         default = Path.home() / "NX_MCP_WORKSPACE"
-        if workspace.resolve() != default.resolve() and _get_user_env("NX_MCP_WORKSPACE") != str(
-            workspace
-        ):
+        stored = _get_user_env("NX_MCP_WORKSPACE")
+        # Also repair a stale value (e.g. an unexpanded "${HOME}" an older build stored).
+        if stored != str(workspace) and (stored or workspace.resolve() != default.resolve()):
             _set_user_env("NX_MCP_WORKSPACE", str(workspace))
     except Exception as error:  # never stop the server for a convenience
         logger.warning("NX setup skipped: %s", error)

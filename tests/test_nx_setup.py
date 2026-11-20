@@ -26,3 +26,14 @@ def test_prepare_never_raises_on_an_unwritable_workspace(tmp_path):
     blocker = tmp_path / "file"
     blocker.write_text("x")
     nx_setup.prepare(blocker / "ws")  # mkdir fails: logged, not raised
+
+
+def test_prepare_repairs_a_stale_user_workspace_variable(tmp_path, monkeypatch):
+    env = {"NX_MCP_WORKSPACE": "${HOME}\\NX_MCP_WORKSPACE"}
+    monkeypatch.setattr(nx_setup.sys, "platform", "win32")
+    monkeypatch.setattr(nx_setup, "_get_user_env", env.get)
+    monkeypatch.setattr(nx_setup, "_set_user_env", env.__setitem__)
+    monkeypatch.setattr(nx_setup.Path, "home", classmethod(lambda cls: tmp_path))
+    workspace = tmp_path / "NX_MCP_WORKSPACE"
+    nx_setup.prepare(workspace)
+    assert env["NX_MCP_WORKSPACE"] == str(workspace)
