@@ -100,3 +100,13 @@ def test_no_drive_specific_workspace_defaults():
     for source in sources:
         text = source.read_text(encoding="utf-8")
         assert r"D:\CAD" not in text and r"D:\NX_MCP_WORKSPACE" not in text, source
+
+
+def test_default_workspace_expands_or_drops_host_placeholders(monkeypatch, tmp_path):
+    from nx_mcp.workspace import default_workspace
+
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.setenv("NX_MCP_WORKSPACE", "${HOME}/NX_MCP_WORKSPACE")
+    assert default_workspace() == tmp_path / "NX_MCP_WORKSPACE"
+    monkeypatch.setenv("NX_MCP_WORKSPACE", "${user_config.workspace}")
+    assert default_workspace() == tmp_path / "NX_MCP_WORKSPACE"
