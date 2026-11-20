@@ -612,24 +612,39 @@ def nx_create_revolve(
     targets = common.combine_targets(tx, combine)
     before = common.target_state(tx, targets)
     tags, known = common.body_tags(tx), kbodies.faulty(tx, targets)
-    try:
-        with builders.build(tx, tx.part.Features.CreateRevolveBuilder, None) as b:
-            b.Section = builders.section(tx, sk)
-            b.Axis = _axis(tx, axis, resolved)
-            expr.drive(b.Limits.StartExtend.Value, start_angle)
-            expr.drive(b.Limits.EndExtend.Value, end_angle)
-            if sheet:
-                style = tx.nx.GeometricUtilities.FeatureOptions.BodyStyle
-                b.FeatureOptions.BodyType = style.Sheet
-            builders.boolean(tx, b.BooleanOperation, combine)
-            feature = b.commit()
-    except NXError as error:
-        if error.nx_code != REVOLVE_REFUSED:
-            common.outside_hint(error, combine)
-            raise
-        if tilt > 1e-9:  # here the axis leaves the plane, not the profile
-            _tilted(False, error.nx_code, error.message)
-        _refused(error, combine, section, sheet)
+
+    def build(one):
+        try:
+            with builders.build(tx, tx.part.Features.CreateRevolveBuilder, None) as b:
+                b.Section = builders.section(tx, sk)
+                b.Axis = _axis(tx, axis, resolved)
+                expr.drive(b.Limits.StartExtend.Value, start_angle)
+                expr.drive(b.Limits.EndExtend.Value, end_angle)
+                if sheet:
+                    style = tx.nx.GeometricUtilities.FeatureOptions.BodyStyle
+                    b.FeatureOptions.BodyType = style.Sheet
+                builders.boolean(tx, b.BooleanOperation, one)
+                return b.commit()
+        except NXError as error:
+            if error.nx_code != REVOLVE_REFUSED:
+                common.outside_hint(error, one)
+                raise
+            if tilt > 1e-9:  # here the axis leaves the plane, not the profile
+                _tilted(False, error.nx_code, error.message)
+            _refused(error, one, section, sheet)
+
+    if combine is not None and len(targets) > 1:
+        # NX 2512: a revolve's boolean cuts its first target only (like a cylinder), so
+        # each target gets a revolve feature of its own.
+        made = []
+        for ref in combine["targets"]:
+            tx.checkpoint()
+            made.append(build({"operation": combine["operation"], "targets": [ref]}))
+        for extra in made[1:]:
+            common.report_alerts(tx, extra)
+        feature = made[0]
+    else:
+        feature = build(combine)
     common.sound(tx, common.feature_bodies(feature), known)
     if combine is not None:
         _open_note(tx, section, False)

@@ -33,6 +33,7 @@ class _Audit(TypedDict):
 
 class SaveAudit(_Audit, total=False):
     updated_views: list[result.Row]  # out-of-date drawing views updated before the save
+    now_modified: list[str]  # other parts NX marked modified by the save (files untouched)
 
 
 def fingerprint(path) -> dict:
@@ -64,11 +65,23 @@ def verify(
     """The audit of a save of part ``tag``; raises ``NX_VERIFICATION_FAILED``.
     ``others``: rows of the other parts that were modified before the save."""
     target = after.get(tag)
-    unexpected = [
-        files.relative(row["path"], root)
-        for other, row in before.items()
-        if other != tag and after.get(other) != row
-    ]
+    unexpected, flagged = [], []
+    for other, row in before.items():
+        now = after.get(other)
+        if other == tag or now == row:
+            continue
+        if (
+            now is not None
+            and now["path"] == row["path"]
+            and now["file"] == row["file"]
+            and now["modified"]
+            and not row["modified"]
+        ):
+            # Only the unsaved-changes flag moved (NX 2512: saving a component marks the
+            # assembly that shows it modified); no file changed.
+            flagged.append(files.relative(row["path"], root))
+        else:
+            unexpected.append(files.relative(row["path"], root))
     new_parts = [files.relative(row["path"], root) for t, row in after.items() if t not in before]
     saved = bool(
         target
@@ -88,6 +101,8 @@ def verify(
         "other_modified_count": len(others or []),
         "verified_parts": len(before),
     }
+    if flagged:
+        audit["now_modified"] = flagged
     if not saved or unexpected or new_parts:
         fail(
             "NX_VERIFICATION_FAILED",
@@ -166,6 +181,10 @@ def verified_save(tx, part) -> SaveAudit:
             save_error.details["audit"] = getattr(error, "details", {"error": str(error)})
         raise save_error
     audit = verify(before, snapshot(tx), tag, native_errors, tx.workspace.root, others)
+    if audit.get("now_modified"):
+        names = ", ".join(Path(p).name for p in audit["now_modified"][:3])
+        tx.warn("NX_NOTE", f"Saved. NX now marks {names} modified because it shows this part; "
+                "its file was not touched: save it too if it should keep the change")  # fmt: skip
     if updated:
         audit["updated_views"] = updated
         note_updated(tx, updated)

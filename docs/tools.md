@@ -753,14 +753,14 @@ Turn on true shading (a Studio look: one global material, floor shadow and refle
 
 **Set visibility** · effect `view` · NX 2406: tested; 58 checks in `acceptance/display/visibility_assembly.json`
 
-Show, hide or isolate bodies, components, sketches, curves, points and datums (not faces). objects, datums=true and types (every object of those kinds) combine. Component objects change in the assembly only (their part stays unmodified); scope=assembly adds every component's objects of those types. mode=show alone shows all hidden bodies and components. Isolate: objects only; hides all other bodies and components. Types with nothing to change are a no-op. Undo: nx_restore_display(restore_id).
+Show, hide or isolate bodies, components, sketches, curves, points, datums and constraint symbols (ac: refs; not faces). objects, datums=true and types (every object of those kinds) combine. Component objects change in the assembly only (their part stays unmodified); scope=assembly adds every component's objects of those types. mode=show alone shows all hidden bodies and components. Isolate: objects only; hides all other bodies and components. Undo: nx_restore_display(restore_id).
 
 | Argument | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `mode` | `show` \| `hide` \| `isolate` | required |  |
 | `objects` | array[1-1000] of Ref | optional |  |
 | `datums` | boolean | `false` |  |
-| `types` | array[1-5] of `body` \| `sketch` \| `curve` \| `point` \| `datum` | optional | Every object of these kinds |
+| `types` | array[1-5] of `body` \| `sketch` \| `curve` \| `point` \| `datum` \| `constraint` | optional | Every object of these kinds |
 | `scope` | `part` \| `assembly` | `"part"` | types/datums: assembly adds every component's objects, changed in the assembly |
 
 ### `nx_set_visual_material`

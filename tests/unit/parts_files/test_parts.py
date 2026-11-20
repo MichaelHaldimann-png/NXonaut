@@ -845,3 +845,22 @@ def test_create_part_says_the_file_is_not_written_yet(nx, root):
     ok = call(nx, tools.nx_create_part, path="np/later.prt", display=False)
     assert ok.ok and ok.data["saved"] is False and not (root / "np" / "later.prt").exists(), ok
     assert "missing .prt is added" in tools.nx_create_part.spec.description
+
+
+def test_saving_a_component_that_marks_its_assembly_modified_is_a_note(nx):
+    """NX 2512: saving a component marks the assembly showing it modified (its file
+    untouched); the save is verified, not partial."""
+    asm = nx.new_part("asm.prt")
+    asm.Save()
+    part = nx.new_part("shaft.prt")
+    real = type(part).Save
+
+    def save(self, *args):
+        asm.IsModified = True
+        return real(self, *args)
+
+    part.Save = save.__get__(part)
+    ok = call(nx, tools.nx_save_part, part=nx.ref_of(part, "part"))
+    assert ok.ok, ok
+    assert ok.data["saved_files"] == ["shaft.prt"] and ok.data["now_modified"] == ["asm.prt"]
+    assert any("asm.prt modified" in w["message"] for w in ok.warnings)

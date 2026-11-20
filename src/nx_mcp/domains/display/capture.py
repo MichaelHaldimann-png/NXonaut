@@ -6,7 +6,7 @@ turns into image content), so a capture to a path costs the agent no image token
 ``view_from`` (with ``up``) aims the camera for this capture only and fits by default;
 the camera is put back afterwards. A model-view fit frames the shown bodies, centred
 (``kit.display.fit``), not datums or the datum CSYS at the absolute origin. ``hide_sketches`` (default) blanks the shown
-finished sketches and datums for the capture under a scratch undo mark: NX 2406
+finished sketches, datums and assembly constraint symbols for the capture under a scratch undo mark: NX 2406
 measured, blanking marks the part modified and undoing to the mark restores both the
 blank state and the modified flag. Nothing is hidden while a sketch is active. The undo
 also clears the modified flag a studio style or lighting would leave (measured), so the
@@ -104,6 +104,7 @@ class CaptureData(TypedDict, total=False):
     camera: Camera
     hidden_sketches: int
     hidden_datums: int
+    hidden_constraints: int
     sheet: Row
 
 
@@ -393,8 +394,12 @@ def _render(tx, part, out, temp, *, on_sheet, fit, aim, quality, style, backdrop
     out["style"] = style if on_sheet else chosen or out["camera"].get("style") or style
     hide = display.capture_clutter(tx, part) if hide_sketches and not on_sheet else []
     sketches = {int(x.Tag) for x in getattr(part, "Sketches", []) or []}
+    symbols = {int(x.Tag) for x in display.constraint_symbols(part)} if hide else set()
     out["hidden_sketches"] = sum(1 for x in hide if int(x.Tag) in sketches)
-    out["hidden_datums"] = len(hide) - out["hidden_sketches"]
+    hidden_symbols = sum(1 for x in hide if int(x.Tag) in symbols)
+    out["hidden_datums"] = len(hide) - out["hidden_sketches"] - hidden_symbols
+    if hidden_symbols:
+        out["hidden_constraints"] = hidden_symbols
     with tx.scratch() if hide else contextlib.nullcontext():
         try:
             for obj in hide:

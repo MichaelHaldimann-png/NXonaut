@@ -14,7 +14,9 @@ NX 2406 findings encoded here:
   plane (shank end edge concentric with the hole's top edge, then head on the face)
   leaves the solver OverConstrained. For a bolt in a hole use align_lock (axes) + touch
   (head on the face): ``CONCENTRIC_HINT``.
-- Align is a Touch constraint with co-alignment (the classic mate "align").
+- Align is a Touch constraint with co-alignment (the classic mate "align"). On a
+  cylindrical or conical face it references the axis (``usesAxis``): on the faces
+  themselves NX 2512 made two cylinders of different radius tangent, not coaxial.
 - Align/Lock aligns two axes and locks the rotation about them: a cylindrical face
   gives its axis (``usesAxis``), an edge its own line or circle axis.
 - Fit takes two faces of equal radius; Bond welds the components (its references
@@ -478,12 +480,14 @@ def _concentric_edges(tx, refs, names):
 
 
 def _uses_axis(tx, type, obj) -> bool:
-    """Align/Lock takes the axis of any face; the center types that of a cylinder or cone."""
+    """Align/Lock takes the axis of any face; align and the center types that of a
+    cylinder or cone (align on the faces themselves made two cylinders of different
+    radius tangent, NX 2512)."""
     if tx.kind_of(obj) != "face":
         return False
     if type == "align_lock":
         return True
-    if type in ("center_1_2", "center_2_2"):
+    if type in ("align", "center_1_2", "center_2_2"):
         with contextlib.suppress(Exception):
             return select.face_data(tx, obj)[0] in (select.FACE_CYLINDER, select.FACE_CONE)
     return False

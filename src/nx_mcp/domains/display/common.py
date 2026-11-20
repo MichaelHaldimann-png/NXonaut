@@ -74,6 +74,9 @@ def _shown(tx, obj, kind, expand):
         return bodies.of(tx, obj)
     if kind == "sketch":
         return list(obj.GetAllGeometry())
+    if kind == "assembly_constraint":  # its symbol in the graphics window
+        shown = display.constraint_symbol(obj)
+        return [shown] if shown is not None else []
     return [obj]
 
 

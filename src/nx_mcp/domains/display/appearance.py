@@ -54,9 +54,18 @@ ColorText = Annotated[str, Text(48), Doc("'#RRGGBB' or a colour-table name ('Lig
 COLOR_ALIASES = {"grey": "gray", "silver": "gray", "purple": "magenta", "aqua": "cyan"}
 Percent = Annotated[int, Range(ge=0, le=100)] | Annotated[str, Text(8), Doc("'40%'")]
 # Kinds that can be blanked: faces and edges follow their body.
-VISIBLE_KINDS = ("body", "curve", "point", "sketch", "component", "feature", "datum")
+VISIBLE_KINDS = (
+    "body",
+    "curve",
+    "point",
+    "sketch",
+    "component",
+    "feature",
+    "datum",
+    "assembly_constraint",
+)
 # Kinds shown or hidden by type (``kit.display.of_kinds``).
-VisibleType = Literal["body", "sketch", "curve", "point", "datum"]
+VisibleType = Literal["body", "sketch", "curve", "point", "datum", "constraint"]
 
 
 class _Visibility(TypedDict):
@@ -69,6 +78,7 @@ class _Visibility(TypedDict):
 
 class VisibilityData(_Visibility, total=False):
     by_type: dict[str, int]
+    unchanged: int
     partial: list[str]
 
 
@@ -140,16 +150,17 @@ def nx_set_visibility(
         Doc("types/datums: assembly adds every component's objects, changed in the assembly"),
     ] = "part",
 ) -> VisibilityData:
-    """Show, hide or isolate bodies, components, sketches, curves, points and datums (not
-    faces). objects, datums=true and types (every object of those kinds) combine.
+    """Show, hide or isolate bodies, components, sketches, curves, points, datums and
+    constraint symbols (ac: refs; not faces). objects, datums=true and types (every object of those kinds) combine.
     Component objects change in the assembly only (their part stays unmodified);
     scope=assembly adds every component's objects of those types. mode=show alone shows
     all hidden bodies and components. Isolate: objects only; hides all other bodies and
-    components. Types with nothing to change are a no-op. Undo: nx_restore_display(restore_id)."""
+    components. Undo: nx_restore_display(restore_id)."""
     kinds = list(dict.fromkeys([*(types or []), *(["datum"] if datums else [])]))
     _check_visibility(mode, objects, kinds, scope)
     partial: list[str] = []
     by_type: dict[str, int] = {}
+    typed: set[int] = set()  # tags found by type, not named in objects
     with tx.checks():
         part = display.shown_part(tx, work=True)
         values: list = [] if objects is None else _objects(tx, part, objects, mode)
@@ -159,6 +170,8 @@ def nx_set_visibility(
                 shown, partial = display.component_kinds(tx, part, kinds)
                 found = {k: found[k] + shown[k] for k in kinds}
             by_type = {k: len(found[k]) for k in kinds}
+            named = {int(o.Tag) for o in values}
+            typed = {int(o.Tag) for k in kinds for o in found[k]} - named
             values += [o for k in kinds for o in found[k]]
             if not values:  # hiding every sketch of a part that has none: nothing to do
                 tx.warn("NX_NOTE", "The part has no " + ", ".join(plural(k) for k in kinds)
@@ -179,8 +192,14 @@ def nx_set_visibility(
     for obj in values:
         tx.checkpoint()
         (obj.Blank if int(obj.Tag) in hide else obj.Unblank)()
+    kept: list = []  # found by type, but NX keeps their state (they follow their owner)
     for obj in values:
-        readback.expect(bool(obj.IsBlanked) == (int(obj.Tag) in hide), "blanked", tag=int(obj.Tag))
+        if bool(obj.IsBlanked) == (int(obj.Tag) in hide):
+            continue
+        if int(obj.Tag) in typed:
+            kept.append(obj)
+            continue
+        readback.expect(False, "blanked", tag=int(obj.Tag))
     changed = [o for o in values if before[int(o.Tag)] != bool(o.IsBlanked)]
     pairs = tx.services.display_records(values, False)
     rows = display_rows(tx, pairs)
@@ -193,6 +212,11 @@ def nx_set_visibility(
     }
     if kinds:
         out["by_type"] = by_type
+    if kept:
+        out["unchanged"] = len(kept)
+        tx.warn("NX_NOTE", f"NX kept the state of {counted(len(kept), 'object')} found by type "
+                "(sketch curves and points, datum members: they follow their sketch, datum "
+                "or component); hide or show their owner instead")  # fmt: skip
     if partial:
         out["partial"] = partial
         tx.warn("NX_NOTE", f"{counted(len(partial), 'component')} not fully loaded, only their "
@@ -220,7 +244,7 @@ def _check_visibility(mode, objects, kinds, scope) -> None:
 def _objects(tx, part, refs, mode) -> list:
     """The objects ``refs`` show, checked; prototype objects of a component part of
     ``part`` become their occurrences in ``part`` (``display.in_assembly``)."""
-    values = targets(tx, refs, expand=mode == "isolate")
+    values = targets(tx, refs, expand=mode == "isolate", kinds=VISIBLE_KINDS)
     found = {kind_of(tx, v) for v in values}
     if found & {"face", "edge"}:
         fail(
