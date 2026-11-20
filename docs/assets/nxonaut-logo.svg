@@ -1,11 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="NXonaut logo">
   <rect width="256" height="256" rx="48" fill="#0b1020"/>
-  <g transform="translate(128 132)" fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <ellipse rx="100" ry="30" stroke="#5b6b9a" stroke-width="2" transform="rotate(-14)" stroke-dasharray="4 8"/>
-    <g stroke="#9fb4ff" stroke-width="5">
-      <path d="M-46 -21 L0 -46 L46 -21 L46 30 L0 55 L-46 30 Z"/>
-      <path d="M-46 -21 L0 4 L46 -21 M0 4 L0 55"/>
+  <g fill="#e6ecff"><circle cx="40" cy="50" r="2" opacity=".7"/><circle cx="210" cy="40" r="1.6" opacity=".6"/><circle cx="220" cy="200" r="2" opacity=".6"/><circle cx="36" cy="210" r="1.5" opacity=".5"/></g>
+  <g transform="translate(128 132)">
+    <ellipse rx="104" ry="32" fill="none" stroke="#5b6b9a" stroke-width="2" transform="rotate(-14)" stroke-dasharray="4 8"/>
+    <circle cx="94" cy="-34" r="7" fill="#ffd27a"/>
+    <g transform="translate(-6 -6) rotate(-12) scale(1.15)">
+<g id="astronaut" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <!-- backpack -->
+  <rect x="-30" y="-6" width="60" height="52" rx="12" fill="#c9d3ef" stroke="#2a3557" stroke-width="3"/>
+  <!-- body -->
+  <rect x="-24" y="2" width="48" height="50" rx="16" fill="#eef2ff" stroke="#2a3557" stroke-width="3"/>
+  <!-- chest panel -->
+  <rect x="-11" y="16" width="22" height="13" rx="3" fill="#9fb4ff" stroke="#2a3557" stroke-width="2"/>
+  <!-- legs -->
+  <path d="M-13 50 L-16 72 M13 50 L18 70" stroke="#2a3557" stroke-width="16"/>
+  <path d="M-13 50 L-16 72 M13 50 L18 70" stroke="#eef2ff" stroke-width="10"/>
+  <!-- left arm waving -->
+  <path d="M-22 12 L-40 -6" stroke="#2a3557" stroke-width="15"/>
+  <path d="M-22 12 L-40 -6" stroke="#eef2ff" stroke-width="9"/>
+  <!-- right arm holding cube -->
+  <path d="M22 14 L42 26" stroke="#2a3557" stroke-width="15"/>
+  <path d="M22 14 L42 26" stroke="#eef2ff" stroke-width="9"/>
+  <!-- helmet -->
+  <circle cx="0" cy="-22" r="27" fill="#eef2ff" stroke="#2a3557" stroke-width="3"/>
+  <rect x="-18" y="-35" width="36" height="25" rx="12" fill="#1b2546" stroke="#2a3557" stroke-width="2.5"/>
+  <path d="M-10 -29 Q-4 -33 4 -31" stroke="#9fb4ff" stroke-width="2.5"/>
+  <!-- cube in hand -->
+  <g transform="translate(58 30) scale(0.42)" stroke="#9fb4ff" stroke-width="6">
+    <path d="M-40 -18 L0 -40 L40 -18 L40 26 L0 48 L-40 26 Z" fill="#0b1020"/>
+    <path d="M-40 -18 L0 4 L40 -18 M0 4 L0 48"/>
+  </g>
+</g>
     </g>
-    <circle cx="90" cy="-32" r="8" fill="#ffd27a"/>
   </g>
 </svg>
