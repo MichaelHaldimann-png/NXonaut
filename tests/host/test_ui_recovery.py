@@ -979,3 +979,15 @@ def test_an_untested_build_says_so_on_the_panel(host, monkeypatch):
     assert host.panel_state()[1] == "NX MCP — Auto · untested NX build"
     evidence.set_self_test({"state": "failed", "reason": "the undo failed"})
     assert host.untested_line().endswith("the agent may only read")
+
+
+def test_header_status_pill_follows_the_host():
+    host = NS(running_method=None, blocked_by=None, waiting_count=0, busy_wait=None)
+    assert interactive.panel_phase(host) == ("Ready", "ready")
+    host.running_method = "nx_create_block"
+    assert interactive.panel_phase(host) == ("Working", "working")
+    host.blocked_by = object()
+    assert interactive.panel_phase(host) == ("NX dialog open", "alert")
+    host.running_method, host.waiting_count = None, 1
+    assert interactive.panel_phase(host) == ("Waiting for you", "waiting")
+    assert interactive._rgb("#0B1530") == 0x30150B  # COLORREF is 0x00BBGGRR
