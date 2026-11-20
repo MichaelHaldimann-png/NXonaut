@@ -76,6 +76,9 @@ HOLD_SECONDS = 60
 # Auto: a step waits at most this long while the engineer is busy in NX. The
 # bridge (QUEUE_TIMEOUT) waits longer, so this answer always arrives first.
 BUSY_WAIT_SECONDS = 120
+# After a heavy changing step (a large drawing view, an export), NX gets this long to
+# finish its own follow-up work (view updates, repaints) before the next changing step.
+HEAVY_PAUSE_SECONDS = 1.5
 PAD_RIGHT = 16  # Panel margin right of the text and Stop bridge, in pixels.
 HEADER = 56  # Height of the painted NXonaut header band above the controls.
 MIN_WINDOW = (560, 300 + HEADER)  # Opening and smallest panel window size.
@@ -109,6 +112,22 @@ def _read_only(method):
     from nx_mcp.host.dispatch import is_read_only
 
     return is_read_only(method)
+
+
+def _caller_of(pending):
+    """The client a queued call came from (the sidecar's ``caller`` id), else None."""
+    params = getattr(pending, "params", None)
+    caller = params.get("caller") if isinstance(params, dict) else None
+    if isinstance(caller, dict):
+        caller = caller.get("id")
+    return caller if isinstance(caller, str) and caller else None
+
+
+def _heavy_change(method):
+    """A changing catalogue step of cost ``heavy``."""
+    from nx_mcp.host.dispatch import cost_of
+
+    return not _read_only(method) and cost_of(method) == "heavy"
 
 
 def _model_unchanged(method, result=None):
@@ -868,6 +887,7 @@ class InteractiveHost:
     mode = "auto"
     requested_mode = None
     panel_rows = PANEL_ROWS
+    _heavy_until = 0.0  # monotonic: no changing step before this (HEAVY_PAUSE_SECONDS)
     answer_requested = None
     # The request card: calls waiting for the engineer's answer.
     card = ()
@@ -2151,16 +2171,39 @@ class InteractiveHost:
                 return self._run_light(read, take=not self.engineer_busy())
         # Calls run in order, except that a call needing no answer (approved on the
         # card) never waits behind one that does.
-        first = next(
-            (p for p in held if not self._needs_answer(p) and not p.complete.is_set()), None
-        )
+        ready = [p for p in held if not self._needs_answer(p) and not p.complete.is_set()]
+        first = self._fair_next(ready)
         if first is None:
             self.busy_wait = None
             return False
+        if not _read_only(first.method) and now < self._heavy_until:
+            return False  # NX finishes a heavy step's follow-up work first (next tick)
         if not _read_only(first.method) and self.engineer_busy():
             return self._wait_for_engineer([first])
         self.busy_wait = None
         return self._run_light(first)
+
+    def _ran_by(self):
+        """Monotonic time each client's last call started (``_fair_next``)."""
+        ran = getattr(self, "_last_ran_by", None)
+        if ran is None:
+            ran = self._last_ran_by = {}
+        return ran
+
+    def _fair_next(self, ready):
+        """The next call to run: in order, but taking turns between clients.
+
+        Several Claude clients can drive one NX at once. Each client's calls keep their
+        order; between clients, the one that ran least recently goes first, so one busy
+        client cannot starve the others.
+        """
+        if not ready:
+            return None
+        callers = {_caller_of(p) for p in ready}
+        if len(callers) < 2:
+            return ready[0]
+        last = self._ran_by()
+        return min(ready, key=lambda p: (last.get(_caller_of(p), 0.0), ready.index(p)))
 
     def _open_dialog_error(self, *, alerts_only=False):
         """NX_MODAL_DIALOG_OPEN (``not_started``) for the first modal dialog NX shows now
@@ -2254,7 +2297,10 @@ class InteractiveHost:
         try:
             took = take and self._take_light()
             self._light = True
+            self._ran_by()[_caller_of(pending)] = time.monotonic()
             ran = bool(self.dispatcher.drain_where(lambda p: p is pending))
+            if ran and _heavy_change(pending.method):
+                self._heavy_until = time.monotonic() + HEAVY_PAUSE_SECONDS
             self._log_skipped(pending)  # the bridge found its client gone at the start
             return ran
         finally:
