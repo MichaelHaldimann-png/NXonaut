@@ -122,8 +122,13 @@ def main():
             "platform": "win_amd64",
             # NX builds the acceptance evidence covers; README.md has the support policy.
             "nx_tested_builds": tested_builds(source / "src" / "nx_mcp" / "evidence"),
-            "repository": "https://github.com/skyf0l/siemens-nx-mcp",
-            "based_on": ["https://github.com/DreamEnding/NX_MCP", "https://github.com/xuio/NX_MCP"],
+            "repository": "https://github.com/MichaelHaldimann-png/NXonaut",
+            "based_on": [
+                "https://github.com/skyf0l/siemens-nx-mcp",
+                "https://github.com/DreamEnding/NX_MCP",
+                "https://github.com/xuio/NX_MCP",
+                "https://github.com/LT60/nx-agent",
+            ],
         }
         (bundle / "release.json").write_text(json.dumps(metadata, indent=2) + "\n")
         files = {

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nx-mcp"
 dynamic = ["version"]
-description = "MCP server for Siemens NX (UG) CAD operations"
+description = "NXonaut: community MCP server for Siemens NX (not affiliated with Siemens)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/skyf0l/siemens-nx-mcp"
+Repository = "https://github.com/MichaelHaldimann-png/NXonaut"
 
 [project.optional-dependencies]
 dev = [

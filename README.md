@@ -1,15 +1,29 @@
-# NX MCP Server
+<p align="center">
+  <img src="docs/assets/nxonaut-hero.svg" width="900" alt="NXonaut: AI agents model, inspect and export in Siemens NX" />
+</p>
 
-Let an AI assistant (Claude Code, Codex or any MCP client) model, inspect and draw in
-Siemens NX on Windows: parts, sketches, curves, features, synchronous edits and body
-repair, freeform surfaces, sheet metal, assemblies (arrangements, clearance sets,
-weight and centre of gravity), motion, topology optimization and strength checks,
-measurements and surface analysis, drawings, part families, Knowledge Fusion rules,
-render materials and decals, and exports (STEP, PDF, DXF/DWG and more). You keep
-working in NX while the agent works next to you.
+# NXonaut
+
+Community MCP server for Siemens NX: let an AI assistant (Claude Code, Codex or any MCP
+client) model, inspect and draw in NX on Windows: parts, sketches, curves, features,
+synchronous edits and body repair, freeform surfaces, sheet metal, assemblies
+(arrangements, clearance sets, weight and centre of gravity), motion, topology
+optimization and strength checks, measurements and surface analysis, drawings, part
+families, Knowledge Fusion rules, render materials and decals, and exports (STEP, PDF,
+DXF/DWG and more). You keep working in NX while the agent works next to you.
+
+> NXonaut is a community project. It is **not affiliated with or endorsed by Siemens**
+> and contains no Siemens software; Siemens, NX and NXOpen are trademarks of Siemens.
+> You need your own licensed NX installation.
+
+NXonaut builds on [skyf0l/siemens-nx-mcp](https://github.com/skyf0l/siemens-nx-mcp),
+which grew out of [DreamEnding/NX_MCP](https://github.com/DreamEnding/NX_MCP), and adds
+file snapshots with rollback from [LT60/nx-agent](https://github.com/LT60/nx-agent).
+See [Credits](#credits). The Python package and program keep the upstream name
+`nx-mcp` so that upstream changes can still be merged.
 
 Tested on NX 2406; NX 2412 to 2606 are expected to work (see
-[Supported NX versions](#supported-nx-versions)). The full list of tools (269) is in
+[Supported NX versions](#supported-nx-versions)). The full list of tools is in
 [docs/tools.md](docs/tools.md).
 
 ## 1. Install
@@ -17,8 +31,8 @@ Tested on NX 2406; NX 2412 to 2606 are expected to work (see
 You need Git and Python 3.10 or newer. In a terminal:
 
 ```powershell
-git clone https://github.com/skyf0l/siemens-nx-mcp.git
-cd siemens-nx-mcp
+git clone https://github.com/MichaelHaldimann-png/NXonaut.git
+cd NXonaut
 python -m venv .venv
 .venv\Scripts\pip install -e .
 ```
@@ -36,7 +50,7 @@ time you start NX. Playing it again never starts a second add-on in the same NX.
 Optional, to start it automatically with NX: run this once, then restart NX.
 
 ```powershell
-setx UGII_USER_DIR "C:\path\to\siemens-nx-mcp\nx_app"
+setx UGII_USER_DIR "C:\path\to\NXonaut\nx_app"
 ```
 
 If you already use `UGII_USER_DIR`, add the `nx_app` folder to `custom_dirs.dat` instead.
@@ -46,20 +60,20 @@ If you already use `UGII_USER_DIR`, add the `nx_app` folder to `custom_dirs.dat`
 **Claude Code:**
 
 ```powershell
-claude mcp add nx --scope user -- "C:\path\to\siemens-nx-mcp\.venv\Scripts\nx-mcp.exe"
+claude mcp add nx --scope user -- "C:\path\to\NXonaut\.venv\Scripts\nx-mcp.exe"
 ```
 
 **Codex:**
 
 ```powershell
-codex mcp add nx -- "C:\path\to\siemens-nx-mcp\.venv\Scripts\nx-mcp.exe"
+codex mcp add nx -- "C:\path\to\NXonaut\.venv\Scripts\nx-mcp.exe"
 ```
 
 or add to `%USERPROFILE%\.codex\config.toml`:
 
 ```toml
 [mcp_servers.nx]
-command = 'C:\path\to\siemens-nx-mcp\.venv\Scripts\nx-mcp.exe'
+command = 'C:\path\to\NXonaut\.venv\Scripts\nx-mcp.exe'
 tool_timeout_sec = 300
 ```
 
@@ -178,8 +192,36 @@ product in one NX: [docs/guides/multi-agent-builds.md](docs/guides/multi-agent-b
 .venv\Scripts\python -m mypy src/nx_mcp
 ```
 
-## License and credits
+## Snapshots and STEP checks
 
-MIT. Based on [DreamEnding/NX_MCP](https://github.com/DreamEnding/NX_MCP) and its fork
-[xuio/NX_MCP](https://github.com/xuio/NX_MCP); now an independent project, with
-their commits kept in its history.
+- **File snapshots** (`nx_create_snapshot`, `nx_list_snapshots`, `nx_restore_snapshot`):
+  before a risky change the agent copies a saved part file into
+  `<workspace>\.nx-mcp\file-snapshots\` and can restore it later. A restore writes a
+  new file by default; replacing the original works only for files NX MCP created and
+  that are not loaded in NX, and it snapshots the current file first. Like every new
+  tool they stay hidden until the acceptance scenario
+  `acceptance/parts_files/file_snapshots.json` has passed on your NX
+  (`python -m nx_mcp.acceptance verify parts_files`).
+- **STEP check outside NX**: `scripts/validate_step.py <file.step> --dims X Y Z
+  --volume V` reads an exported STEP with OpenCASCADE and checks that it holds valid
+  closed solids of the expected size. It runs in its own Python environment (see the
+  script's header).
+
+## Credits
+
+NXonaut stands on the work of these MIT-licensed projects. Their licence texts are in
+[licenses/](licenses/), and their commits are kept in this repository's history.
+
+| Project | Author | What NXonaut takes from it |
+| --- | --- | --- |
+| [skyf0l/siemens-nx-mcp](https://github.com/skyf0l/siemens-nx-mcp) | skyf0l and the NX MCP contributors | The base: the server, the in-NX host and panel, all catalogue tools, tests and acceptance scenarios |
+| [DreamEnding/NX_MCP](https://github.com/DreamEnding/NX_MCP) | DreamEnding and the NX MCP contributors | The original NX MCP that skyf0l built on; the independent STEP check (`scripts/validate_step.py`) |
+| [xuio/NX_MCP](https://github.com/xuio/NX_MCP) | xuio | Fork of DreamEnding/NX_MCP that skyf0l also built on |
+| [LT60/nx-agent](https://github.com/LT60/nx-agent) | Liu Tang | The idea and design of `.prt` snapshots and rollback (`nx_create_snapshot`, `nx_restore_snapshot`) |
+
+Thank you to all of them.
+
+## License
+
+MIT, see [LICENSE](LICENSE). The original copyright notices are kept there and in
+[licenses/](licenses/).
