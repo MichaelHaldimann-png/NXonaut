@@ -656,7 +656,15 @@ class ControlPanel:
             gdi.TextOutW(dc, 66, 8, "NXonaut", 7)
             gdi.SelectObject(dc, font(12, 400))
             gdi.SetTextColor(dc, THEME["muted"])
-            sub = "AI agent for Siemens NX" + (" · DEV" if getattr(self.host, "dev", False) else "")
+            sub = "AI agent for Siemens NX"
+            try:
+                from nx_mcp.updates import installed_version
+
+                version = installed_version()
+                sub += f" · v{version}" if version else ""
+            except Exception:
+                pass
+            sub += " · DEV" if getattr(self.host, "dev", False) else ""
             gdi.TextOutW(dc, 67, 33, sub, len(sub))
             # The status pill at the right: a coloured dot and the phase.
             text, colour = panel_phase(self.host)
@@ -1433,7 +1441,20 @@ class InteractiveHost:
             idle = "·  Auto — you work in NX, agent steps run between your commands"
         untested = self.untested_line()
         lines = [_clip(untested, LINE_WIDTH)] if untested else []
+        update = self.update_line()
+        if update:
+            lines.append(_clip(update, LINE_WIDTH))
         return self._with_history([*lines, self._notice_line() or idle])
+
+    def update_line(self) -> str | None:
+        """The panel's line on a newer NXonaut release (``updates.notice``), else None."""
+        try:
+            from nx_mcp import updates
+
+            root = getattr(self, "root", None)
+            return updates.notice(Path(root)) if root else None
+        except Exception:
+            return None
 
     def untested_line(self) -> str | None:
         """The panel's line on an NX build NX MCP has no acceptance evidence for, else
