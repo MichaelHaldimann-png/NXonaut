@@ -1,0 +1,18 @@
+{
+  "name": "nxonaut",
+  "owner": {
+    "name": "Michael Haldimann",
+    "url": "https://github.com/MichaelHaldimann-png"
+  },
+  "metadata": {
+    "description": "NXonaut: community MCP server for Siemens NX (not affiliated with Siemens)."
+  },
+  "plugins": [
+    {
+      "name": "nxonaut",
+      "source": "./",
+      "description": "Let Claude model, inspect and export in Siemens NX: parts, sketches, assemblies with constraints, drawings and STEP export.",
+      "category": "productivity"
+    }
+  ]
+}

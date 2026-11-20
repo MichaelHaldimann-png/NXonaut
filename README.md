@@ -33,9 +33,40 @@ Tested on NX 2406; NX 2412 to 2606 are expected to work (see
 [Supported NX versions](#supported-nx-versions)). The full list of tools is in
 [docs/tools.md](docs/tools.md).
 
-## 1. Install
+## Install
 
-You need Git and Python 3.10 or newer. In a terminal:
+### Claude Desktop (easiest)
+
+1. Download `nxonaut-<version>.mcpb` from the
+   [latest release](https://github.com/MichaelHaldimann-png/NXonaut/releases/latest).
+2. Double-click it (or drag it into Claude Desktop, *Settings > Extensions*) and click
+   **Install**. Claude Desktop sets up Python and everything else by itself.
+3. Restart NX. With **Start with NX** on (the default), NX starts NXonaut by itself and
+   a small **NX MCP** panel appears. If you already use `UGII_USER_DIR`, press
+   **Alt+F8** in NX instead and play `Start NXonaut.py` from your workspace folder
+   (`C:\Users\<you>\NX_MCP_WORKSPACE`).
+
+Then ask Claude, for example: *"Create a 100 x 60 x 10 mm plate with four 6.6 mm holes
+10 mm from the edges, and show me a picture."*
+
+### Claude Code (plugin)
+
+Needs [uv](https://docs.astral.sh/uv/) (`winget install astral-sh.uv`). In Claude Code:
+
+```text
+/plugin install nxonaut --marketplace MichaelHaldimann-png/nxonaut
+```
+
+On older Claude Code versions: `/plugin marketplace add MichaelHaldimann-png/NXonaut`,
+then `/plugin install nxonaut@nxonaut`. In NX, press **Alt+F8** and play
+`Start NXonaut.py` from your workspace folder (written when the server first starts).
+Some NX calls take a minute or more: set the `MCP_TOOL_TIMEOUT` environment variable to
+`300000` if Claude Code gives up too early.
+
+<details>
+<summary>Manual install (other MCP clients, development)</summary>
+
+You need Git and Python 3.10 or newer:
 
 ```powershell
 git clone https://github.com/MichaelHaldimann-png/NXonaut.git
@@ -44,53 +75,23 @@ python -m venv .venv
 .venv\Scripts\pip install -e .
 ```
 
-This creates `.venv\Scripts\nx-mcp.exe`, the program your AI client starts.
+Point your MCP client at `.venv\Scripts\nx-mcp.exe`, for example in Codex:
+`codex mcp add nx -- "C:\path\to\NXonaut\.venv\Scripts\nx-mcp.exe"`, or in
+`claude_desktop_config.json`:
 
-## 2. Start NX with the MCP add-on
-
-Start NX, press **Alt+F8** (Play Journal) and run `nx_app\journals\start.py` from
-this folder, whatever your NX release (`start_2406.py` and `start_2606.py` do the
-same). It lists the NX build, its Python version and any NXOpen part it cannot load,
-then a small **NX MCP** panel opens: the add-on runs until you close NX. Do this each
-time you start NX. Playing it again never starts a second add-on in the same NX.
-
-Optional, to start it automatically with NX: run this once, then restart NX.
-
-```powershell
-setx UGII_USER_DIR "C:\path\to\NXonaut\nx_app"
+```json
+{
+  "mcpServers": {
+    "nx": { "command": "C:\\path\\to\\NXonaut\\.venv\\Scripts\\nx-mcp.exe" }
+  }
+}
 ```
 
-If you already use `UGII_USER_DIR`, add the `nx_app` folder to `custom_dirs.dat` instead.
+In NX, play `nx_app\journals\start.py` with **Alt+F8**, or let NX start it by itself:
+`setx UGII_USER_DIR "C:\path\to\NXonaut\nx_app"` (if you already use
+`UGII_USER_DIR`, add the `nx_app` folder to `custom_dirs.dat` instead).
 
-## 3. Connect your AI client
-
-**Claude Code:**
-
-```powershell
-claude mcp add nx --scope user -- "C:\path\to\NXonaut\.venv\Scripts\nx-mcp.exe"
-```
-
-**Codex:**
-
-```powershell
-codex mcp add nx -- "C:\path\to\NXonaut\.venv\Scripts\nx-mcp.exe"
-```
-
-or add to `%USERPROFILE%\.codex\config.toml`:
-
-```toml
-[mcp_servers.nx]
-command = 'C:\path\to\NXonaut\.venv\Scripts\nx-mcp.exe'
-tool_timeout_sec = 300
-```
-
-Then ask your assistant, for example: *"Create a 100 x 60 x 10 mm plate with four
-6.6 mm holes 10 mm from the edges, and show me a picture."* In Claude Code, `/mcp`
-shows whether **nx** is connected.
-
-Some NX calls (exports, imports) take a minute or more. If your client gives up too
-early, raise its tool timeout: `tool_timeout_sec` in Codex, the `MCP_TOOL_TIMEOUT`
-environment variable (milliseconds, e.g. `300000`) for Claude Code.
+</details>
 
 ## Working together in NX
 
@@ -163,14 +164,14 @@ summary. Those files hold only pass/fail, check counts, error codes and numbers.
 
 | Problem | Fix |
 | --- | --- |
-| The agent says NX is not running | Start NX (step 2) and check that the NX MCP panel is open. NX takes a while to start; the panel appears once NX's main window is up |
+| The agent says NX is not running | Start NX (see [Install](#install)) and check that the NX MCP panel is open. NX takes a while to start; the panel appears once NX's main window is up |
 | The agent says NX is blocked by a dialog | Answer the dialog in NX; the agent never clicks NX dialogs. A dialog an agent step opened that stays unanswered for 20 s is flagged on the panel, and NX's taskbar button flashes |
 | The agent says NX is busy (`NX_BUSY`) | Another step still runs in NX and nothing new was started; the agent waits and retries. A long step (a large export, a check on a very large body) can hold NX for minutes |
 | The agent says you are busy in NX (`NX_UI_BUSY`) | Finish or cancel your NX command, then let the agent retry |
 | The agent says a part is yours (`NX_PART_NOT_GRANTED`) | Tick **Allow agent to change <part>** on the panel if you want it to |
 | The agent says a licence is missing (`NX_LICENSE_UNAVAILABLE`) | Some tools need extra NX licences. NX MCP lets NX decide: when NX refuses, nothing is changed, the error names the licence feature the command needs (`details.license`) so you know which one to ask for, and the agent stops offering that tool for 15 minutes, then asks NX again. Only the few commands where NX would otherwise block on its "License Not Available" dialog (switching applications, Topology Optimization, variational sweep) are checked first |
-| No NX MCP panel | Play the journal again (step 2); with the optional auto-start, check `UGII_USER_DIR` and restart NX |
-| **nx** is not connected in the client | Check the path to `nx-mcp.exe` and that step 1 finished |
+| No NX MCP panel | Play `Start NXonaut.py` again (see [Install](#install)); with the optional auto-start, check `UGII_USER_DIR` and restart NX |
+| **nx** is not connected in the client | Check that the extension or plugin is installed and enabled, or the path to `nx-mcp.exe` |
 
 ## Settings (optional)
 
