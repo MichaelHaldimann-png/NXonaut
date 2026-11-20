@@ -28,8 +28,9 @@ then `/plugin install nxonaut@nxonaut`. In NX, press **Alt+F8** and play
 Some NX calls take a minute or more: set the `MCP_TOOL_TIMEOUT` environment variable to
 `300000` if Claude Code gives up too early.
 
-<details>
-<summary>Manual install (other MCP clients, development)</summary>
+## Manual install
+
+For other MCP clients (Codex, Cursor and others) and for development.
 
 You need Git and Python 3.10 or newer:
 
@@ -56,4 +57,3 @@ In NX, play `nx_app\journals\start.py` with **Alt+F8**, or let NX start it by it
 `setx UGII_USER_DIR "C:\path\to\NXonaut\nx_app"` (if you already use
 `UGII_USER_DIR`, add the `nx_app` folder to `custom_dirs.dat` instead).
 
-</details>
