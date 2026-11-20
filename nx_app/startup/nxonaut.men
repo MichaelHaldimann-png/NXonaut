@@ -1,5 +1,4 @@
 ! NXonaut menu: Start NXonaut under its own NXonaut menu (menuscript).
-! Staged here, not loaded yet: copy to nx_app/startup once it is checked on live NX.
 VERSION 120
 EDIT UG_GATEWAY_MAIN_MENUBAR
 
