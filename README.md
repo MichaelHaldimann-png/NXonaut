@@ -4,243 +4,42 @@
 
 # NXonaut
 
-Community MCP server for Siemens NX: let an AI assistant (Claude Code, Codex or any MCP
-client) model, inspect and draw in NX on Windows: parts, sketches, curves, features,
-synchronous edits and body repair, freeform surfaces, sheet metal, assemblies
-(arrangements, clearance sets, weight and centre of gravity), motion, topology
-optimization and strength checks, measurements and surface analysis, drawings, part
-families, Knowledge Fusion rules, render materials and decals, and exports (STEP, PDF,
-DXF/DWG and more). You keep working in NX while the agent works next to you.
+Let Claude work next to you in **Siemens NX**: parts, sketches, assemblies with
+constraints, measurements, drawings and STEP export.
 
-> NXonaut is a community project. It is **not affiliated with or endorsed by Siemens**
-> and contains no Siemens software; Siemens, NX and NXOpen are trademarks of Siemens.
-> You need your own licensed NX installation.
-
-NXonaut builds on [skyf0l/siemens-nx-mcp](https://github.com/skyf0l/siemens-nx-mcp),
-which grew out of [DreamEnding/NX_MCP](https://github.com/DreamEnding/NX_MCP), and adds
-file snapshots with rollback from [LT60/nx-agent](https://github.com/LT60/nx-agent).
-See [Credits](#credits).
-
-**A weekly updated version, based on the different NX MCP projects where the licence
-allows it.** Once a week, new open-source NX MCP work on GitHub is reviewed; what is
-useful and under a compatible licence (MIT, BSD, Apache 2.0) is merged in, with its
-licence kept in [licenses/](licenses/) and its authors added to the credits.
-
-The Python package and program keep the upstream name
-`nx-mcp` so that upstream changes can still be merged.
-
-Tested on NX 2406; NX 2412 to 2606 are expected to work (see
-[Supported NX versions](#supported-nx-versions)). The full list of tools is in
-[docs/tools.md](docs/tools.md).
+**Documentation: [michaelhaldimann-png.github.io/NXonaut](https://michaelhaldimann-png.github.io/NXonaut/)**
 
 ## Install
 
-### Claude Desktop (easiest)
+**Claude Desktop:** download `nxonaut-<version>.mcpb` from the
+[latest release](https://github.com/MichaelHaldimann-png/NXonaut/releases/latest),
+double-click it and click **Install**.
 
-1. Download `nxonaut-<version>.mcpb` from the
-   [latest release](https://github.com/MichaelHaldimann-png/NXonaut/releases/latest).
-2. Double-click it (or drag it into Claude Desktop, *Settings > Extensions*) and click
-   **Install**. Claude Desktop sets up Python and everything else by itself.
-3. Restart NX. With **Start with NX** on (the default), NX starts NXonaut by itself and
-   a small **NX MCP** panel appears. If you already use `UGII_USER_DIR`, press
-   **Alt+F8** in NX instead and play `Start NXonaut.py` from your workspace folder
-   (`C:\Users\<you>\NX_MCP_WORKSPACE`).
+**Claude Code:** `/plugin install nxonaut --marketplace MichaelHaldimann-png/nxonaut`
+(needs [uv](https://docs.astral.sh/uv/)).
 
-Then ask Claude, for example: *"Create a 100 x 60 x 10 mm plate with four 6.6 mm holes
-10 mm from the edges, and show me a picture."*
+## Start in NX
 
-### Claude Code (plugin)
+Restart NX: NXonaut starts with it and a small **NX MCP** panel appears. If not, press
+**Alt+F8** and play `Start NXonaut.py` from `C:\Users\<you>\NX_MCP_WORKSPACE`.
 
-Needs [uv](https://docs.astral.sh/uv/) (`winget install astral-sh.uv`). In Claude Code:
+Then ask Claude, for example:
 
-```text
-/plugin install nxonaut --marketplace MichaelHaldimann-png/nxonaut
-```
+> *Create a 100 x 60 x 10 mm plate with a 10 mm hole, put a 30 mm pin in it as an
+> assembly and show me a picture.*
 
-On older Claude Code versions: `/plugin marketplace add MichaelHaldimann-png/NXonaut`,
-then `/plugin install nxonaut@nxonaut`. In NX, press **Alt+F8** and play
-`Start NXonaut.py` from your workspace folder (written when the server first starts).
-Some NX calls take a minute or more: set the `MCP_TOOL_TIMEOUT` environment variable to
-`300000` if Claude Code gives up too early.
-
-<details>
-<summary>Manual install (other MCP clients, development)</summary>
-
-You need Git and Python 3.10 or newer:
-
-```powershell
-git clone https://github.com/MichaelHaldimann-png/NXonaut.git
-cd NXonaut
-python -m venv .venv
-.venv\Scripts\pip install -e .
-```
-
-Point your MCP client at `.venv\Scripts\nx-mcp.exe`, for example in Codex:
-`codex mcp add nx -- "C:\path\to\NXonaut\.venv\Scripts\nx-mcp.exe"`, or in
-`claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "nx": { "command": "C:\\path\\to\\NXonaut\\.venv\\Scripts\\nx-mcp.exe" }
-  }
-}
-```
-
-In NX, play `nx_app\journals\start.py` with **Alt+F8**, or let NX start it by itself:
-`setx UGII_USER_DIR "C:\path\to\NXonaut\nx_app"` (if you already use
-`UGII_USER_DIR`, add the `nx_app` folder to `custom_dirs.dat` instead).
-
-</details>
-
-## Working together in NX
-
-- The agent works in parts it created or opened. It never closes your parts, and
-  changes or saves one only after you tick **Allow agent to change <part>** on the
-  panel.
-- It does not take over the part you are looking at: while your part is on screen,
-  its parts open in the background or in a tab behind yours.
-- The **NX MCP** panel shows what the agent is doing and lists its parts
-  (**Show part** brings one up).
-  - **Auto** (default): the agent's steps run while you work. A step that changes
-    something waits while you are in an NX command or dialog (at most 2 minutes);
-    reads run at once.
-  - **Ask me first**: every agent step waits for your OK.
-- Several agents can work in the same NX at once, each in its own parts; one agent
-  does not close or bring up another's parts.
-- Files go in the workspace folder `C:\Users\<you>\NX_MCP_WORKSPACE`; the agent reads
-  and writes files only there. Its `.nx-mcp` subfolder holds the activity log and NX
-  MCP's own state.
-
-More about the panel: [INTERACTIVE-NX.md](INTERACTIVE-NX.md).
-
-## Supported NX versions
-
-| NX release | Support |
-| --- | --- |
-| 2406 | **Tested**: the tools are checked on live NX before a release |
-| 2412, 2506, 2512, 2606 | **Expected to work**: every NXOpen call NX MCP makes exists there, but it is not tested on them |
-| 2306, 2312 | **Best effort**: some tools may fail (about 35 on 2306, 8 on 2312) |
-
-NX's own Python must be 3.10 or newer: `start.py` refuses an older one and says so.
-The MCP program needs Python 3.10 or newer too.
-
-On a release it was not tested on, the agent is offered every tool tested on another
-release, marked untested. A tool that fails there because NX lacks a call it needs
-reports `NX_VERSION_UNSUPPORTED`: nothing is changed, and the tool is not offered again
-until NX restarts. Set `NX_MCP_UNTESTED=read_only` for NX and the client to offer
-only the tools that read or change the view on such a release.
-
-`.venv\Scripts\python -m nx_mcp.report --capabilities` writes
-`<workspace>\.nx-mcp\capabilities.html`, a page for you only: per domain, the tools
-tested on your NX, offered untested, not supported there, and refused for a licence in
-this NX session.
-
-**Reporting a problem.** Run `.venv\Scripts\python -m nx_mcp.report` while NX runs: it
-writes `<workspace>\nx-mcp-report-<build>-<date>.json` (NX, NX MCP, Python and Windows
-versions, the tools that failed for a missing NXOpen call, the last verify's counts;
-never licences, error messages, part names, paths or user names). Check it, then attach
-it to an issue with the lines `start.py` printed, the tool name, the error code the
-agent got, and `<workspace>\.nx-mcp\resident-error.txt` if the add-on did not start.
-Leave out which NX licences or modules you have, and your parts, drawings and file
-names; a small part made only to show the problem is welcome.
-
-**Verifying your NX release** (to make it a tested one). With NX running and no part
-loaded in it, from this folder:
-
-```powershell
-.venv\Scripts\python -m nx_mcp.acceptance verify --owner <your-name>
-```
-
-It replays every acceptance scenario on new parts under `<workspace>\smoke\` (or only
-the domains you name, e.g. `verify modeling sketch`) and closes them; it refuses to
-start while other parts are loaded, and counts a tool NX refuses for a licence as
-skipped without recording it. Scenarios that play the engineer need NX started with
-`NX_MCP_DEV=1`; without it they are skipped. At the end it prints the files under
-`acceptance\evidence\<build>\` to send (in a pull request or attached to an issue) and a
-summary. Those files hold only pass/fail, check counts, error codes and numbers.
-
-## Troubleshooting
-
-| Problem | Fix |
-| --- | --- |
-| The agent says NX is not running | Start NX (see [Install](#install)) and check that the NX MCP panel is open. NX takes a while to start; the panel appears once NX's main window is up |
-| The agent says NX is blocked by a dialog | Answer the dialog in NX; the agent never clicks NX dialogs. A dialog an agent step opened that stays unanswered for 20 s is flagged on the panel, and NX's taskbar button flashes |
-| The agent says NX is busy (`NX_BUSY`) | Another step still runs in NX and nothing new was started; the agent waits and retries. A long step (a large export, a check on a very large body) can hold NX for minutes |
-| The agent says you are busy in NX (`NX_UI_BUSY`) | Finish or cancel your NX command, then let the agent retry |
-| The agent says a part is yours (`NX_PART_NOT_GRANTED`) | Tick **Allow agent to change <part>** on the panel if you want it to |
-| The agent says a licence is missing (`NX_LICENSE_UNAVAILABLE`) | Some tools need extra NX licences. NX MCP lets NX decide: when NX refuses, nothing is changed, the error names the licence feature the command needs (`details.license`) so you know which one to ask for, and the agent stops offering that tool for 15 minutes, then asks NX again. Only the few commands where NX would otherwise block on its "License Not Available" dialog (switching applications, Topology Optimization, variational sweep) are checked first |
-| No NX MCP panel | Play `Start NXonaut.py` again (see [Install](#install)); with the optional auto-start, check `UGII_USER_DIR` and restart NX |
-| **nx** is not connected in the client | Check that the extension or plugin is installed and enabled, or the path to `nx-mcp.exe` |
-
-## Settings (optional)
-
-Set these in the client's server entry (`claude mcp add ... -e NAME=value`, or `env` in
-Codex), and for NX where noted.
-
-| Variable | Use |
-| --- | --- |
-| `NX_MCP_WORKSPACE` | Another workspace folder. Set the same value for NX and the client |
-| `NX_MCP_SURFACE` | `full` shows every NX tool to the client directly (more context, fewer steps); default `agent` |
-| `NXONAUT_ERROR_REPORTS` | `on` or `off`: anonymous error reports (see [Error reports](#error-reports-opt-in)); off by default |
-| `NX_MCP_BRIDGE_DESCRIPTOR` | Only for a non-standard setup: the bridge file NX writes (for NX, `NX_MCP_UI_DESCRIPTOR` sets where it writes it) |
-
-## Error reports (opt-in)
-
-To improve NXonaut on NX setups we never tested, you can allow anonymous error reports:
-`python -m nx_mcp.error_reports ask`. It is **off** until you say yes. A report holds only
-the tool name, the error code, NX's message with names and paths removed, and the
-NXonaut, NX, Python and Windows versions: never part names, file paths, geometry or user
-names. Check what would be sent with `python -m nx_mcp.error_reports list`, turn it off
-with `python -m nx_mcp.error_reports off` (or `NXONAUT_ERROR_REPORTS=off`). Details:
-[docs/error-reports.md](docs/error-reports.md).
-
-## For developers
-
-Architecture: [docs/design/architecture.md](docs/design/architecture.md); tool rules:
-[docs/design/tool-surface.md](docs/design/tool-surface.md); how to add a tool and the
-live NX test loop: [CLAUDE.md](CLAUDE.md); tested scope per NX build:
-[docs/capability-matrix.md](docs/capability-matrix.md). Several agents building one
-product in one NX: [docs/guides/multi-agent-builds.md](docs/guides/multi-agent-builds.md).
-
-```powershell
-.venv\Scripts\pip install -e ".[dev]"
-.venv\Scripts\python -m pre_commit install --install-hooks
-.venv\Scripts\python -m pre_commit run --all-files
-.venv\Scripts\python -m pytest -q -p no:cacheprovider -m "not real_nx" --basetemp .pytest-tmp
-.venv\Scripts\python -m mypy src/nx_mcp
-```
-
-## Snapshots and STEP checks
-
-- **File snapshots** (`nx_create_snapshot`, `nx_list_snapshots`, `nx_restore_snapshot`):
-  before a risky change the agent copies a saved part file into
-  `<workspace>\.nx-mcp\file-snapshots\` and can restore it later. A restore writes a
-  new file by default; replacing the original works only for files NX MCP created and
-  that are not loaded in NX, and it snapshots the current file first. Like every new
-  tool they stay hidden until the acceptance scenario
-  `acceptance/parts_files/file_snapshots.json` has passed on your NX
-  (`python -m nx_mcp.acceptance verify parts_files`).
-- **STEP check outside NX**: `scripts/validate_step.py <file.step> --dims X Y Z
-  --volume V` reads an exported STEP with OpenCASCADE and checks that it holds valid
-  closed solids of the expected size. It runs in its own Python environment (see the
-  script's header).
+Claude only changes parts it made, or parts you allow on the panel, and only uses files
+in the workspace folder.
 
 ## Credits
 
-NXonaut stands on the work of these MIT-licensed projects. Their licence texts are in
-[licenses/](licenses/), and their commits are kept in this repository's history.
+NXonaut builds on [skyf0l/siemens-nx-mcp](https://github.com/skyf0l/siemens-nx-mcp),
+[DreamEnding/NX_MCP](https://github.com/DreamEnding/NX_MCP),
+[xuio/NX_MCP](https://github.com/xuio/NX_MCP) and
+[LT60/nx-agent](https://github.com/LT60/nx-agent) (all MIT). It is a weekly updated
+version, based on the NX MCP projects where the licence allows it.
+[What comes from where](https://michaelhaldimann-png.github.io/NXonaut/credits/).
 
-| Project | Author | What NXonaut takes from it |
-| --- | --- | --- |
-| [skyf0l/siemens-nx-mcp](https://github.com/skyf0l/siemens-nx-mcp) | skyf0l and the NX MCP contributors | The base: the server, the in-NX host and panel, all catalogue tools, tests and acceptance scenarios |
-| [DreamEnding/NX_MCP](https://github.com/DreamEnding/NX_MCP) | DreamEnding and the NX MCP contributors | The original NX MCP that skyf0l built on; the independent STEP check (`scripts/validate_step.py`) |
-| [xuio/NX_MCP](https://github.com/xuio/NX_MCP) | xuio | Fork of DreamEnding/NX_MCP that skyf0l also built on |
-| [LT60/nx-agent](https://github.com/LT60/nx-agent) | Liu Tang | The idea and design of `.prt` snapshots and rollback (`nx_create_snapshot`, `nx_restore_snapshot`) |
-
-Thank you to all of them.
-
-## License
-
-MIT, see [LICENSE](LICENSE). The original copyright notices are kept there and in
-[licenses/](licenses/).
+MIT licence, see [LICENSE](LICENSE) and [licenses/](licenses/). **Not affiliated with or
+endorsed by Siemens**; Siemens, NX and NXOpen are trademarks of Siemens. You need your
+own licensed NX.

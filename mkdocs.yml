@@ -1,0 +1,52 @@
+site_name: NXonaut
+site_description: Community MCP server for Siemens NX (not affiliated with Siemens)
+site_url: https://michaelhaldimann-png.github.io/NXonaut/
+repo_url: https://github.com/MichaelHaldimann-png/NXonaut
+repo_name: NXonaut
+edit_uri: edit/master/docs/
+copyright: MIT licence · Not affiliated with or endorsed by Siemens
+
+theme:
+  name: material
+  logo: assets/nxonaut-logo.svg
+  favicon: assets/nxonaut-logo.svg
+  palette:
+    - scheme: slate
+      primary: custom
+      accent: custom
+      toggle: { icon: material/weather-sunny, name: Light mode }
+    - scheme: default
+      primary: custom
+      accent: custom
+      toggle: { icon: material/weather-night, name: Dark mode }
+  features: [navigation.sections, navigation.top, content.code.copy, search.highlight]
+
+extra_css: [assets/space.css]
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc: { permalink: true }
+  - pymdownx.details
+  - pymdownx.superfences
+
+nav:
+  - Home: index.md
+  - Install: install.md
+  - Working together in NX: working-in-nx.md
+  - Supported NX versions: nx-versions.md
+  - Troubleshooting: troubleshooting.md
+  - Settings: settings.md
+  - Error reports: error-reports.md
+  - Snapshots and STEP checks: snapshots-step.md
+  - Reference:
+      - Tools: tools.md
+      - Capability matrix: capability-matrix.md
+  - Development:
+      - For developers: development.md
+      - Architecture: design/architecture.md
+      - Tool surface: design/tool-surface.md
+      - Multi-agent builds: guides/multi-agent-builds.md
+  - Credits: credits.md
