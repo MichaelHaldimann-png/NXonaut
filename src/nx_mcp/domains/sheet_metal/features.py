@@ -84,7 +84,7 @@ import contextlib
 import types
 import typing
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Annotated, Literal, TypedDict
 
@@ -207,7 +207,9 @@ class Op:
     factory: str
     required: tuple[str, ...]
     optional: tuple[str, ...] = ()
-    docs: Mapping[str, str] = MappingProxyType({})  # this operation's field descriptions
+    # This operation's field descriptions (a factory: Python 3.10/3.11 refuse an
+    # unhashable dataclass default such as a mappingproxy).
+    docs: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
 
 
 FLANGE_DOCS = {

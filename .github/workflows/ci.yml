@@ -45,6 +45,11 @@ jobs:
       - name: Install package and dev dependencies
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
       - name: Run core test suite
+        # Windows runners hand out an 8.3 short TEMP (C:\Users\RUNNER~1); the tests compare
+        # resolved long paths, so use the runner's long temp folder instead.
+        env:
+          TMP: ${{ runner.temp }}
+          TEMP: ${{ runner.temp }}
         run: >-
           python -m pytest -p no:cacheprovider -m "not real_nx"
 

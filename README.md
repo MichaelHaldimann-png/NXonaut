@@ -19,7 +19,14 @@ DXF/DWG and more). You keep working in NX while the agent works next to you.
 NXonaut builds on [skyf0l/siemens-nx-mcp](https://github.com/skyf0l/siemens-nx-mcp),
 which grew out of [DreamEnding/NX_MCP](https://github.com/DreamEnding/NX_MCP), and adds
 file snapshots with rollback from [LT60/nx-agent](https://github.com/LT60/nx-agent).
-See [Credits](#credits). The Python package and program keep the upstream name
+See [Credits](#credits).
+
+**A weekly updated version, based on the different NX MCP projects where the licence
+allows it.** Once a week, new open-source NX MCP work on GitHub is reviewed; what is
+useful and under a compatible licence (MIT, BSD, Apache 2.0) is merged in, with its
+licence kept in [licenses/](licenses/) and its authors added to the credits.
+
+The Python package and program keep the upstream name
 `nx-mcp` so that upstream changes can still be merged.
 
 Tested on NX 2406; NX 2412 to 2606 are expected to work (see
