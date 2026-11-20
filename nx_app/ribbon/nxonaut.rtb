@@ -1,0 +1,8 @@
+! NXonaut ribbon tab with one large button (menuscript, button defined in nxonaut.men).
+TITLE NXonaut
+VERSION 170
+
+BEGIN_GROUP NXONAUT_GROUP
+  LABEL NXonaut
+  BUTTON NXONAUT_START
+END_GROUP
