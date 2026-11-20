@@ -28,7 +28,11 @@ def default_workspace() -> Path:
     Bootstraps that run before nx_mcp is importable use the same stdlib expression,
     ``os.environ.get("NX_MCP_WORKSPACE") or str(Path.home() / "NX_MCP_WORKSPACE")``.
     """
-    return Path(os.environ.get(WORKSPACE_ENV) or Path.home() / "NX_MCP_WORKSPACE")
+    configured = os.environ.get(WORKSPACE_ENV, "").replace("${HOME}", str(Path.home()))
+    if "${" in configured:
+        # A host left a placeholder unexpanded (Claude Desktop's user_config default).
+        configured = ""
+    return Path(configured or Path.home() / "NX_MCP_WORKSPACE")
 
 
 class WorkspaceViolation(ValueError):
