@@ -130,3 +130,40 @@ def test_catalogue_envelopes_name_the_result_and_the_model_state(tmp_path):
     assert lines[1].startswith("✗ ") and "List faces — model unchanged (b:4 is stale)" in lines[1]
     assert lines[2].startswith("✗ ") and "not run, model unchanged" in lines[2]
     assert "(engineer's part, not granted)" in lines[2]
+
+
+def _step(activity, part, summary, at, ok=True):
+    error = None if ok else NXError("NX_X", "no", details={"mutation_outcome": "rolled_back"})
+    return activity.record(
+        "nx_touch", summary, started=T + at, duration=0.1, part=part, error=error,
+        result=None if error else {"status": "success"},
+    )  # fmt: skip
+
+
+def test_panel_groups_several_parts_and_keeps_the_newest_steps():
+    activity = Activity(None)
+    for i in range(10):
+        _step(activity, "werkbank.prt", f"Align beam {i}", i * 2)
+        _step(activity, "otter.prt", f"Touch float {i}", i * 2 + 1, ok=i != 3)
+        activity.engineer_change(at=T + i * 2 + 1.5)
+    lines = activity.panel(40)
+    assert len(lines) <= 14
+    assert lines[0].startswith("✎") and "(" not in lines[0]  # only the newest note
+    assert lines[1].startswith("▾  otter.prt  ·  10 steps  ·  1 failed  ·  last ")
+    assert "Touch float 9" in lines[2] and "Touch float 8" in lines[3]
+    assert "[otter.prt]" not in lines[2]  # the header names the part
+    assert lines[4].startswith("▾  werkbank.prt  ·  10 steps  ·  last ")
+    assert len(lines) == 7
+    small = activity.panel(4)
+    assert small[-1] == "…  1 more part: Open log" and len(small) == 4
+
+
+def test_engineer_changes_in_a_row_are_one_line_and_long_history_points_to_the_log():
+    activity = Activity(None)
+    for i in range(20):
+        _step(activity, None, f"Extrude {i}", i)
+    for i in range(3):
+        activity.engineer_change(at=T + 30 + i)
+    lines = activity.panel(40)
+    assert len(lines) == 14 and lines[-1] == "…  8 earlier lines: Open log"
+    assert "You changed the model (3×) — agent" in lines[0]

@@ -1317,8 +1317,8 @@ class InteractiveHost:
         return self._activity
 
     def history_lines(self, rows):
-        """The latest activity lines, newest first."""
-        return list(reversed(self.activity.recent(rows))) if rows > 0 else []
+        """The latest activity, newest first, grouped by part (``Activity.panel``)."""
+        return self.activity.panel(rows)
 
     def _with_history(self, lines):
         return "\n".join(lines + self.history_lines(self.panel_rows - len(lines)))

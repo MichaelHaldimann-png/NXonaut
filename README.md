@@ -51,6 +51,7 @@ From the prompt to the finished PDF took about 11 minutes: some 8 for the model 
 <p align="center">
   <img src="docs/assets/examples/bike-frame.png" width="440" alt="Red road bike frame modelled in NX by Claude" />
   <img src="docs/assets/examples/bike-frame-drawing.png" width="440" alt="Welding drawing of the bike frame with weld symbols, parts list and weld table" />
+  <br /><sub>Modelled and drawn by NXonaut with Claude in NX 2512, in about 11 minutes.</sub>
 </p>
 
 ## Example: a pedal boat assembly

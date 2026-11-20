@@ -13,13 +13,15 @@ from __future__ import annotations
 
 import time
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
 from nx_mcp.core.errors import counted
 
 LINE_WIDTH = 84
+HISTORY_MAX = 14  # Panel history lines at most, however tall the panel; the rest: Open log.
+PER_PART = 2  # Latest steps shown under each part's header while several parts are busy.
 ENGINEER_CHANGE = "You changed the model — agent will re-read its references"
 LOG_LIMIT_BYTES = 5 * 1024 * 1024
 # Why a queued step never ran: its client gave up (``expires_at`` passed, or it closed
@@ -76,6 +78,7 @@ class Entry:
     mark: str = "✎"  # the panel mark of a note
     part: str | None = None  # the target part's file (two or more parts loaded)
     detail: str | None = None  # a note's detail, written to the log only
+    repeats: int = 1  # the same note again in a row (engineer changes): one line
 
     @property
     def shown(self) -> str:
@@ -205,14 +208,18 @@ class Activity:
         """The engineer changed the model between two agent steps; ``detail`` (what
         changed: NX's undo marks, the loaded parts) goes to the log line. No part: the
         host cannot tell which part an engineer edit was in."""
-        return self._note(
-            Entry(
-                started=time.time() if at is None else at,
-                summary=ENGINEER_CHANGE,
-                note=ENGINEER_CHANGE,
-                detail=f"changed: {detail}" if detail else None,
-            )
+        entry = Entry(
+            started=time.time() if at is None else at,
+            summary=ENGINEER_CHANGE,
+            note=ENGINEER_CHANGE,
+            detail=f"changed: {detail}" if detail else None,
         )
+        last = self.entries[-1] if self.entries else None
+        if last is not None and last.note == ENGINEER_CHANGE:
+            self._write(entry)  # the log keeps every change; the panel one line
+            last.started, last.repeats = entry.started, last.repeats + 1
+            return last
+        return self._note(entry)
 
     def touch(self, part: str | None, summary: str | None, *, started, ok: bool = True) -> None:
         """Remember an agent step as the last one in ``part`` (a file name; None: no
@@ -269,7 +276,10 @@ class Activity:
     def line(self, entry: Entry) -> str:
         clock = time.strftime("%H:%M:%S", time.localtime(entry.started))
         if entry.note:
-            return _clip(f"{entry.mark}  {clock}  {entry.note}")
+            note = entry.note
+            if entry.repeats > 1 and note == ENGINEER_CHANGE:
+                note = note.replace("the model", f"the model ({entry.repeats}×)", 1)
+            return _clip(f"{entry.mark}  {clock}  {note}")
         if entry.inspections:
             steps = "step" if entry.inspections == 1 else "steps"
             where = f"[{entry.part}] " if entry.part else ""
@@ -295,6 +305,47 @@ class Activity:
 
     def recent(self, count: int = 4) -> list[str]:
         return [self.line(entry) for entry in list(self.entries)[-count:]]
+
+    def panel(self, rows: int) -> list[str]:
+        """The panel's history, newest first, at most ``rows`` (and HISTORY_MAX) lines.
+
+        One part: its latest steps. Several parts: one header per part (newest first,
+        ``▾ werkbank.prt  ·  23 steps  ·  1 failed  ·  last 14:15:12``) with its PER_PART
+        latest steps below it. Engineer and NX notes show only while they are the
+        newest line. Whatever does not fit ends in a pointer to Open log.
+        """
+        rows = min(rows, HISTORY_MAX)
+        if rows <= 0:
+            return []
+        entries = list(self.entries)
+        parts = list(dict.fromkeys(e.part for e in reversed(entries) if e.part and not e.note))
+        if len(parts) < 2:
+            lines = [self.line(e) for e in reversed(entries)]
+            if len(lines) > rows:
+                lines = [*lines[: rows - 1], f"…  {len(lines) - rows + 1} earlier lines: Open log"]
+            return lines
+        lines = []
+        if entries and entries[-1].note:
+            lines.append(self.line(entries[-1]))
+        for index, part in enumerate(parts):
+            left, later = rows - len(lines), len(parts) - index - 1
+            if left < 2 + (1 if later else 0):
+                rest = len(parts) - index
+                pointer = f"…  {counted(rest, 'more part')}: Open log"
+                lines[min(len(lines), rows - 1) :] = [pointer]
+                break
+            own = [e for e in entries if e.part == part and not e.note]
+            steps = sum(e.inspections or 1 for e in own)
+            failed = sum(1 for e in own if not e.ok)
+            clock = time.strftime("%H:%M:%S", time.localtime(own[-1].started))
+            head = f"▾  {part}  ·  {counted(steps, 'step')}"
+            if failed:
+                head += f"  ·  {failed} failed"
+            lines.append(_clip(f"{head}  ·  last {clock}"))
+            room = min(PER_PART, left - 1 - (1 if later else 0))
+            for entry in reversed(own[-room:]):
+                lines.append(_clip("    " + self.line(replace(entry, part=None))))
+        return lines[:rows]
 
     def _write(self, entry: Entry) -> None:
         """Append one full line to the activity log; never fail the operation."""
