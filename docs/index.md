@@ -58,12 +58,11 @@ chamfers, plus the two keys as a small assembly. Then an A3 production drawing t
 practice (first-angle projection): fits on every diameter, chained lengths below the
 shaft, keyway sections, groove details, datums A and B with circular runout, surface
 finish symbols, notes and a filled-in title block, exported to PDF.
-From the prompt to the finished PDF took about 55 minutes, including one NX restart.
 
 <p align="center">
   <img src="assets/examples/shaft.png" width="440" alt="Stepped gearbox shaft with two keys modelled in NX by Claude" />
   <img src="assets/examples/shaft-drawing.png" width="440" alt="Production drawing of the shaft with fits, runout tolerances, sections and details" />
-  <br /><sub>Modelled and drawn by NXonaut with Claude in NX 2512, in about 55 minutes.</sub>
+  <br /><sub>Modelled and drawn by NXonaut with Claude in NX 2512.</sub>
 </p>
 
 ## Example: a workbench assembly from aluminium slot profiles
@@ -80,12 +79,11 @@ feet and a 1500 x 750 worktop, then assembled the 27 components in NX 2512 with
 assembly drawing to Swiss practice (first-angle projection): front, side and isometric
 views, overall dimensions, balloons, a parts list with the cut lengths and a filled-in
 title block, exported to PDF.
-From the prompt to the finished PDF took about 60 minutes, including one NX restart.
 
 <p align="center">
   <img src="assets/examples/workbench.png" width="440" alt="Workbench of aluminium slot profiles with a wooden worktop, modelled in NX by Claude" />
   <img src="assets/examples/workbench-drawing.png" width="440" alt="Assembly drawing of the workbench with views, dimensions and balloons" />
-  <br /><sub>Modelled and drawn by NXonaut with Claude in NX 2512, in about 60 minutes.</sub>
+  <br /><sub>Modelled and drawn by NXonaut with Claude in NX 2512.</sub>
 </p>
 
 ## About NXonaut
