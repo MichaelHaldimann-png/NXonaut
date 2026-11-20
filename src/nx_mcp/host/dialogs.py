@@ -182,6 +182,48 @@ KNOWN_DIALOGS = (
 )
 
 
+# Pure information dialogs NX MCP closes with OK by itself (the engineer chose this,
+# 2026-11-20): NX reports what an update did and waits for OK, nothing else to decide.
+# Only these titles (start, any case), and only while OK (or Close) is the only answer.
+INFO_DIALOGS = ("Ereignisliste aktualisieren", "Update Event List", "Update Events")
+OK_TEXTS = ("ok",)
+CLOSE_TEXTS = ("ok", "close", "schliessen", "schließen")
+CLOSE_CHECK_SECONDS = 2.0  # a closed dialog still open after this is reported as usual
+
+
+def closable(dialog: Dialog) -> bool:
+    """Whether ``dialog`` is a pure information dialog NX MCP may close with OK."""
+    title = " ".join(str(dialog.title or "").split()).casefold()
+    if not any(title.startswith(name.casefold()) for name in INFO_DIALOGS):
+        return False
+    answers = {b.replace("&", "").strip().casefold() for b in dialog.buttons if b.strip()}
+    return bool(answers) and answers <= set(CLOSE_TEXTS) and bool(answers & set(OK_TEXTS))
+
+
+def press_ok(dialog: Dialog) -> bool:  # pragma: no cover - needs Windows
+    """Click the OK button of ``dialog`` (posted: NX's modal loop handles it)."""
+    ctypes, w, user = _user32()
+    callback = ctypes.WINFUNCTYPE(w.BOOL, w.HWND, w.LPARAM)
+    found: list = []
+
+    def child(handle, _):
+        buffer = ctypes.create_unicode_buffer(256)
+        user.GetClassNameW(handle, buffer, 256)
+        if buffer.value == "Button":
+            text = ctypes.create_unicode_buffer(256)
+            user.InternalGetWindowText(handle, text, 256)
+            if text.value.replace("&", "").strip().casefold() in OK_TEXTS:
+                found.append(handle)
+                return False
+        return True
+
+    user.EnumChildWindows(dialog.hwnd, callback(child), 0)
+    if not found:
+        return False
+    user.PostMessageW.argtypes = [w.HWND, w.UINT, w.WPARAM, w.LPARAM]
+    return bool(user.PostMessageW(found[0], 0x00F5, 0, 0))  # BM_CLICK
+
+
 # Known dialogs no engineer command opens (NX's own alerts): a call waiting for a busy
 # engineer is answered at once while one is open, instead of after the busy wait.
 ALERTS = ("Heartbeat Failure",)
@@ -407,7 +449,7 @@ class Watch:
     """
 
     def __init__(self, before: list[Dialog], *, on_new=None, on_gone=None, on_stuck=None,
-                 scanner=scan, interval: float = POLL_SECONDS,
+                 on_closed=None, closer=None, scanner=scan, interval: float = POLL_SECONDS,
                  alert_after: float = ALERT_SECONDS, alert_repeat: float = ALERT_REPEAT_SECONDS,
                  clock=time.monotonic) -> None:  # fmt: skip
         self.before = list(before)
@@ -416,6 +458,11 @@ class Watch:
         self.on_new = on_new
         self.on_gone = on_gone
         self.on_stuck = on_stuck
+        # ``closer(dialog) -> bool`` closes a :func:`closable` dialog; ``on_closed`` hears it.
+        self.on_closed = on_closed
+        self.closer = closer
+        self.closed: list[Dialog] = []
+        self._closed_at: dict[int, float] = {}
         self.scanner = scanner
         self.interval = interval
         self.alert_after = alert_after
@@ -430,12 +477,26 @@ class Watch:
     def poll(self, *, notify: bool = True) -> list[Dialog]:
         now = self.scanner()
         moment = self.clock()
-        fresh = new_dialogs(self.before + self.seen, now)
-        for dialog in fresh:
+        open_now = {d.hwnd for d in now}
+        for dialog in [d for d in self.closed if d.hwnd in open_now]:
+            if moment - self._closed_at[dialog.hwnd] >= CLOSE_CHECK_SECONDS:
+                self.closed.remove(dialog)  # OK did not close it: report it as usual
+                self.seen.append(dialog)
+                self._since[dialog.hwnd] = moment
+                self._tell(self.on_new, dialog, notify)
+        fresh = new_dialogs(self.before + self.seen + self.closed, now)
+        for dialog in list(fresh):
+            if self.closer is not None and closable(dialog):
+                with contextlib.suppress(Exception):
+                    if self.closer(dialog):
+                        self.closed.append(dialog)
+                        self._closed_at[dialog.hwnd] = moment
+                        self._tell(self.on_closed, dialog, notify)
+                        fresh.remove(dialog)
+                        continue
             self.seen.append(dialog)
             self._since[dialog.hwnd] = moment
             self._tell(self.on_new, dialog, notify)
-        open_now = {d.hwnd for d in now}
         for dialog in [d for d in self.seen if d.hwnd not in open_now and d not in self.gone]:
             self.gone.append(dialog)
             self._tell(self.on_gone, dialog, notify)

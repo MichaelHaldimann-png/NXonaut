@@ -1875,6 +1875,19 @@ class InteractiveHost:
             return dialogs.scan(host_disabled=disabled)
 
         open_now = scan()
+        info = [d for d in open_now if dialogs.closable(d)]
+        if info and refuse and len(info) == len(open_now):
+            for dialog in info:  # pure information: OK, then the agent retries
+                with contextlib.suppress(Exception):
+                    if dialogs.press_ok(dialog):
+                        self._dialog_closed(dialog)
+            raise NXError(
+                "NX_MODAL_DIALOG_OPEN",
+                dialogs.message(open_now, still_open=True),
+                hint="NX MCP closed this NX information dialog with OK: retry",
+                details={"mutation_outcome": "not_started",
+                         "dialogs": [d.row() for d in open_now]},
+            )  # fmt: skip
         if open_now and refuse:
             raise NXError(
                 "NX_MODAL_DIALOG_OPEN",
@@ -1891,8 +1904,17 @@ class InteractiveHost:
             on_new=self._dialog_appeared,
             on_gone=self._dialog_gone,
             on_stuck=self._dialog_stuck,
+            on_closed=self._dialog_closed,
+            closer=dialogs.press_ok,
             scanner=scan,
         ).start()
+
+    def _dialog_closed(self, dialog):
+        """An NX information dialog NX MCP closed with OK (``dialogs.closable``): logged."""
+        try:
+            self.activity.dialog_closed(dialog.title)
+        except Exception as exc:
+            self.last_error = "Activity history: " + str(exc)
 
     def _dialog_appeared(self, dialog):
         """From the watch thread, while NX waits for an answer: log the dialog, mark NX

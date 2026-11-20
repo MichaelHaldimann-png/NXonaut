@@ -243,6 +243,19 @@ class Activity:
             )
         )
 
+    def dialog_closed(self, title: str, at: float | None = None) -> Entry:
+        """NX MCP closed a pure information dialog of NX with OK (``dialogs.closable``)."""
+        text = f"Closed NX information “{title}” with OK"
+        return self._note(
+            Entry(
+                started=time.time() if at is None else at,
+                summary=text,
+                note=text,
+                label="NX DIALOG",
+                mark="·",
+            )
+        )
+
     def skipped(
         self,
         summary: str,
