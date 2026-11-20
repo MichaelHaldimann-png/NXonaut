@@ -3,7 +3,8 @@
 | NX release | Support |
 | --- | --- |
 | 2406 | **Tested**: the tools are checked on live NX before a release |
-| 2412, 2506, 2512, 2606 | **Expected to work**: every NXOpen call NX MCP makes exists there, but it is not tested on them |
+| 2512 | **Used in practice**: parts, dimension changes, sketch and extrude, assemblies with fix, concentric and touch constraints, and STEP export worked on NX 2512.6002 (November 2026). The full acceptance run is still to come |
+| 2412, 2506, 2606 | **Expected to work**: every NXOpen call NX MCP makes exists there, but it is not tested on them |
 | 2306, 2312 | **Best effort**: some tools may fail (about 35 on 2306, 8 on 2312) |
 
 NX's own Python must be 3.10 or newer: `start.py` refuses an older one and says so.
