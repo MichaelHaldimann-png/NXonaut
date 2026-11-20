@@ -513,3 +513,38 @@ def test_only_nx_alerts_skip_the_busy_wait():
     assert dialogs.is_alert("heartbeat failure ") and dialogs.is_alert("Heartbeat Failure - x")
     assert not dialogs.is_alert("Sheet Metal") and not dialogs.is_alert(None)
     assert all(dialogs.known(name) for name in dialogs.ALERTS)
+
+
+def test_only_listed_information_dialogs_with_ok_alone_are_closable():
+    info = dialogs.Dialog(1, "Ereignisliste aktualisieren", "3 Ansichten", ("OK",))
+    assert dialogs.closable(info)
+    assert dialogs.closable(dialogs.Dialog(1, "update event list", "", ("&OK", "Close")))
+    assert not dialogs.closable(
+        dialogs.Dialog(1, "Ereignisliste aktualisieren", "", ("OK", "Cancel"))
+    )
+    assert not dialogs.closable(dialogs.Dialog(1, "Error During Update", "", ("OK",)))
+    assert not dialogs.closable(dialogs.Dialog(1, "Ereignisliste aktualisieren", "", ()))
+
+
+def test_watch_closes_an_information_dialog_and_reports_one_that_stays_open():
+    clock = [0.0]
+    info = dialogs.Dialog(7, "Update Event List", "", ("OK",))
+    other = dialogs.Dialog(8, "Error During Update", "", ("Undo", "Accept"))
+    heard, closed = [], []
+    screens = [[info, other], [info], [info]]
+    watch = dialogs.Watch([], on_new=heard.append, on_closed=closed.append,
+                          closer=lambda d: True, scanner=lambda: screens.pop(0),
+                          clock=lambda: clock[0])  # fmt: skip
+    watch.poll()
+    assert closed == [info] and heard == [other]
+    watch.poll()  # still open, but within the check time: nothing new
+    assert heard == [other]
+    clock[0] = 5.0
+    watch.poll()  # OK did not close it: reported like any dialog
+    assert heard == [other, info]
+
+
+def test_closed_dialog_is_noted_in_the_panel_history():
+    activity = Activity(None)
+    activity.dialog_closed("Ereignisliste aktualisieren")
+    assert "Closed NX information “Ereignisliste aktualisieren” with OK" in activity.recent(1)[0]
