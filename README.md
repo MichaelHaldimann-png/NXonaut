@@ -35,6 +35,22 @@ Then ask Claude, for example:
 Claude only changes parts it made, or parts you allow on the panel, and only uses files
 in the workspace folder.
 
+## Bugs and feedback
+
+I build NXonaut alongside my own work in NX, and I can only test it on the NX I have.
+So if something breaks on your setup, I want to hear about it.
+
+- Open an [issue](https://github.com/MichaelHaldimann-png/NXonaut/issues/new/choose)
+  and tell me what you tried and what NX did. A short note is fine.
+- If you like, turn on anonymous error reports (`python -m nx_mcp.error_reports ask`).
+  They are off until you say yes, and they never contain part names, paths or geometry.
+  [What gets sent](https://michaelhaldimann-png.github.io/NXonaut/error-reports/).
+
+Reports and issues end up on the list for the weekly build. Once a fix is in, it ships
+with the next release, so what you report really does come back to you fixed.
+
+Ideas, questions and "this would help me" are just as welcome as bug reports.
+
 ## Credits
 
 NXonaut builds on [skyf0l/siemens-nx-mcp](https://github.com/skyf0l/siemens-nx-mcp),
