@@ -543,6 +543,19 @@
         "drawing": "Name the process on the drawing: cast parts get the casting tolerance grade and a note for unspecified radii and draft; welded parts weld symbols per ISO 2553; sheet metal a flat pattern or bend data."
       }
     },
+    "naming": {
+      "title": "Part, file and component names: pick one scheme per project",
+      "rules": {
+        "scheme": "Active scheme: descriptive. Change it in the engineer's rule file (nx_save_design_rule topic naming, rule scheme) to number, number_description or pattern; ask once per project when unclear.",
+        "descriptive": "descriptive: lower-case words joined by underscores, assembly first, then the part: getriebe_welle_an.prt, getriebe_zsb.prt; no spaces, umlauts or special characters (ae, oe, ue).",
+        "number": "number: the drawing number is the file name (10-0042.prt); the description goes into the part attribute DESCRIPTION and the title block.",
+        "number_description": "number_description: number then description: 10-0042_welle_an.prt; the next free number continues the project's highest one.",
+        "pattern": "pattern: the engineer's own template in rule pattern_template, e.g. '{project}-{assembly:02d}-{item:03d}_{description}'; fill every field, never invent a project code.",
+        "assemblies": "Assemblies end in _zsb (CH/DE practice) or _asm; drawings use the part's name plus _dwg when they are separate files; component names (o:N) repeat the part name, numbered _2, _3 only when a part is used more than once.",
+        "attributes": "Whatever the scheme, set the part attributes DB_PART_NO (number or name) and DESCRIPTION (the engineer's words) so the bill of materials (nx_get_bill_of_materials attributes) and the title block agree: nx_set_attributes on the part.",
+        "rename": "Rename an existing file only on request: other assemblies may use it."
+      }
+    },
     "casting": {
       "title": "Cast parts (sand, gravity, die casting)",
       "rules": {
