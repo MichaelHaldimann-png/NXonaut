@@ -1,0 +1,110 @@
+{
+  "format": 2,
+  "scenario": "acceptance/parts_files/create_no_display.json",
+  "scenario_sha256": "86873d79392e562fb0311a7f6a30128a7f70f0ab34e6ef9089e14fed400ea007",
+  "domain": "parts_files",
+  "covers": {
+    "nx_create_part": [],
+    "nx_activate_part": []
+  },
+  "nx_version": "v2512",
+  "nx_build": "2512.6002",
+  "sources": {
+    "nx_create_part": "fdde8fcf7b2285f6f9dc1674fd4f28a85cb93519a71c36df5bdce3662f7fac84",
+    "nx_activate_part": "fdde8fcf7b2285f6f9dc1674fd4f28a85cb93519a71c36df5bdce3662f7fac84"
+  },
+  "recorded": "2026-11-21T09:00:35Z",
+  "passed": false,
+  "checks": 25,
+  "failed_checks": 15,
+  "steps": [
+    {
+      "index": 1,
+      "call": "nx_create_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 2,
+      "call": "engineer",
+      "setup": false,
+      "passed": true,
+      "checks": 2
+    },
+    {
+      "index": 3,
+      "call": "nx_create_primitive",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 4,
+      "call": "nx_create_checkpoint",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 5,
+      "call": "nx_create_part",
+      "setup": false,
+      "passed": false,
+      "checks": 8,
+      "error": {
+        "code": "NX_SAVE_FAILED",
+        "category": "file_failed"
+      },
+      "failures": [
+        "unexpected error NX_SAVE_FAILED",
+        "mutation_outcome: equals failed",
+        "data.work: missing",
+        "data.display: missing",
+        "data.units: missing",
+        "units.length: missing",
+        "data.path: missing",
+        "warnings: missing",
+        "warnings.0.message: missing"
+      ]
+    },
+    {
+      "index": 6,
+      "call": "nx_list_parts",
+      "setup": false,
+      "passed": true,
+      "checks": 4
+    },
+    {
+      "index": 7,
+      "call": "nx_list_parts",
+      "setup": false,
+      "passed": false,
+      "checks": 5,
+      "failures": [
+        "page.total: equals failed (wanted 1, actual 0)",
+        "data.items.0.work: missing",
+        "data.items.0.display: missing",
+        "data.items.0.owned: missing",
+        "data.items.0.units: missing"
+      ]
+    },
+    {
+      "index": 8,
+      "call": "nx_create_primitive",
+      "setup": false,
+      "passed": true,
+      "checks": 2
+    },
+    {
+      "index": 9,
+      "call": "nx_activate_part",
+      "setup": false,
+      "passed": false,
+      "checks": 4,
+      "failures": [
+        "argument: $b.data.part.id unresolved"
+      ]
+    }
+  ]
+}

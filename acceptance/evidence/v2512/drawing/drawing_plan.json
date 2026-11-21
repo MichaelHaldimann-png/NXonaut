@@ -1,0 +1,48 @@
+{
+  "format": 2,
+  "scenario": "acceptance/drawing/drawing_plan.json",
+  "scenario_sha256": "2aa1b79e2318c5e7bdbd3e49446d3e150110f698461fb43f59c0515229ff2e39",
+  "domain": "drawing",
+  "covers": {
+    "nx_get_drawing_plan": []
+  },
+  "nx_version": "v2512",
+  "nx_build": "2512.6002",
+  "sources": {
+    "nx_get_drawing_plan": "782eabc1ae7e8e6bc01fdfe4c7906693ce870c556e0ff775a2554f99a48f54c0"
+  },
+  "recorded": "2026-11-21T13:29:07Z",
+  "passed": true,
+  "checks": 11,
+  "failed_checks": 0,
+  "steps": [
+    {
+      "index": 1,
+      "call": "nx_create_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 2,
+      "call": "nx_create_primitive",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 3,
+      "call": "nx_get_drawing_plan",
+      "setup": false,
+      "passed": true,
+      "checks": 8
+    },
+    {
+      "index": 4,
+      "call": "nx_get_drawing_plan",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    }
+  ]
+}

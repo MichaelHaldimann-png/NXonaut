@@ -1,0 +1,34 @@
+{
+  "format": 2,
+  "scenario": "acceptance/modeling/tube_inch.json",
+  "scenario_sha256": "335f50cdef975ca6934a7722df761de371e7fb217e22bfe7da99deb9b06de5d5",
+  "domain": "modeling",
+  "covers": {
+    "nx_create_tube": []
+  },
+  "nx_version": "v2512",
+  "nx_build": "2512.6002",
+  "sources": {
+    "nx_create_tube": "cf51ce050550526b998752905e4026e414a58562d3a1ca67a438a80decb55ab6"
+  },
+  "recorded": "2026-11-21T08:33:05Z",
+  "passed": false,
+  "checks": 0,
+  "failed_checks": 0,
+  "steps": [
+    {
+      "index": 1,
+      "call": "nx_create_part",
+      "setup": true,
+      "passed": false,
+      "checks": 0,
+      "error": {
+        "code": "NX_SAVE_FAILED",
+        "category": "file_failed"
+      },
+      "failures": [
+        "unexpected error NX_SAVE_FAILED"
+      ]
+    }
+  ]
+}

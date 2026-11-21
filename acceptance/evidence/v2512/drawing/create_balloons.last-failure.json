@@ -1,0 +1,207 @@
+{
+  "format": 2,
+  "scenario": "acceptance/drawing/create_balloons.json",
+  "scenario_sha256": "38c1b01f2714cc2719f9cd1580d2ca4ada918bde5c8d6e5d7565d5b1a131f0ff",
+  "domain": "drawing",
+  "covers": {
+    "nx_create_balloons": [],
+    "nx_create_drawing_view": [
+      "base",
+      "projected"
+    ],
+    "nx_create_drawing_table": [
+      "parts_list"
+    ],
+    "nx_edit_drawing_table": [
+      "parts_list"
+    ],
+    "nx_get_drawing_table": [],
+    "nx_update_annotations": []
+  },
+  "nx_version": "v2512",
+  "nx_build": "2512.6002",
+  "sources": {
+    "nx_create_balloons": "d5c8d5e3e9e9aedb6de350fc11c4cbb5982ab57a7a891222afd97a01191ced22",
+    "nx_create_drawing_view": "2222f0995d3d5d204e2c7fd92a014129f103cd065a69faf4ac9361355bb45027",
+    "nx_create_drawing_table": "d5c8d5e3e9e9aedb6de350fc11c4cbb5982ab57a7a891222afd97a01191ced22",
+    "nx_edit_drawing_table": "d5c8d5e3e9e9aedb6de350fc11c4cbb5982ab57a7a891222afd97a01191ced22",
+    "nx_get_drawing_table": "d5c8d5e3e9e9aedb6de350fc11c4cbb5982ab57a7a891222afd97a01191ced22",
+    "nx_update_annotations": "e196a407d5316a00b066d5dbb0f3d785796dc732690c962462740e05735dc7fd"
+  },
+  "recorded": "2026-11-21T13:30:41Z",
+  "passed": false,
+  "checks": 39,
+  "failed_checks": 8,
+  "steps": [
+    {
+      "index": 1,
+      "call": "nx_create_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 2,
+      "call": "nx_create_component",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 3,
+      "call": "nx_create_component",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 4,
+      "call": "nx_create_explosion",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 5,
+      "call": "nx_create_drawing_sheet",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 6,
+      "call": "nx_create_drawing_view",
+      "setup": false,
+      "passed": true,
+      "checks": 2
+    },
+    {
+      "index": 7,
+      "call": "nx_create_drawing_view",
+      "setup": false,
+      "passed": true,
+      "checks": 2
+    },
+    {
+      "index": 8,
+      "call": "nx_create_drawing_view",
+      "setup": false,
+      "passed": true,
+      "checks": 1
+    },
+    {
+      "index": 9,
+      "call": "nx_create_drawing_view",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 10,
+      "call": "nx_create_drawing_table",
+      "setup": false,
+      "passed": false,
+      "checks": 7,
+      "failures": [
+        "data.rows.0.1: matches failed"
+      ]
+    },
+    {
+      "index": 11,
+      "call": "nx_create_drawing_table",
+      "setup": false,
+      "passed": true,
+      "checks": 2
+    },
+    {
+      "index": 12,
+      "call": "nx_create_balloons",
+      "setup": false,
+      "passed": true,
+      "checks": 5
+    },
+    {
+      "index": 13,
+      "call": "nx_create_balloons",
+      "setup": false,
+      "passed": true,
+      "checks": 1
+    },
+    {
+      "index": 14,
+      "call": "nx_edit_drawing_table",
+      "setup": false,
+      "passed": false,
+      "checks": 4,
+      "error": {
+        "code": "NX_ERROR",
+        "category": "nx_error"
+      },
+      "failures": [
+        "unexpected error NX_ERROR",
+        "data.columns: missing",
+        "data.columns.1.title: missing",
+        "data.columns.1.width: missing",
+        "data.columns.3.protected: missing"
+      ]
+    },
+    {
+      "index": 15,
+      "call": "nx_edit_drawing_table",
+      "setup": false,
+      "passed": false,
+      "checks": 1,
+      "error": {
+        "code": "NX_INVALID_ARGUMENT",
+        "category": "invalid_argument",
+        "field": "/columns/0/index"
+      },
+      "failures": [
+        "unexpected error NX_INVALID_ARGUMENT",
+        "data.columns: missing"
+      ]
+    },
+    {
+      "index": 16,
+      "call": "nx_edit_drawing_table",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 17,
+      "call": "nx_edit_drawing_table",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 18,
+      "call": "nx_get_drawing_table",
+      "setup": false,
+      "passed": true,
+      "checks": 2
+    },
+    {
+      "index": 19,
+      "call": "nx_update_annotations",
+      "setup": false,
+      "passed": true,
+      "checks": 1
+    },
+    {
+      "index": 20,
+      "call": "nx_create_balloons",
+      "setup": false,
+      "passed": true,
+      "checks": 2
+    },
+    {
+      "index": 21,
+      "call": "nx_close_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    }
+  ]
+}

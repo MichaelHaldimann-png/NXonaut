@@ -1,0 +1,118 @@
+{
+  "format": 2,
+  "scenario": "acceptance/drawing/create_drawing_sheet.json",
+  "scenario_sha256": "092eb4eb424eca049fad0936dacfb0463043e2cd19af3ae4e3c8b8259cbcb4f6",
+  "domain": "drawing",
+  "covers": {
+    "nx_create_drawing_sheet": []
+  },
+  "nx_version": "v2512",
+  "nx_build": "2512.6002",
+  "sources": {
+    "nx_create_drawing_sheet": "23853ef7f87c05f6176723b1c713766f9f6906c57f28bb4a9c9600d9412375bf"
+  },
+  "recorded": "2026-11-21T08:35:19Z",
+  "passed": true,
+  "checks": 50,
+  "failed_checks": 0,
+  "steps": [
+    {
+      "index": 1,
+      "call": "nx_open_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 2,
+      "call": "nx_create_drawing_sheet",
+      "setup": false,
+      "passed": true,
+      "checks": 9
+    },
+    {
+      "index": 3,
+      "call": "nx_create_drawing_sheet",
+      "setup": false,
+      "passed": true,
+      "checks": 6
+    },
+    {
+      "index": 4,
+      "call": "nx_create_drawing_sheet",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 5,
+      "call": "nx_create_drawing_sheet",
+      "setup": false,
+      "passed": true,
+      "checks": 7
+    },
+    {
+      "index": 6,
+      "call": "nx_create_drawing_sheet",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 7,
+      "call": "nx_create_drawing_sheet",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 8,
+      "call": "nx_create_drawing_sheet",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 9,
+      "call": "nx_create_drawing_sheet",
+      "setup": false,
+      "passed": true,
+      "checks": 4
+    },
+    {
+      "index": 10,
+      "call": "nx_create_drawing_sheet",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 11,
+      "call": "nx_create_drawing_sheet",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 12,
+      "call": "nx_create_drawing_sheet",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 13,
+      "call": "nx_create_drawing_sheet",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 14,
+      "call": "nx_close_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    }
+  ]
+}

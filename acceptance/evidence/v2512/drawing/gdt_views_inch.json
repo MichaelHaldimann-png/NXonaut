@@ -1,0 +1,115 @@
+{
+  "format": 2,
+  "scenario": "acceptance/drawing/gdt_views_inch.json",
+  "scenario_sha256": "73c16f7df5e8f1620338397f160de29bdf06182f97cf3b8d9fa9175c0bd0ed5e",
+  "domain": "drawing",
+  "covers": {
+    "nx_create_gdt": [
+      "view_datum_feature",
+      "view_fcf",
+      "view_datum_target"
+    ]
+  },
+  "nx_version": "v2512",
+  "nx_build": "2512.6002",
+  "sources": {
+    "nx_create_gdt": "62248177cd66e78e955d5a68ac3b948547cb6f1892eaeafcc6981cf01b7b0fd9"
+  },
+  "recorded": "2026-11-21T08:42:38Z",
+  "passed": true,
+  "checks": 18,
+  "failed_checks": 0,
+  "steps": [
+    {
+      "index": 1,
+      "call": "nx_open_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 2,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 3,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 4,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 5,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 6,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 7,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 8,
+      "call": "nx_create_drawing_sheet",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 9,
+      "call": "nx_create_drawing_view",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 10,
+      "call": "nx_create_gdt",
+      "setup": false,
+      "passed": true,
+      "checks": 5
+    },
+    {
+      "index": 11,
+      "call": "nx_create_gdt",
+      "setup": false,
+      "passed": true,
+      "checks": 7
+    },
+    {
+      "index": 12,
+      "call": "nx_create_gdt",
+      "setup": false,
+      "passed": true,
+      "checks": 6
+    },
+    {
+      "index": 13,
+      "call": "nx_close_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "format": 2,
+  "scenario": "acceptance/sheet_metal/lightening_cutout.json",
+  "scenario_sha256": "e7657a916cbeea25e47966f48d27e8abf9fa388787e4845d486788a5eb07ab4e",
+  "domain": "sheet_metal",
+  "covers": {
+    "nx_create_sheet_metal_feature": [
+      "lightening_cutout"
+    ]
+  },
+  "nx_version": "v2512",
+  "nx_build": "2512.6002",
+  "sources": {
+    "nx_create_sheet_metal_feature": "626f79ff189e042d046c9aefff1902d13f84aacecfec3670af4c801718c6511d"
+  },
+  "recorded": "2026-11-21T10:24:49Z",
+  "passed": false,
+  "checks": 4,
+  "failed_checks": 4,
+  "steps": [
+    {
+      "index": 1,
+      "call": "nx_create_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 2,
+      "call": "nx_activate_application",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 3,
+      "call": "nx_set_sheet_metal_defaults",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 4,
+      "call": "nx_create_sketch",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 5,
+      "call": "nx_create_sketch_curves",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 6,
+      "call": "nx_finish_sketch",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 7,
+      "call": "nx_create_sheet_metal_feature",
+      "setup": true,
+      "passed": true,
+      "checks": 1
+    },
+    {
+      "index": 8,
+      "call": "nx_create_sketch",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 9,
+      "call": "nx_create_sketch_curves",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 10,
+      "call": "nx_finish_sketch",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 11,
+      "call": "nx_create_sheet_metal_feature",
+      "setup": false,
+      "passed": false,
+      "checks": 3,
+      "error": {
+        "code": "NX_ERROR",
+        "category": "nx_error"
+      },
+      "failures": [
+        "unexpected error NX_ERROR",
+        "mutation_outcome: equals failed",
+        "data.bend_count: missing",
+        "data.thickness: missing"
+      ]
+    }
+  ]
+}

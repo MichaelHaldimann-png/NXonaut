@@ -1,0 +1,55 @@
+{
+  "format": 2,
+  "scenario": "acceptance/parts_files/list_parts.json",
+  "scenario_sha256": "837df5e4e05b49f1c41c5c857929f553482b6a683e757209c65003399e75774f",
+  "domain": "parts_files",
+  "covers": {
+    "nx_list_parts": []
+  },
+  "nx_version": "v2512",
+  "nx_build": "2512.6002",
+  "sources": {
+    "nx_list_parts": "fdde8fcf7b2285f6f9dc1674fd4f28a85cb93519a71c36df5bdce3662f7fac84"
+  },
+  "recorded": "2026-11-21T09:07:51Z",
+  "passed": false,
+  "checks": 2,
+  "failed_checks": 0,
+  "steps": [
+    {
+      "index": 1,
+      "call": "nx_create_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 2,
+      "call": "engineer",
+      "setup": false,
+      "passed": true,
+      "checks": 2
+    },
+    {
+      "index": 3,
+      "call": "nx_save_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 4,
+      "call": "nx_create_part",
+      "setup": true,
+      "passed": false,
+      "checks": 0,
+      "error": {
+        "code": "NX_SAVE_FAILED",
+        "category": "file_failed"
+      },
+      "failures": [
+        "unexpected error NX_SAVE_FAILED"
+      ]
+    }
+  ]
+}

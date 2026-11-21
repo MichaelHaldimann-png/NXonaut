@@ -1,0 +1,164 @@
+{
+  "format": 2,
+  "scenario": "acceptance/modeling/hole_parameters.json",
+  "scenario_sha256": "7d23c4832f04f7a21ef73f8e61915cdcd2f248b9a7c228239bfeab468a0dab04",
+  "domain": "modeling",
+  "covers": {
+    "nx_edit_feature": [],
+    "nx_get_feature": []
+  },
+  "nx_version": "v2512",
+  "nx_build": "2512.6002",
+  "sources": {
+    "nx_edit_feature": "4a040f503dc0bc751366a9c6faef214958a8f2590ff3977bf91738145eb977c5",
+    "nx_get_feature": "4a040f503dc0bc751366a9c6faef214958a8f2590ff3977bf91738145eb977c5"
+  },
+  "recorded": "2026-11-21T09:28:30Z",
+  "passed": false,
+  "checks": 20,
+  "failed_checks": 21,
+  "steps": [
+    {
+      "index": 1,
+      "call": "nx_create_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 2,
+      "call": "nx_create_primitive",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 3,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 4,
+      "call": "nx_create_hole",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 5,
+      "call": "nx_get_feature",
+      "setup": false,
+      "passed": false,
+      "checks": 2,
+      "failures": [
+        "data.parameters: contains failed",
+        "data.parameters.3: contains failed"
+      ]
+    },
+    {
+      "index": 6,
+      "call": "nx_edit_feature",
+      "setup": false,
+      "passed": false,
+      "checks": 3,
+      "error": {
+        "code": "NX_NOT_FOUND",
+        "category": "not_found",
+        "field": "/parameters/0/name"
+      },
+      "failures": [
+        "unexpected error NX_NOT_FOUND",
+        "mutation_outcome: equals failed",
+        "data.parameters: missing",
+        "warnings: missing"
+      ]
+    },
+    {
+      "index": 7,
+      "call": "nx_edit_feature",
+      "setup": false,
+      "passed": false,
+      "checks": 2,
+      "error": {
+        "code": "NX_NOT_FOUND",
+        "category": "not_found",
+        "field": "/parameters/0/name"
+      },
+      "failures": [
+        "unexpected error NX_NOT_FOUND",
+        "mutation_outcome: equals failed",
+        "data.parameters: missing"
+      ]
+    },
+    {
+      "index": 8,
+      "call": "nx_edit_feature",
+      "setup": false,
+      "passed": false,
+      "checks": 4,
+      "error": {
+        "code": "NX_NOT_FOUND",
+        "category": "not_found",
+        "field": "/parameters/0/name"
+      },
+      "failures": [
+        "error.code: equals failed",
+        "error.details.reason: missing",
+        "error.hint: contains failed"
+      ]
+    },
+    {
+      "index": 9,
+      "call": "nx_edit_feature",
+      "setup": false,
+      "passed": false,
+      "checks": 4,
+      "error": {
+        "code": "NX_NOT_FOUND",
+        "category": "not_found",
+        "field": "/parameters/0/name"
+      },
+      "failures": [
+        "unexpected error NX_NOT_FOUND",
+        "mutation_outcome: equals failed",
+        "data.parameters: missing",
+        "data.parameters.1.formula: missing",
+        "warnings: missing"
+      ]
+    },
+    {
+      "index": 10,
+      "call": "nx_undo_operation",
+      "setup": false,
+      "passed": true,
+      "checks": 1
+    },
+    {
+      "index": 11,
+      "call": "nx_get_feature",
+      "setup": false,
+      "passed": false,
+      "checks": 3,
+      "error": {
+        "code": "NX_STALE_REFERENCE",
+        "category": "stale_reference",
+        "field": "/feature"
+      },
+      "failures": [
+        "unexpected error NX_STALE_REFERENCE",
+        "data.parameters: missing",
+        "data.parameters.1.formula: missing",
+        "data.parameters.7.value: missing"
+      ]
+    },
+    {
+      "index": 12,
+      "call": "nx_check_model",
+      "setup": false,
+      "passed": true,
+      "checks": 1
+    }
+  ]
+}

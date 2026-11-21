@@ -1,0 +1,150 @@
+{
+  "format": 2,
+  "scenario": "acceptance/assembly/bill_of_materials.json",
+  "scenario_sha256": "a01058429ef9a4f743674d84aad71506247ad5a967f5749712d6b4a572b99198",
+  "domain": "assembly",
+  "covers": {
+    "nx_get_bill_of_materials": [],
+    "nx_export_bill_of_materials": []
+  },
+  "nx_version": "v2512",
+  "nx_build": "2512.6002",
+  "sources": {
+    "nx_get_bill_of_materials": "8444a00937377afb3d8e25776262897df952740c1cb7983ddba35d820f6bf6ae",
+    "nx_export_bill_of_materials": "8444a00937377afb3d8e25776262897df952740c1cb7983ddba35d820f6bf6ae"
+  },
+  "recorded": "2026-11-21T13:28:29Z",
+  "passed": false,
+  "checks": 20,
+  "failed_checks": 5,
+  "steps": [
+    {
+      "index": 1,
+      "call": "nx_create_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 2,
+      "call": "nx_create_primitive",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 3,
+      "call": "nx_set_material",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 4,
+      "call": "nx_save_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 5,
+      "call": "nx_create_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 6,
+      "call": "nx_create_primitive",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 7,
+      "call": "nx_save_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 8,
+      "call": "nx_create_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 9,
+      "call": "nx_create_component",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 10,
+      "call": "nx_create_component",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 11,
+      "call": "nx_create_component",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 12,
+      "call": "nx_create_component",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 13,
+      "call": "nx_edit_component",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 14,
+      "call": "nx_get_bill_of_materials",
+      "setup": false,
+      "passed": false,
+      "checks": 10,
+      "failures": [
+        "data.rows.0.quantity: equals failed (wanted 1, actual 2)",
+        "data.rows.0.material: equals failed",
+        "data.rows.0.name: matches failed",
+        "data.rows.1.quantity: equals failed (wanted 2, actual 1)"
+      ]
+    },
+    {
+      "index": 15,
+      "call": "nx_get_bill_of_materials",
+      "setup": false,
+      "passed": false,
+      "checks": 4,
+      "failures": [
+        "data.rows.1.quantity: equals failed (wanted 3, actual 1)"
+      ]
+    },
+    {
+      "index": 16,
+      "call": "nx_export_bill_of_materials",
+      "setup": false,
+      "passed": true,
+      "checks": 4
+    },
+    {
+      "index": 17,
+      "call": "nx_export_bill_of_materials",
+      "setup": false,
+      "passed": true,
+      "checks": 2
+    }
+  ]
+}

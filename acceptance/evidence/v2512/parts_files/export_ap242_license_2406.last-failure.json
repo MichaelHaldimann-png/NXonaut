@@ -1,0 +1,102 @@
+{
+  "format": 2,
+  "scenario": "acceptance/parts_files/export_ap242_license_2406.json",
+  "scenario_sha256": "7ab908047ee3abf1d051a89d270465132edf15fa03b3f1b5872d70b21d8d77ef",
+  "domain": "parts_files",
+  "covers": {},
+  "nx_version": "v2512",
+  "nx_build": "2512.6002",
+  "sources": {},
+  "recorded": "2026-11-21T09:02:29Z",
+  "passed": false,
+  "checks": 12,
+  "failed_checks": 12,
+  "steps": [
+    {
+      "index": 1,
+      "call": "nx_open_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 2,
+      "call": "nx_list_objects",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 3,
+      "call": "nx_export_model",
+      "setup": false,
+      "passed": false,
+      "checks": 3,
+      "error": {
+        "code": "NX_ALREADY_EXISTS",
+        "category": "already_exists",
+        "field": "/path"
+      },
+      "failures": [
+        "error.code: equals failed",
+        "error.hint: matches failed",
+        "mutation_outcome: equals failed"
+      ]
+    },
+    {
+      "index": 4,
+      "call": "nx_create_transform",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 5,
+      "call": "nx_export_model",
+      "setup": false,
+      "passed": false,
+      "checks": 4,
+      "failures": [
+        "error.code: missing",
+        "error.category: missing",
+        "error.nx_code: missing",
+        "mutation_outcome: equals failed"
+      ]
+    },
+    {
+      "index": 6,
+      "call": "nx_list_parts",
+      "setup": false,
+      "passed": true,
+      "checks": 1
+    },
+    {
+      "index": 7,
+      "call": "nx_export_model",
+      "setup": false,
+      "passed": false,
+      "checks": 3,
+      "error": {
+        "code": "NX_ALREADY_EXISTS",
+        "category": "already_exists",
+        "field": "/path"
+      },
+      "failures": [
+        "unexpected error NX_ALREADY_EXISTS",
+        "mutation_outcome: equals failed",
+        "data.schema: missing",
+        "data.solids: missing"
+      ]
+    },
+    {
+      "index": 8,
+      "call": "nx_list_files",
+      "setup": false,
+      "passed": false,
+      "checks": 1,
+      "failures": [
+        "page.total: equals failed (wanted 1, actual 3)"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "format": 2,
+  "scenario": "acceptance/assembly/constraint_status.json",
+  "scenario_sha256": "40692bbb492dbb3850e03cdc2771afcadc86116a0657341de18e2a2949e43dfa",
+  "domain": "assembly",
+  "covers": {
+    "nx_list_assembly_constraints": []
+  },
+  "nx_version": "v2512",
+  "nx_build": "2512.6002",
+  "sources": {
+    "nx_list_assembly_constraints": "e9b01a4d9ac76e6bc120f43af6eb2152d315ed8a4d8cf13607711fac1bc03d4e"
+  },
+  "recorded": "2026-11-21T13:28:38Z",
+  "passed": false,
+  "checks": 11,
+  "failed_checks": 1,
+  "steps": [
+    {
+      "index": 1,
+      "call": "nx_create_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 2,
+      "call": "nx_create_component",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 3,
+      "call": "nx_create_component",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 4,
+      "call": "nx_create_component",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 5,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 6,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 7,
+      "call": "nx_create_assembly_constraint",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 8,
+      "call": "nx_create_assembly_constraint",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 9,
+      "call": "nx_list_assembly_constraints",
+      "setup": false,
+      "passed": true,
+      "checks": 8
+    },
+    {
+      "index": 10,
+      "call": "nx_list_assembly_constraints",
+      "setup": false,
+      "passed": false,
+      "checks": 3,
+      "failures": [
+        "data.page.total: missing"
+      ]
+    }
+  ]
+}

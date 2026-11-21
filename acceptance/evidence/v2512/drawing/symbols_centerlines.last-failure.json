@@ -1,0 +1,178 @@
+{
+  "format": 2,
+  "scenario": "acceptance/drawing/symbols_centerlines.json",
+  "scenario_sha256": "48f4377bd13ae2980a19b3f7d42fdb37e01b7578050ce35e476e651c4d95f077",
+  "domain": "drawing",
+  "covers": {
+    "nx_create_centerline": [
+      "symmetrical",
+      "automatic"
+    ]
+  },
+  "nx_version": "v2512",
+  "nx_build": "2512.6002",
+  "sources": {
+    "nx_create_centerline": "e196a407d5316a00b066d5dbb0f3d785796dc732690c962462740e05735dc7fd"
+  },
+  "recorded": "2026-11-21T08:45:22Z",
+  "passed": false,
+  "checks": 20,
+  "failed_checks": 4,
+  "steps": [
+    {
+      "index": 1,
+      "call": "nx_open_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 2,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 3,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 4,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 5,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 6,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 7,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 8,
+      "call": "nx_create_drawing_sheet",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 9,
+      "call": "nx_create_drawing_view",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 10,
+      "call": "nx_create_drawing_view",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 11,
+      "call": "nx_list_objects",
+      "setup": true,
+      "passed": false,
+      "checks": 1,
+      "failures": [
+        "data.items: count failed"
+      ]
+    },
+    {
+      "index": 12,
+      "call": "nx_delete_objects",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 13,
+      "call": "nx_create_centerline",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 14,
+      "call": "nx_create_centerline",
+      "setup": false,
+      "passed": true,
+      "checks": 1
+    },
+    {
+      "index": 15,
+      "call": "nx_create_centerline",
+      "setup": false,
+      "passed": false,
+      "checks": 4,
+      "failures": [
+        "data.annotations: count failed (wanted 2, actual 1)",
+        "data.origins: count failed (wanted 2, actual 1)",
+        "changes.created: count_kind failed"
+      ]
+    },
+    {
+      "index": 16,
+      "call": "nx_create_centerline",
+      "setup": false,
+      "passed": true,
+      "checks": 2
+    },
+    {
+      "index": 17,
+      "call": "nx_create_centerline",
+      "setup": false,
+      "passed": true,
+      "checks": 2
+    },
+    {
+      "index": 18,
+      "call": "nx_create_centerline",
+      "setup": false,
+      "passed": true,
+      "checks": 2
+    },
+    {
+      "index": 19,
+      "call": "nx_create_centerline",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 20,
+      "call": "nx_create_centerline",
+      "setup": false,
+      "passed": true,
+      "checks": 2
+    },
+    {
+      "index": 21,
+      "call": "nx_close_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    }
+  ]
+}

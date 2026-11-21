@@ -1,0 +1,270 @@
+{
+  "format": 2,
+  "scenario": "acceptance/assembly/constraint_values.json",
+  "scenario_sha256": "c96e2dce4ccdb573413fca0d701a82cf6dd3d5976934282b039580bf504c7618",
+  "domain": "assembly",
+  "covers": {
+    "nx_create_assembly_constraint": [
+      "distance",
+      "angle",
+      "touch"
+    ],
+    "nx_edit_assembly_constraint": [],
+    "nx_set_component_pose": [
+      "relative"
+    ]
+  },
+  "nx_version": "v2512",
+  "nx_build": "2512.6002",
+  "sources": {
+    "nx_create_assembly_constraint": "ecadbdcab78c2f694777bbe2bb1687850d9a1e0cf42f5f3a1d99a6998394a24a",
+    "nx_edit_assembly_constraint": "ecadbdcab78c2f694777bbe2bb1687850d9a1e0cf42f5f3a1d99a6998394a24a",
+    "nx_set_component_pose": "8ef5c42d7140591a92151506a44b7d12a8c6e75b766cf18d2fc6b894850f4a85"
+  },
+  "recorded": "2026-11-21T09:55:44Z",
+  "passed": false,
+  "checks": 69,
+  "failed_checks": 9,
+  "steps": [
+    {
+      "index": 1,
+      "call": "nx_create_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 2,
+      "call": "nx_create_component",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 3,
+      "call": "nx_create_component",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 4,
+      "call": "nx_create_component",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 5,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 6,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 7,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 8,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 9,
+      "call": "nx_create_assembly_constraint",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 10,
+      "call": "nx_create_assembly_constraint",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 11,
+      "call": "nx_create_assembly_constraint",
+      "setup": false,
+      "passed": true,
+      "checks": 8
+    },
+    {
+      "index": 12,
+      "call": "nx_edit_assembly_constraint",
+      "setup": false,
+      "passed": true,
+      "checks": 6
+    },
+    {
+      "index": 13,
+      "call": "nx_edit_assembly_constraint",
+      "setup": false,
+      "passed": true,
+      "checks": 4
+    },
+    {
+      "index": 14,
+      "call": "nx_edit_assembly_constraint",
+      "setup": false,
+      "passed": true,
+      "checks": 2
+    },
+    {
+      "index": 15,
+      "call": "nx_create_assembly_constraint",
+      "setup": false,
+      "passed": true,
+      "checks": 5
+    },
+    {
+      "index": 16,
+      "call": "nx_edit_assembly_constraint",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 17,
+      "call": "nx_create_assembly_constraint",
+      "setup": false,
+      "passed": true,
+      "checks": 4
+    },
+    {
+      "index": 18,
+      "call": "nx_create_assembly_constraint",
+      "setup": false,
+      "passed": true,
+      "checks": 4
+    },
+    {
+      "index": 19,
+      "call": "nx_measure_angle",
+      "setup": false,
+      "passed": true,
+      "checks": 1
+    },
+    {
+      "index": 20,
+      "call": "nx_create_assembly_constraint",
+      "setup": false,
+      "passed": true,
+      "checks": 2
+    },
+    {
+      "index": 21,
+      "call": "nx_set_expression",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 22,
+      "call": "nx_create_component",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 23,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 24,
+      "call": "nx_create_assembly_constraint",
+      "setup": false,
+      "passed": true,
+      "checks": 5
+    },
+    {
+      "index": 25,
+      "call": "nx_edit_assembly_constraint",
+      "setup": false,
+      "passed": false,
+      "checks": 3,
+      "error": {
+        "code": "NX_INVALID_ARGUMENT",
+        "category": "invalid_argument",
+        "field": "/value"
+      },
+      "failures": [
+        "unexpected error NX_INVALID_ARGUMENT",
+        "mutation_outcome: equals failed",
+        "data.value: missing",
+        "data.measured: missing"
+      ]
+    },
+    {
+      "index": 26,
+      "call": "nx_edit_assembly_constraint",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 27,
+      "call": "nx_set_component_pose",
+      "setup": false,
+      "passed": true,
+      "checks": 5
+    },
+    {
+      "index": 28,
+      "call": "nx_set_component_pose",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 29,
+      "call": "nx_edit_assembly_constraint",
+      "setup": false,
+      "passed": true,
+      "checks": 4
+    },
+    {
+      "index": 30,
+      "call": "nx_undo_operation",
+      "setup": false,
+      "passed": true,
+      "checks": 3
+    },
+    {
+      "index": 31,
+      "call": "nx_edit_assembly_constraint",
+      "setup": false,
+      "passed": false,
+      "checks": 4,
+      "error": {
+        "code": "NX_INVALID_ARGUMENT",
+        "category": "invalid_argument",
+        "field": "/value"
+      },
+      "failures": [
+        "unexpected error NX_INVALID_ARGUMENT",
+        "mutation_outcome: equals failed",
+        "data.value: missing",
+        "data.measured: missing",
+        "data.moved: missing"
+      ]
+    }
+  ]
+}

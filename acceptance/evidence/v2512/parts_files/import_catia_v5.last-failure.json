@@ -1,0 +1,52 @@
+{
+  "format": 2,
+  "scenario": "acceptance/parts_files/import_catia_v5.json",
+  "scenario_sha256": "42a9060ee0ee38d27e4691019be9a23cfad9da077bfc8fea7f93cf3053c514e8",
+  "domain": "parts_files",
+  "covers": {
+    "nx_import_model": [
+      "catia_v5"
+    ]
+  },
+  "nx_version": "v2512",
+  "nx_build": "2512.6002",
+  "sources": {
+    "nx_import_model": "7a538cffabc38cd6194b658ddcd266a93b49a5c952b2ce8943b63bdc422eab03"
+  },
+  "recorded": "2026-11-21T09:05:34Z",
+  "passed": false,
+  "checks": 2,
+  "failed_checks": 3,
+  "steps": [
+    {
+      "index": 1,
+      "call": "nx_create_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 2,
+      "call": "nx_upload_file",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 3,
+      "call": "nx_import_model",
+      "setup": false,
+      "passed": false,
+      "checks": 2,
+      "error": {
+        "code": "NX_INCOMPLETE_RESULT",
+        "category": "geometry_failed"
+      },
+      "failures": [
+        "unexpected error NX_INCOMPLETE_RESULT",
+        "mutation_outcome: equals failed",
+        "data.format: missing"
+      ]
+    }
+  ]
+}

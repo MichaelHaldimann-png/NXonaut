@@ -1,0 +1,117 @@
+{
+  "format": 2,
+  "scenario": "acceptance/sheet_metal/callout.json",
+  "scenario_sha256": "8ab4c38fba2f9ab5c19d952340fedd7ff77e8720c00f7d5a7014a466addc9583",
+  "domain": "sheet_metal",
+  "covers": {
+    "nx_create_sheet_metal_callout": [
+      "body",
+      "bend"
+    ]
+  },
+  "nx_version": "v2512",
+  "nx_build": "2512.6002",
+  "sources": {
+    "nx_create_sheet_metal_callout": "9b2794125e84ff8a5641a43050985d1cacd3ea166e7da914724d12661f622c3a"
+  },
+  "recorded": "2026-11-21T10:21:25Z",
+  "passed": false,
+  "checks": 10,
+  "failed_checks": 1,
+  "steps": [
+    {
+      "index": 1,
+      "call": "nx_create_part",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 2,
+      "call": "nx_activate_application",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 3,
+      "call": "nx_set_sheet_metal_defaults",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 4,
+      "call": "nx_create_sketch",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 5,
+      "call": "nx_create_sketch_curves",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 6,
+      "call": "nx_finish_sketch",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 7,
+      "call": "nx_create_sheet_metal_feature",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 8,
+      "call": "nx_find_geometry",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 9,
+      "call": "nx_create_sheet_metal_feature",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 10,
+      "call": "nx_get_sheet_metal",
+      "setup": true,
+      "passed": true,
+      "checks": 0
+    },
+    {
+      "index": 11,
+      "call": "nx_create_sheet_metal_callout",
+      "setup": false,
+      "passed": true,
+      "checks": 4
+    },
+    {
+      "index": 12,
+      "call": "nx_create_sheet_metal_callout",
+      "setup": false,
+      "passed": true,
+      "checks": 4
+    },
+    {
+      "index": 13,
+      "call": "nx_update_annotations",
+      "setup": false,
+      "passed": false,
+      "checks": 2,
+      "failures": [
+        "mutation_outcome: equals failed"
+      ]
+    }
+  ]
+}
