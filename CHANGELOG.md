@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+**New**
+- Bill of materials: `nx_get_bill_of_materials` lists the parts of an assembly with item
+  number, quantity, material and part attributes (parts only, top level or indented
+  with 1.1 numbering), and `nx_export_bill_of_materials` writes it as a CSV Excel opens.
+  Experimental until the live acceptance run.
+
 ## 0.2.3 (2026-11-20)
 
 - NXonaut button in NX: an **NXonaut** ribbon tab and an **NXonaut** menu with
