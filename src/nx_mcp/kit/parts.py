@@ -258,6 +258,54 @@ SHEET_METAL_FEATURES = ("SB_", "FLAT_PATTERN", "FLAT_SOLID")
 SCRATCH_TEMPLATE = "model-plain-1-mm-template.prt"
 # Blank modeling templates of a new part by units.
 TEMPLATES = {"mm": SCRATCH_TEMPLATE, "in": "model-plain-1-inch-template.prt"}
+# Name parts of a site template that is no plain model part (drawing, assembly, CAE...).
+_NOT_MODEL = (
+    "dwg", "draw", "zeichn", "dessin", "sheet", "blech", "ass", "zsb", "baugr",
+    "mcd", "fem", "sim", "motion", "cam", "weld", "studio",
+)  # fmt: skip
+
+
+def template_name(tx, builder, units: str = "mm") -> str:
+    """The template a ``FileNew`` builder uses for a new blank part in ``units``.
+
+    NX's own ``model-plain-1-<units>-template.prt`` (``TEMPLATES``) where NX offers it.
+    A site that replaces NX's template set with its own (a university's or company's
+    ``UGII_SITE_DIR`` pax, live: BFH offers only ``template_mod_bfh.prt``) makes NX
+    refuse it ("the selected template does not exist"): then the site's first model
+    template of the same units, a ``.prt`` whose name says no drawing, assembly or CAE,
+    one with "mod" in its name first. Anything unknown keeps NX's own name.
+    """
+    standard = TEMPLATES[units]
+    try:
+        templates = list(builder.GetTemplates() or [])
+    except Exception:
+        return standard
+    try:
+        wanted = getattr(tx.nx.PartUnits, "Millimeters" if units == "mm" else "Inches")
+        rows = []
+        for template in templates:
+            with contextlib.suppress(Exception):
+                rows.append(
+                    (str(template.GetName()), template.GetUnits() == wanted, template.IsBlank())
+                )
+    except Exception:
+        return standard
+    finally:
+        for template in templates:
+            with contextlib.suppress(Exception):
+                template.Dispose()
+    if not rows or any(name == standard for name, _, _ in rows):
+        return standard
+    candidates = [
+        name
+        for name, same_units, blank in rows
+        if same_units
+        and not blank
+        and name.lower().endswith(".prt")
+        and not any(word in name.lower() for word in _NOT_MODEL)
+    ]
+    candidates.sort(key=lambda name: "mod" not in name.lower())  # stable: site order
+    return candidates[0] if candidates else standard
 
 
 def has_sheet_metal(part) -> bool:
@@ -349,7 +397,7 @@ def _display_in_sheet_metal(tx, part) -> None:
     name = f"nx_mcp_scratch_{uuid.uuid4().hex[:12]}.prt"
     builder = parts.FileNew()
     try:
-        builder.TemplateFileName = SCRATCH_TEMPLATE
+        builder.TemplateFileName = template_name(tx, builder)
         builder.Units = tx.nx.Part.Units.Millimeters
         builder.NewFileName = str(Path(tx.workspace.root) / ".nx-mcp" / name)
         builder.MakeDisplayedPart = False
