@@ -9,6 +9,9 @@
   Experimental until the live acceptance run.
 - `nx_list_assembly_constraints` lists an assembly's constraints and says for every
   component whether it is fixed, constrained, broken (a constraint fails) or free.
+- Panel: a progress bar for longer jobs (the agent starts its step note with `[3/7]`),
+  and a refused step shows what was wrong (`/height must be more than 0`) instead of
+  «invalid argument».
 
 **Fixed**
 - NX in German (2512): expressions in «Millimeter» or «Grad» are lengths and angles
