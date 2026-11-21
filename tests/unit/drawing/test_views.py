@@ -68,14 +68,22 @@ def test_default_base_position_is_100_mm_on_an_inch_sheet():
     assert ok.units["sheet_length"] == "in"
 
 
-def test_base_view_of_a_multi_body_part_is_refused_before_nx():
+def test_base_view_of_a_multi_body_part_shows_every_body_with_a_note():
     nx = views_nx()
     nx.block(5, 5, 5, origin=(100, 0, 0))
-    bad = run(nx, "nx_create_drawing_view", type="base", sheet=nx.sheet_obj.ref, orientation="top")
-    assert bad.error["code"] == "NX_UNSUPPORTED_OPTION" and bad.mutation_outcome == "not_started"
     missing = run(nx, "nx_create_drawing_view", type="base", sheet=nx.sheet_obj.ref)
     assert missing.error["field"] == "/orientation"
     assert not nx.builders
+    ok = run(nx, "nx_create_drawing_view", type="base", sheet=nx.sheet_obj.ref, orientation="top")
+    assert ok.ok, ok
+    assert any("all 2 bodies" in w["message"] for w in ok.warnings), ok.warnings
+    body = nx.ref_of(list(nx.part.Bodies)[0], "body")
+    picked = run(nx, "nx_create_drawing_view", type="base", sheet=nx.sheet_obj.ref,
+                 orientation="top", body=body)  # fmt: skip
+    assert picked.error["code"] == "NX_UNSUPPORTED_OPTION" and picked.error["field"] == "/body"
+    assert (
+        picked.mutation_outcome == "not_started" and "nx_create_wave_link" in picked.error["hint"]
+    )
 
 
 def test_projected_view_moves_only_along_its_free_axis_and_keeps_the_parent():
@@ -370,18 +378,6 @@ def test_each_view_type_schema_requires_its_own_fields():
     }
     for variant, fields in needs.items():
         assert fields <= set(schema.variant_schema(spec, variant)["required"]), variant
-
-
-def test_a_multi_body_part_is_refused_with_its_body_count_and_a_way_out():
-    nx = views_nx()
-    second = nx.block(10, 10, 10)
-    bad = run(nx, "nx_create_drawing_view", type="base", orientation="top")
-    assert bad.error["code"] == "NX_UNSUPPORTED_OPTION" and bad.error["field"] == "/type"
-    assert "2" in bad.error["message"] and "nx_create_wave_link" in bad.error["hint"]
-    with_body = run(nx, "nx_create_drawing_view", type="base", orientation="top",
-                    body=nx.ref_of(second, "body"))  # fmt: skip
-    assert with_body.error["field"] == "/body" and "several" in with_body.error["message"]
-    assert with_body.mutation_outcome == "not_started"
 
 
 def test_line_fonts_are_names_both_ways():
