@@ -17,6 +17,9 @@
   `nx_run_motion_sweep`.
 - Drawings: a small shaded 3D view top right (drawing rule `pictorial`), and PDF exports
   keep shaded views shaded.
+- Drawings: `nx_get_drawing_plan` suggests the views (front = most informative, turned
+  parts one view, plates two, others three, plus the shaded 3D view), the sheet size and
+  an ISO 5455 scale before a drawing is made.
 - Rules: a `naming` topic with selectable schemes for part and file names
   (descriptive, number, number_description or your own pattern); pick one in your rule
   file. Part number and description attributes keep BOM and title block in step.
