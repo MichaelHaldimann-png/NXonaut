@@ -3,14 +3,22 @@
 Generated from the catalogue (`nx_mcp.core.catalogue`) with the acceptance evidence in `src/nx_mcp/evidence/`; do not edit this table by hand.
 Run `python scripts/generate_capability_matrix.py` to regenerate, or add `--check` to detect drift.
 
+<<<<<<< HEAD
 Canonical SHA-256 (catalogue evidence): `b19292390821f90b2dc8c53d7392a808e53292224329d1b4b8a42fbfd5e64ad0`.
+=======
+Canonical SHA-256 (catalogue evidence): `47f63997daebc8dc33056dce4d31713fd361ca47d7fb482d58651d5215d66b8e`.
+>>>>>>> c5930a001f8620cc251908c0eb95c0f6aa7823e8
 
 These labels report recorded evidence, not certification or independent verification of its claims. A catalogue tool is Native-tested when the acceptance runner recorded machine-checked scenario evidence for an NX build (listed per variant); only that scope and build are covered. Without it the tool is Experimental, hidden from discovery and refused in production.
 
 | Tool classification | Count |
 | --- | ---: |
 | Native-tested | 271 |
+<<<<<<< HEAD
 | Experimental | 7 |
+=======
+| Experimental | 6 |
+>>>>>>> c5930a001f8620cc251908c0eb95c0f6aa7823e8
 
 ## Catalogue tools
 
