@@ -38,6 +38,23 @@ UNIT_SCALE = {
     "Degrees": ("angle", 1.0),
     "Radian": ("angle", 57.29577951308232),
 }
+# Unit.Name is localised (NX 2512 German: "Millimeter", "Grad"); the abbreviation and
+# these spellings, compared without case, name the same units.
+_UNIT_ALIASES = {
+    "mm": "MilliMeter", "millimeter": "MilliMeter", "millimetre": "MilliMeter",
+    "millimetro": "MilliMeter", "millimètre": "MilliMeter",
+    "in": "Inch", "zoll": "Inch", "inch": "Inch", "pouce": "Inch",
+    "cm": "CentiMeter", "zentimeter": "CentiMeter", "centimeter": "CentiMeter",
+    "centimètre": "CentiMeter",
+    "m": "Meter", "meter": "Meter", "metre": "Meter", "mètre": "Meter",
+    "ft": "Foot", "fuss": "Foot", "fuß": "Foot", "foot": "Foot", "pied": "Foot",
+    "µm": "MicroMeter", "um": "MicroMeter", "mikrometer": "MicroMeter",
+    "micrometer": "MicroMeter",
+    "°": "Degrees", "deg": "Degrees", "degrees": "Degrees", "grad": "Degrees",
+    "degré": "Degrees", "degrés": "Degrees", "grado": "Degrees", "gradi": "Degrees",
+    "rad": "Radian", "radian": "Radian", "radiant": "Radian", "bogenmass": "Radian",
+    "bogenmaß": "Radian",
+}  # fmt: skip
 _TARGET_UNIT = {"mm": "MilliMeter", "in": "Inch", "deg": "Degrees", "rad": "Radian"}
 _NOUN = {
     "length": "a length",
@@ -148,7 +165,7 @@ def units(exp):
     unit = getattr(exp, "Units", None)
     if not unit:
         return "unitless"
-    short = SHORT_UNITS.get(str(getattr(unit, "Name", "") or ""))
+    short = SHORT_UNITS.get(canonical_unit(unit) or "")
     if short:
         return short
     abbreviation = str(unit.Abbreviation)
@@ -314,9 +331,37 @@ def drive(expression, value, integer: bool = False):
     return expression
 
 
+def canonical_unit(unit) -> str | None:
+    """The NX 2406 English name (a ``UNIT_SCALE`` key) of an NX ``Unit``, also when NX
+    shows unit names localised (``Millimeter``, ``Grad``): by name, then abbreviation."""
+    if not unit:
+        return None
+    for attr in ("Name", "Abbreviation"):
+        text = str(getattr(unit, attr, "") or "").strip()
+        if text in UNIT_SCALE:
+            return text
+        alias = _UNIT_ALIASES.get(text.casefold())
+        if alias:
+            return alias
+    return str(getattr(unit, "Name", "") or "") or None
+
+
+def canonical_name(text) -> str:
+    """``canonical_unit`` for a unit name or abbreviation as text (an .exp file's
+    ``[MilliMeter]``); an unknown name stays as given."""
+    text = str(text or "").strip()
+    return text if text in UNIT_SCALE else _UNIT_ALIASES.get(text.casefold(), text)
+
+
+def unit_scale(exp) -> tuple[str | None, float | None]:
+    """``(dimension, factor to mm or degrees)`` of ``exp``'s units, ``(None, None)`` when
+    unitless or another unit."""
+    return UNIT_SCALE.get(canonical_unit(getattr(exp, "Units", None)) or "", (None, None))
+
+
 def _unit_of(exp):
     unit = getattr(exp, "Units", None)
-    return getattr(unit, "Name", None) if unit else None
+    return canonical_unit(unit) if unit else None
 
 
 def _file_of(part) -> str:

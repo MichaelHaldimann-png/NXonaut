@@ -337,7 +337,7 @@ def _unit_value(text, exp, field) -> float | None:
     number, unit = float(match.group(1)), match.group(2).lower()
     kind, scale = UNITS[unit]
     own = getattr(getattr(exp, "Units", None), "Name", None)
-    own_kind, own_scale = expr.UNIT_SCALE.get(str(own), (None, None))
+    own_kind, own_scale = expr.unit_scale(exp)
     if own_kind is None or own_scale is None:
         return number if own is None else None  # unitless: the number; else NX converts
     if own_kind != kind:
@@ -352,8 +352,7 @@ def _formula_value(tx, text, exp, field) -> float | None:
     NX's deform manager mid-update: the next component's deformation then creates nothing).
     A syntax error, an unknown name or another dimension is refused here. None when ``exp``
     is neither a length nor an angle (NX then judges the formula)."""
-    own = str(getattr(getattr(exp, "Units", None), "Name", "") or "")
-    kind, scale = expr.UNIT_SCALE.get(own, (None, None))
+    kind, scale = expr.unit_scale(exp)
     if kind is None or scale is None:
         return None
     unit = "deg" if kind == "angle" else "mm"

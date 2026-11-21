@@ -261,7 +261,8 @@ def _unit_clashes(entries, before) -> list[dict]:
         if exp is None or unit is None:
             continue
         own = getattr(exp, "Units", None)
-        if own is None or unit not in (getattr(own, "Name", None), own.Abbreviation):
+        if own is None or (expr.canonical_name(unit) != expr.canonical_unit(own)
+                           and unit != getattr(own, "Abbreviation", None)):  # fmt: skip
             out.append({"name": name, "file_units": unit, "units": expr.units(exp)})
     return out
 

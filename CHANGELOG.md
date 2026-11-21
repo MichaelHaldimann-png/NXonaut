@@ -10,6 +10,11 @@
 - `nx_list_assembly_constraints` lists an assembly's constraints and says for every
   component whether it is fixed, constrained, broken (a constraint fails) or free.
 
+**Fixed**
+- NX in German (2512): expressions in «Millimeter» or «Grad» are lengths and angles
+  again, so sizes, heights, sketch dimensions and drafts bind to parameters without the
+  `name+0` workaround, and expression imports no longer report a unit clash.
+
 ## 0.2.3 (2026-11-20)
 
 - NXonaut button in NX: an **NXonaut** ribbon tab and an **NXonaut** menu with
