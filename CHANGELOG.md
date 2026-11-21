@@ -12,6 +12,9 @@
 - Panel: a progress bar for longer jobs (the agent starts its step note with `[3/7]`),
   and a refused step shows what was wrong (`/height must be more than 0`) instead of
   «invalid argument».
+- Rules: a `naming` topic with selectable schemes for part and file names
+  (descriptive, number, number_description or your own pattern); pick one in your rule
+  file. Part number and description attributes keep BOM and title block in step.
 
 **Fixed**
 - NX in German (2512): expressions in «Millimeter» or «Grad» are lengths and angles
