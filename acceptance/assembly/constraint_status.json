@@ -1,0 +1,24 @@
+{
+  "covers": {"nx_list_assembly_constraints": []},
+  "fixture": "fixtures/parts_files_block_mm.prt",
+  "part": "new",
+  "steps": [
+    {"call": "nx_create_part", "setup": true, "args": {"path": "$part", "units": "mm"}},
+    {"call": "nx_create_component", "setup": true, "save": "A", "args": {"part": "$part", "path": "$fixture", "name": "A"}},
+    {"call": "nx_create_component", "setup": true, "save": "B", "args": {"part": "$part", "path": "$fixture", "name": "B", "pose": {"translation": [0, 0, 30]}}},
+    {"call": "nx_create_component", "setup": true, "save": "C", "args": {"part": "$part", "path": "$fixture", "name": "C", "pose": {"translation": [0, 60, 0]}}},
+    {"call": "nx_find_geometry", "setup": true, "save": "Atop", "args": {"owner": "$A.data.component.id", "kind": "face", "geometry_type": "plane", "normal": [0, 0, 1], "order": "highest", "axis": "z", "limit": 1}},
+    {"call": "nx_find_geometry", "setup": true, "save": "Bbot", "args": {"owner": "$B.data.component.id", "kind": "face", "geometry_type": "plane", "normal": [0, 0, -1], "order": "lowest", "axis": "z", "limit": 1}},
+    {"call": "nx_create_assembly_constraint", "setup": true, "args": {"part": "$part", "type": "fix", "component": "$A.data.component.id"}},
+    {"call": "nx_create_assembly_constraint", "setup": true, "save": "touch",
+     "args": {"part": "$part", "type": "touch", "component": "$B.data.component.id", "geometry": "$Bbot.data.items.0.id",
+              "target_component": "$A.data.component.id", "target_geometry": "$Atop.data.items.0.id"}},
+    {"call": "nx_list_assembly_constraints", "args": {"part": "$part"},
+     "expect": {"data.counts.constraints": 2, "data.counts.fixed": 1, "data.counts.constrained": 1,
+                "data.counts.free": 1, "data.counts.broken": 0, "data.counts.unsolved": 0,
+                "data.items": {"contains": {"type": "touch", "status": "Solved"}},
+                "data.components": {"contains": {"state": "free", "constraints": 0}}}},
+    {"call": "nx_list_assembly_constraints", "args": {"part": "$part", "component": "$B.data.component.id"},
+     "expect": {"data.page.total": 1, "data.items.0.type": "touch", "data.components.0.state": "constrained"}}
+  ]
+}

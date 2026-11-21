@@ -3,14 +3,14 @@
 Generated from the catalogue (`nx_mcp.core.catalogue`) with the acceptance evidence in `src/nx_mcp/evidence/`; do not edit this table by hand.
 Run `python scripts/generate_capability_matrix.py` to regenerate, or add `--check` to detect drift.
 
-Canonical SHA-256 (catalogue evidence): `47f63997daebc8dc33056dce4d31713fd361ca47d7fb482d58651d5215d66b8e`.
+Canonical SHA-256 (catalogue evidence): `b19292390821f90b2dc8c53d7392a808e53292224329d1b4b8a42fbfd5e64ad0`.
 
 These labels report recorded evidence, not certification or independent verification of its claims. A catalogue tool is Native-tested when the acceptance runner recorded machine-checked scenario evidence for an NX build (listed per variant); only that scope and build are covered. Without it the tool is Experimental, hidden from discovery and refused in production.
 
 | Tool classification | Count |
 | --- | ---: |
 | Native-tested | 271 |
-| Experimental | 6 |
+| Experimental | 7 |
 
 ## Catalogue tools
 
@@ -226,6 +226,7 @@ These labels report recorded evidence, not certification or independent verifica
 | nx_import_model | Native-tested | parts_files | model | v2406: dxf_dwg, iges, parasolid, step, stl (untested: catia_v5); 33 checks in acceptance/parts_files/profile_options.json |
 | nx_import_points | Native-tested | freeform | model | v2406: tested; 46 checks in acceptance/freeform/curve_fit.json |
 | nx_list_arrangements | Native-tested | assembly | read | v2406: tested; 80 checks in acceptance/assembly/arrangements.json |
+| nx_list_assembly_constraints | Experimental | assembly | read | no acceptance evidence: hidden and refused in production |
 | nx_list_checkpoints | Native-tested | session | read | v2406: tested; 41 checks in acceptance/session/undo_survives_load.json |
 | nx_list_clearance_sets | Native-tested | assembly | read | v2406: tested; 93 checks in acceptance/assembly/clearance_sets.json |
 | nx_list_component_groups | Native-tested | assembly | read | v2406: tested; 99 checks in acceptance/assembly/weight_management.json |
