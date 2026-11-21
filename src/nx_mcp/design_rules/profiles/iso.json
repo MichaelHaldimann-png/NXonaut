@@ -10,6 +10,7 @@
         "sheet": "A-series sheets (ISO 5457), border and grid; A4 portrait or A3/A2 landscape. Plain sheet with an own title block table: never the NX example template or any vendor logo.",
         "scale": "Preferred scales (ISO 5455): 1:1, 1:2, 1:5, 1:10, 2:1, 5:1, 10:1. Main scale in the title block, other scales beside their view.",
         "views": "Front view = the most informative view; shafts and turned parts lie horizontal. Only the views needed; sections for keyways and bores, detail views (2:1 to 10:1) for undercuts, grooves and small radii.",
+        "pictorial": "Add a small isometric view as a picture: top right above the title block, fully shaded (nx_edit_drawing_view style rendering fully_shaded), scale one step smaller, no dimensions or hidden lines. Leave it out only when the sheet is full or the engineer says so.",
         "dimensions": "Dimensions outside the part where possible, never across the body; aligned rows with even spacing, smaller dimensions nearer the part, no crossing dimension lines, no duplicates. Diameters with the symbol, functional dimensions from datum faces (ISO 129-1).",
         "lines": "Line widths in a ratio of 2:1, e.g. 0.5 mm visible edges and 0.25 mm dimension, hatching and centre lines (ISO 128-2). Centre lines on every axis of revolution.",
         "lettering": "Lettering ISO 3098 type B, upright; 3.5 mm for dimensions, 5 or 7 mm for the title and drawing number.",

@@ -149,6 +149,7 @@ def test_export_rules_and_a_pdf_published_from_the_staging_area():
     nx.part.PlotManager = NS(CreatePrintPdfbuilder=lambda: nx.builder("PrintPdfBuilder"))
 
     def plot(b):
+        assert b.ShadedGeometry is True  # shaded pictorial views keep their shading
         Path(b.Filename).write_bytes(b"%PDF-1.7 fake")
 
     nx.on_commit("PrintPdfBuilder", plot)

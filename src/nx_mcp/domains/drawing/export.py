@@ -188,7 +188,7 @@ def _pdf(tx, part, sheets, temp):
         b.Units = b.UnitsOption.Metric
         b.OutputText = b.OutputTextOption.Text
         b.RasterImages = True
-        b.ShadedGeometry = False
+        b.ShadedGeometry = True  # a shaded (pictorial) view prints shaded; others stay vector
         b.ImageResolution = b.ImageResolutionOption.High
         b.Colors = b.Color.AsDisplayed
         b.SourceBuilder.SetSheets(list(sheets))
