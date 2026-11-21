@@ -15,6 +15,8 @@
 - Joints: `nx_create_joint` joins two components as a revolute, cylindrical, slider or
   fixed joint made of assembly constraints (no NX Motion licence needed); drive it with
   `nx_run_motion_sweep`.
+- Drawings: a small shaded 3D view top right (drawing rule `pictorial`), and PDF exports
+  keep shaded views shaded.
 - Rules: a `naming` topic with selectable schemes for part and file names
   (descriptive, number, number_description or your own pattern); pick one in your rule
   file. Part number and description attributes keep BOM and title block in step.
