@@ -323,7 +323,7 @@ def _new_part(tx, target: Path, units: str, display: bool | None):
     try:
         with native(default="NX_SAVE_FAILED"):
             builder = tx.session.Parts.FileNew()
-            builder.TemplateFileName = TEMPLATES[units]
+            builder.TemplateFileName = parts.template_name(tx, builder, units)
             builder.Units = (
                 tx.nx.Part.Units.Millimeters if units == "mm" else tx.nx.Part.Units.Inches
             )
