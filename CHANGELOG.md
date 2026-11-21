@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 1.0.0 (2026-11-21)
+
+First 1.0 release. The new tools below passed the fake-NX tests and CI; the live NX 2512
+acceptance run was interrupted before it finished, so they stay Experimental until it
+completes.
 
 **New**
 - Bill of materials: `nx_get_bill_of_materials` lists the parts of an assembly with item
