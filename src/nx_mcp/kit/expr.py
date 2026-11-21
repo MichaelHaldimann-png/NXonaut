@@ -81,6 +81,15 @@ ALIASES = {
 }
 # Aliases of one feature kind: ``{name: (description word naming the kind, words)}``. NX 2406
 # describes a tube's diameters as "(Tube(2) Limit 1)" (outer, live) and "Limit 2" (inner).
+# NX in another language describes expressions in that language ("Endgrenze"); then the
+# semantic names fall back to the expression's position on a feature whose FeatureType
+# (never translated) fixes the order NX creates them in: start limit first, then end.
+POSITIONS = {
+    "EXTRUDE": {"start": 0, "end": 1, "distance": 1},
+    "REVOLVED": {"start": 0, "end": 1, "angle": 1},
+    "BLEND": {"radius": 0},
+    "CHAMFER": {"offset": 0, "distance": 0},
+}
 FEATURE_ALIASES = {
     "outer_diameter": ("Tube(", ("Limit 1",)),
     "inner_diameter": ("Tube(", ("Limit 2",)),
@@ -230,12 +239,21 @@ def alias(feature, name):
                 f"{len(hits)} expressions of the feature match {name!r}",
                 details={"candidates": [e.Name for e in hits]},
             )
+    position = POSITIONS.get(str(getattr(feature, "FeatureType", "") or "").upper(), {}).get(name)
+    if position is not None and position < len(expressions) and not _english(described):
+        return expressions[position]
     listed = [(e, str(getattr(e, "Description", "") or "")) for e in expressions]
     fail(
         "NX_NOT_FOUND",
         f"The feature has no {name!r} parameter",
         details={"expressions": [{"name": e.Name, "description": t} for e, t in listed]},
     )
+
+
+def _english(described) -> bool:
+    """Whether NX describes these expressions in English (a known word appears)."""
+    words = {w.casefold() for group in ALIASES.values() for w in group}
+    return any(w in text.casefold() for _, text in described for w in words)
 
 
 # ---- helper expressions named after what they drive ---------------------------------

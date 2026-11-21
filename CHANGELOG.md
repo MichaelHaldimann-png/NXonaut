@@ -28,6 +28,10 @@
 - NX in German (2512): expressions in «Millimeter» or «Grad» are lengths and angles
   again, so sizes, heights, sketch dimensions and drafts bind to parameters without the
   `name+0` workaround, and expression imports no longer report a unit clash.
+- NX in German: feature parameters (`distance`, `start`, `end`, `angle`, `radius`) are
+  found on extrudes, revolves, blends and chamfers although NX names them in German.
+- New parts on NX sites with their own templates (falls back to the site's model
+  template) and the NXonaut tab with a site launcher that sets its own user folder.
 - A base drawing view of a part with several bodies is drawn (all bodies, with a note)
   instead of refused, so multi-body parts need no wrapper assembly.
 

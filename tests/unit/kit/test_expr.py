@@ -190,3 +190,15 @@ def test_localised_unit_names_are_the_same_units():
     a.Units = NS(Name="Grad", Abbreviation="°")
     a.expression_value = 5.0
     assert expr.evaluate(svc, "a", "angle", "deg") == pytest.approx(5.0)
+
+
+def test_alias_falls_back_to_the_position_in_another_language():
+    """German NX: 'Extrudieren(2) Startgrenze' / 'Endgrenze'; FeatureType stays EXTRUDE."""
+    start = NS(Name="p3", Description="Extrudieren(2) Startgrenze")
+    end = NS(Name="p4", Description="Extrudieren(2) Endgrenze")
+    feature = NS(FeatureType="EXTRUDE", GetExpressions=lambda: [start, end])
+    assert expr.alias(feature, "distance") is end and expr.alias(feature, "end") is end
+    assert expr.alias(feature, "start") is start
+    assert _code(expr.alias, feature, "radius").code == "NX_NOT_FOUND"
+    other = NS(FeatureType="SHELL", GetExpressions=lambda: [start])
+    assert _code(expr.alias, other, "distance").code == "NX_NOT_FOUND"
