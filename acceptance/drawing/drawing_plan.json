@@ -1,0 +1,16 @@
+{
+  "covers": {"nx_get_drawing_plan": []},
+  "fixture": null,
+  "part": "new",
+  "steps": [
+    {"call": "nx_create_part", "setup": true, "args": {"path": "$part", "units": "mm"}},
+    {"call": "nx_create_primitive", "setup": true, "args": {"length": 80, "width": 30, "height": 60}},
+    {"call": "nx_get_drawing_plan", "args": {},
+     "expect": {"data.shape": "prismatic", "data.extents": {"close": [80, 30, 60], "tol": 1e-6},
+                "data.views.0.orientation": "front", "data.views.1.orientation": "top",
+                "data.views.2.orientation": "right", "data.views.3.orientation": "isometric",
+                "data.sheet": "A3", "data.scale": "1:1"}},
+    {"call": "nx_get_drawing_plan", "args": {"sheet": "a3"},
+     "expect": {"data.sheet": "A3", "data.scale": "1:1", "data.alternatives": []}}
+  ]
+}

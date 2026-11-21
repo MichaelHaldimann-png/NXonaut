@@ -3,14 +3,14 @@
 Generated from the catalogue (`nx_mcp.core.catalogue`) with the acceptance evidence in `src/nx_mcp/evidence/`; do not edit this table by hand.
 Run `python scripts/generate_capability_matrix.py` to regenerate, or add `--check` to detect drift.
 
-Canonical SHA-256 (catalogue evidence): `0479e36d730202247af62119c6e95d933d5d57492e10e6d0363489673fb5791e`.
+Canonical SHA-256 (catalogue evidence): `cc0f9b32c0ffbd485b793dbbacf8aaac5ff893d878efa4c51143dba7dd7cee63`.
 
 These labels report recorded evidence, not certification or independent verification of its claims. A catalogue tool is Native-tested when the acceptance runner recorded machine-checked scenario evidence for an NX build (listed per variant); only that scope and build are covered. Without it the tool is Experimental, hidden from discovery and refused in production.
 
 | Tool classification | Count |
 | --- | ---: |
 | Native-tested | 271 |
-| Experimental | 8 |
+| Experimental | 9 |
 
 ## Catalogue tools
 
@@ -206,6 +206,7 @@ These labels report recorded evidence, not certification or independent verifica
 | nx_get_bill_of_materials | Experimental | assembly | read | no acceptance evidence: hidden and refused in production |
 | nx_get_camera | Native-tested | display | read | v2406: tested; 54 checks in acceptance/display/view_directions.json |
 | nx_get_dimension | Native-tested | drawing | read | v2406: tested; 26 checks in acceptance/drawing/get_dimension.json |
+| nx_get_drawing_plan | Experimental | drawing | read | no acceptance evidence: hidden and refused in production |
 | nx_get_drawing_table | Native-tested | drawing | read | v2406: tested; 57 checks in acceptance/drawing/title_block.json |
 | nx_get_drawing_view | Native-tested | drawing | read | v2406: tested; 38 checks in acceptance/drawing/view_visibility.json |
 | nx_get_explosion | Native-tested | assembly | read | v2406: tested; 184 checks in acceptance/assembly/explosions.json |
