@@ -56,4 +56,3 @@ Point your MCP client at `.venv\Scripts\nx-mcp.exe`, for example in Codex:
 In NX, play `nx_app\journals\start.py` with **Alt+F8**, or let NX start it by itself:
 `setx UGII_USER_DIR "C:\path\to\NXonaut\nx_app"` (if you already use
 `UGII_USER_DIR`, add the `nx_app` folder to `custom_dirs.dat` instead).
-

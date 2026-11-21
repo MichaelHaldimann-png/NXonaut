@@ -1082,9 +1082,9 @@ def nx_create_sketch_projection(
         Doc("project: edges or curves; intersect: faces"),
     ],
     mode: Annotated[
-        Literal["project", "intersect"] | None,
-        Doc("Default: intersect for faces, else project"),
-    ] = None,
+        Literal["project", "intersect"], Doc("Default: intersect for faces, else project")
+    ]
+    | None = None,
 ) -> ProjectionData:
     """Bring model geometry into a sketch as associative curves that follow model changes.
     project: edges or curves onto the sketch plane (one already in the sketch is refused);
