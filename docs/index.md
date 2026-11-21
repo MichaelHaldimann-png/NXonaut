@@ -139,4 +139,3 @@ The Python package and program keep the upstream name
 Tested on NX 2406; NX 2412 to 2606 are expected to work (see
 [Supported NX versions](nx-versions.md)). The full list of tools is in
 [Tools](tools.md).
-
