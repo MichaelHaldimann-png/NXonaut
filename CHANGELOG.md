@@ -7,11 +7,8 @@
   number, quantity, material and part attributes (parts only, top level or indented
   with 1.1 numbering), and `nx_export_bill_of_materials` writes it as a CSV Excel opens.
   Experimental until the live acceptance run.
-<<<<<<< HEAD
 - `nx_list_assembly_constraints` lists an assembly's constraints and says for every
   component whether it is fixed, constrained, broken (a constraint fails) or free.
-=======
->>>>>>> c5930a001f8620cc251908c0eb95c0f6aa7823e8
 
 ## 0.2.3 (2026-11-20)
 
