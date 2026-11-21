@@ -38,7 +38,7 @@ def _scratch_part(tx):
     name = f"nx_mcp_selftest_{uuid.uuid4().hex[:12]}.prt"
     builder = session_parts.FileNew()
     try:
-        builder.TemplateFileName = parts.SCRATCH_TEMPLATE
+        builder.TemplateFileName = parts.template_name(tx, builder)
         builder.Units = tx.nx.Part.Units.Millimeters
         builder.NewFileName = str(Path(tx.workspace.root) / ".nx-mcp" / name)
         builder.MakeDisplayedPart = False

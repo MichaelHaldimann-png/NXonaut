@@ -58,6 +58,22 @@ def main():
     for line in getattr(module, "environment", list)():
         print(line)
     print(module.play())
+    note = autostart_note()
+    if note:
+        print(note)
+
+
+def autostart_note():
+    """A launcher that sets UGII_USER_DIR itself hides "Start with NX" from NX: repair
+    it for the next NX start (``nx_mcp.nx_setup.launcher_override``); never fails."""
+    try:
+        import os
+
+        from nx_mcp import nx_setup
+
+        return nx_setup.launcher_override(Path(__file__).resolve().parents[1], os.environ)
+    except Exception:
+        return None
 
 
 main()

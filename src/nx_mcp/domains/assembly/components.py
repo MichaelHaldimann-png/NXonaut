@@ -362,7 +362,7 @@ def _new_in_context(tx, path, units, objects, name, target):
         new_file = tx.session.Parts.FileNew()
     try:
         with builders.build(tx, part.AssemblyManager.CreateNewComponentBuilder) as b:
-            new_file.TemplateFileName = parts.TEMPLATES[units]
+            new_file.TemplateFileName = parts.template_name(tx, new_file, units)
             new_file.Units = nx.Part.Units.Millimeters if units == "mm" else nx.Part.Units.Inches
             new_file.NewFileName = str(path)
             new_file.MakeDisplayedPart = False
