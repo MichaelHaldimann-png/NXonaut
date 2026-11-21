@@ -167,3 +167,26 @@ def test_an_unknown_expression_name_suggests_the_closest_names():
     assert error.details["closest"] == ["Sheet_Metal_Thickness"]
     plain = _code(expr.evaluate, svc, "zzz", "length", "mm")
     assert "Did you mean" not in plain.hint
+
+
+def test_localised_unit_names_are_the_same_units():
+    """NX 2512 in German names units Millimeter and Grad: expressions in them bind."""
+    from tests.kit.kernel import services
+
+    assert expr.units(NS(Units=NS(Name="Millimeter", Abbreviation="mm"))) == "mm"
+    assert expr.units(NS(Units=NS(Name="Grad", Abbreviation="°"))) == "deg"
+    assert expr.unit_scale(NS(Units=NS(Name="Zoll", Abbreviation="in")))[0] == "length"
+    assert expr.unit_scale(NS(Units=NS(Name="Unbekannt", Abbreviation="cm"))) == ("length", 10.0)
+    assert expr.unit_scale(NS(Units=None)) == (None, None)
+    assert expr.canonical_name("Millimeter") == "MilliMeter"
+    assert expr.canonical_name("Newton") == "Newton"
+    nx = fake_nx()
+    svc = services(nx)
+    h = expr.create(nx.tx, "h", "40", "mm")
+    h.Units = NS(Name="Millimeter", Abbreviation="mm")
+    h.expression_value = 40.0
+    assert expr.evaluate(svc, "h", "length", "mm") == pytest.approx(40.0)
+    a = expr.create(nx.tx, "a", "5", "deg")
+    a.Units = NS(Name="Grad", Abbreviation="°")
+    a.expression_value = 5.0
+    assert expr.evaluate(svc, "a", "angle", "deg") == pytest.approx(5.0)
