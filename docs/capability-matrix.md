@@ -3,14 +3,14 @@
 Generated from the catalogue (`nx_mcp.core.catalogue`) with the acceptance evidence in `src/nx_mcp/evidence/`; do not edit this table by hand.
 Run `python scripts/generate_capability_matrix.py` to regenerate, or add `--check` to detect drift.
 
-Canonical SHA-256 (catalogue evidence): `b19292390821f90b2dc8c53d7392a808e53292224329d1b4b8a42fbfd5e64ad0`.
+Canonical SHA-256 (catalogue evidence): `0479e36d730202247af62119c6e95d933d5d57492e10e6d0363489673fb5791e`.
 
 These labels report recorded evidence, not certification or independent verification of its claims. A catalogue tool is Native-tested when the acceptance runner recorded machine-checked scenario evidence for an NX build (listed per variant); only that scope and build are covered. Without it the tool is Experimental, hidden from discovery and refused in production.
 
 | Tool classification | Count |
 | --- | ---: |
 | Native-tested | 271 |
-| Experimental | 7 |
+| Experimental | 8 |
 
 ## Catalogue tools
 
@@ -90,6 +90,7 @@ These labels report recorded evidence, not certification or independent verifica
 | nx_create_isocline_curves | Native-tested | freeform | model | v2406: all variants; 64 checks in acceptance/freeform/curve_surface.json |
 | nx_create_isoparametric_curves | Native-tested | freeform | model | v2406: all variants; 64 checks in acceptance/freeform/curve_surface.json |
 | nx_create_joined_curve | Native-tested | freeform | model | v2406: tested; 91 checks in acceptance/freeform/curve_edit.json |
+| nx_create_joint | Experimental | assembly | model | no acceptance evidence: hidden and refused in production |
 | nx_create_law_curve | Native-tested | freeform | model | v2406: tested; 42 checks in acceptance/freeform/curve_law.json |
 | nx_create_law_extension | Native-tested | freeform | model | v2406: all variants; 41 checks in acceptance/freeform/surface_checks.json |
 | nx_create_loft | Native-tested | modeling | model | v2406: tested; 31 checks in acceptance/modeling/results_reported.json |
