@@ -78,7 +78,8 @@ AGENT_INSTRUCTIONS = (
     'core tools included: {"part": "housing", ...}; nx_list_parts lists them. Before a part '
     "or drawing read nx_get_design_rules (manufacturing, then the process and the drawing, "
     "shaft or threads topic) and run its checks before done; save a convention the engineer "
-    "corrects with nx_save_design_rule once they agree."
+    "corrects with nx_save_design_rule once they agree. Long jobs: start intent with '[3/7] ' "
+    "for the NX panel's progress bar."
 )
 # Every tool that can be called without references lists ``part`` in its schemas (the
 # ref-less core tools in the agent listing, every such tool in nx_get_tool_schemas and the
@@ -112,7 +113,7 @@ FULL_INSTRUCTIONS = (
     "is claimed. Tools return {ok, mutation_outcome, data | error}. Every changing tool takes "
     "an optional operation_id (8-128 characters from A-Z a-z 0-9 _ -; omitted, the server "
     "makes one; reuse your own to retry safely) and intent (why, in the engineer's terms; "
-    "shown in the NX panel). File paths are workspace-relative or absolute inside the "
+    "shown in the NX panel; '[3/7] ...' shows plan progress). File paths are workspace-relative or absolute inside the "
     "workspace. Length and angle fields typed number or string also take '10 mm'/'90 deg' or "
     "an NX expression name or formula ('thickness/2'); [x, y, z] points take numbers only."
 )

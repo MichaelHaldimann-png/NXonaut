@@ -11,6 +11,7 @@ file for the panel's "Parts in use" lines (``part_line``).
 
 from __future__ import annotations
 
+import re
 import time
 from collections import deque
 from dataclasses import dataclass, field, replace
@@ -40,7 +41,6 @@ _UNCHANGED = frozenset({"rolled_back", "not_started", "not_applicable"})
 # Error code -> short reason for the panel line; the log keeps the full message.
 _SHORT_REASON = {
     "NX_NOT_FOUND": "object not found",
-    "NX_INVALID_ARGUMENT": "invalid argument",
     "NX_VERIFICATION_FAILED": "result failed verification",
     "NX_UPDATE_FAILED": "NX update failed",
     "NX_SKETCH_ACTIVE": "another sketch is active",
@@ -50,7 +50,8 @@ _SHORT_REASON = {
     "NX_MODAL_DIALOG_OPEN": "an NX dialog waits for an answer",
     "NX_ROLLBACK_FAILED": "undo failed",
     "NX_CALL_EXPIRED": SKIPPED_REASON,
-    # Catalogue codes whose messages are long; others show their message.
+    # Catalogue codes whose messages are long; others show their message (an invalid
+    # argument names the field and what it takes: "/height: expression 'h' is not a length").
     "NX_PART_NOT_GRANTED": "engineer's part, not granted",
     "NX_VERSION_UNSUPPORTED": "not tested on this NX version",
     "NX_RESTORE_FAILED": "view not fully restored",
@@ -84,6 +85,34 @@ class Entry:
     def shown(self) -> str:
         """The summary with the target part's file first, when known."""
         return with_part(self.part, self.summary)
+
+
+_PLAN = re.compile(r"^\s*\[\s*(\d{1,3})\s*/\s*(\d{1,3})\s*\]\s*")
+PLAN_SHOWN_S = 15 * 60  # an idle plan line fades after this long without a new step
+PLAN_BAR = 12
+
+
+def plan_step(intent: Any) -> tuple[int, int, str] | None:
+    """``(step, total, rest)`` of an intent starting ``[3/7] ...`` (the agent's plan
+    progress for the panel), else None."""
+    if not isinstance(intent, str):
+        return None
+    match = _PLAN.match(intent)
+    if match is None:
+        return None
+    step, total = int(match.group(1)), int(match.group(2))
+    if total < 1 or not 0 <= step <= total:
+        return None
+    return step, total, intent[match.end() :]
+
+
+def plan_line(step: int, total: int, title: str = "") -> str:
+    """``Plan  ▰▰▰▰▱▱▱▱  3 of 7  Holes`` for the panel."""
+    filled = round(PLAN_BAR * step / total)
+    bar = "▰" * filled + "▱" * (PLAN_BAR - filled)
+    done = "  done" if step == total else ""
+    text = f"Plan  {bar}  {step} of {total}{done}"
+    return _clip(f"{text}  {title}" if title else text)
 
 
 def with_part(part: str | None, summary: str) -> str:

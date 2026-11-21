@@ -915,6 +915,7 @@ class InteractiveHost:
     current_summary = None
     current_part = None  # the running call's target file (two or more parts loaded)
     current_intent = None
+    plan = None  # (step, total, title, monotonic time) from an intent "[3/7] ..."
     current_started_at = None
     window_disabled = False
     _activity = None
@@ -1394,6 +1395,23 @@ class InteractiveHost:
                 pass
         return self.current_part
 
+    def _note_plan(self, intent):
+        """Keep the agent's plan progress from an intent ``[3/7] ...`` (``activity.plan_step``)."""
+        from nx_mcp.activity import plan_step
+
+        step = plan_step(intent)
+        if step is not None:
+            self.plan = (*step, time.monotonic())
+
+    def plan_text(self) -> str | None:
+        """The panel's plan line while a plan is recent (``activity.PLAN_SHOWN_S``), else None."""
+        from nx_mcp.activity import PLAN_SHOWN_S, plan_line
+
+        plan = getattr(self, "plan", None)
+        if not plan or time.monotonic() - plan[3] > PLAN_SHOWN_S:
+            return None
+        return plan_line(plan[0], plan[1], plan[2] if not self.running_method else "")
+
     def panel_text(self):
         from nx_mcp.activity import LINE_WIDTH, _clip
 
@@ -1406,6 +1424,9 @@ class InteractiveHost:
 
             summary = with_part(self.current_part, self.current_summary or self.running_method)
             lines = [head + _clip(summary, LINE_WIDTH - len(head) - len(tail)) + tail]
+            plan = self.plan_text()
+            if plan:
+                lines = [plan, *lines]
             untested = self.untested_line()
             if untested:
                 lines = [_clip(untested, LINE_WIDTH), *lines]
@@ -1444,6 +1465,9 @@ class InteractiveHost:
         update = self.update_line()
         if update:
             lines.append(_clip(update, LINE_WIDTH))
+        plan = self.plan_text()
+        if plan:
+            lines.append(plan)
         return self._with_history([*lines, self._notice_line() or idle])
 
     def update_line(self) -> str | None:
@@ -1795,6 +1819,7 @@ class InteractiveHost:
         self.current_summary = self._summarize(method, params)
         self.current_part = self._target_file(method, params)
         self.current_intent = params.get("intent")
+        self._note_plan(self.current_intent)
         self.current_operation_id = params.get("operation_id")
         self.current_started_at = time.time()
         self.last_error = None

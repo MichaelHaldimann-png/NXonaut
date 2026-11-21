@@ -265,3 +265,15 @@ def test_a_call_whose_socket_closed_at_its_start_leaves_one_activity_line(host, 
         assert len(skipped) == 1 and "stopped waiting" in skipped[0], skipped
     finally:
         ours.close()
+
+
+def test_an_intent_with_plan_steps_shows_a_progress_line(host, rig):  # noqa: F811
+    queue = _queue(host, "auto")
+    call = queue.submit("nx_list_objects", {**BODIES, "intent": "[2/5] Bohrungen prüfen"})
+    _ticks(host)
+    assert call is not None
+    lines = host.panel_text().splitlines()
+    plan = next(line for line in lines if line.startswith("Plan"))
+    assert "2 of 5" in plan and plan.endswith("Bohrungen prüfen")
+    host.plan = (*host.plan[:3], time.monotonic() - 3600)  # an old plan fades
+    assert not any(line.startswith("Plan") for line in host.panel_text().splitlines())

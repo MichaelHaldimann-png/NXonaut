@@ -167,3 +167,26 @@ def test_engineer_changes_in_a_row_are_one_line_and_long_history_points_to_the_l
     lines = activity.panel(40)
     assert len(lines) == 14 and lines[-1] == "…  8 earlier lines: Open log"
     assert "You changed the model (3×) — agent" in lines[0]
+
+
+def test_plan_progress_from_an_intent_prefix():
+    from nx_mcp.activity import plan_line, plan_step
+
+    assert plan_step("[3/7] Bohrungen setzen") == (3, 7, "Bohrungen setzen")
+    assert plan_step(" [ 7 / 7 ]Done") == (7, 7, "Done")
+    for bad in ("3/7 no brackets", "[8/7] too far", "[0/0] none", None, 5):
+        assert plan_step(bad) is None
+    line = plan_line(3, 6, "Holes")
+    assert line.startswith("Plan  ▰▰▰▰▰▰▱▱▱▱▱▱  3 of 6") and line.endswith("Holes")
+    assert "done" in plan_line(6, 6)
+
+
+def test_an_invalid_argument_shows_its_own_message():
+    import tempfile
+    from pathlib import Path
+
+    activity = Activity(Path(tempfile.mkdtemp()) / "activity.log")
+    bad = NXError("NX_INVALID_ARGUMENT", "/height must be more than 0",
+                  details={"mutation_outcome": "not_started"})  # fmt: skip
+    run(activity, "nx_create_primitive", "Block", error=bad)
+    assert activity.recent()[0].endswith("(/height must be more than 0)")
