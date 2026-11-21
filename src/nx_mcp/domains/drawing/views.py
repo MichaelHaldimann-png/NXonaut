@@ -573,18 +573,22 @@ def _create_base(tx, sheet_ref, orientation, body_ref, explosion_ref, position, 
             if body_ref is not None:
                 select.resolve(tx, body_ref, "body", field="/body", work_part=True)
             count = len(list(part.Bodies))
-            if count != 1:
+            if count == 0 or (count > 1 and body_ref is not None):
                 fail(
                     "NX_UNSUPPORTED_OPTION",
-                    f"A base view of a part needs a part with exactly one body; this one has "
-                    f"{count}" + (": body cannot pick one of several" if body_ref else ""),
+                    f"A base view shows every body of the part ({count}): body cannot pick one"
+                    if count
+                    else "A base view of a part needs a body; this part has none",
                     field="/body" if body_ref is not None else "/type",
-                    hint="Keep one body: link it into a new part with nx_create_wave_link and "
-                    "draw that part, or remove the others with nx_create_delete_body"
+                    hint="Omit body to draw every body, or link the one body into a new part "
+                    "with nx_create_wave_link and draw that part"
                     if count
                     else "Model a body first",
                     details={"bodies": count},
                 )
+            if count > 1:
+                tx.warn("NX_NOTE", f"The view shows all {count} bodies of the part; to leave "
+                        "one out, suppress its feature before creating the view")  # fmt: skip
         else:
             if tx.session.Parts.Display != part:
                 fail("NX_WRONG_PART_CONTEXT", "Make the assembly the work and display part",

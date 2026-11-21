@@ -14,6 +14,8 @@
 - NX in German (2512): expressions in «Millimeter» or «Grad» are lengths and angles
   again, so sizes, heights, sketch dimensions and drafts bind to parameters without the
   `name+0` workaround, and expression imports no longer report a unit clash.
+- A base drawing view of a part with several bodies is drawn (all bodies, with a note)
+  instead of refused, so multi-body parts need no wrapper assembly.
 
 ## 0.2.3 (2026-11-20)
 
