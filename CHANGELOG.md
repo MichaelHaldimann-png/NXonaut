@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+**New**
+- License borrowing: `nx_set_license_borrowing` borrows NX's floating licenses (FlexNet
+  `lmborrow`) for a number of days or until a date, so NX works without the VPN;
+  `nx_get_license_borrowing` lists borrowed features and their expiry, and
+  `nx_finish_license_borrowing` ends the borrow period and can return licenses early.
+  The license file decides how long borrowing is allowed. Experimental until the live
+  acceptance run.
+
 ## 1.0.0 (2026-11-21)
 
 First 1.0 release. The new tools below passed the fake-NX tests and CI; the live NX 2512

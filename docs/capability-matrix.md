@@ -3,14 +3,14 @@
 Generated from the catalogue (`nx_mcp.core.catalogue`) with the acceptance evidence in `src/nx_mcp/evidence/`; do not edit this table by hand.
 Run `python scripts/generate_capability_matrix.py` to regenerate, or add `--check` to detect drift.
 
-Canonical SHA-256 (catalogue evidence): `cc0f9b32c0ffbd485b793dbbacf8aaac5ff893d878efa4c51143dba7dd7cee63`.
+Canonical SHA-256 (catalogue evidence): `20dfa0a296850347024658fbf65296796693b9723cac7bd806c889e23a3264ef`.
 
 These labels report recorded evidence, not certification or independent verification of its claims. A catalogue tool is Native-tested when the acceptance runner recorded machine-checked scenario evidence for an NX build (listed per variant); only that scope and build are covered. Without it the tool is Experimental, hidden from discovery and refused in production.
 
 | Tool classification | Count |
 | --- | ---: |
 | Native-tested | 271 |
-| Experimental | 9 |
+| Experimental | 12 |
 
 ## Catalogue tools
 
@@ -198,6 +198,7 @@ These labels report recorded evidence, not certification or independent verifica
 | nx_export_profile | Native-tested | parts_files | file | v2406: tested; 33 checks in acceptance/parts_files/profile_options.json |
 | nx_find_geometry | Native-tested | inspection | read | v2406: tested; 52 checks in acceptance/inspection/measure_details.json |
 | nx_find_holes | Native-tested | inspection | read | v2406: tested; 52 checks in acceptance/inspection/measure_details.json |
+| nx_finish_license_borrowing | Experimental | session | session | no acceptance evidence: hidden and refused in production |
 | nx_finish_preview | Native-tested | session | model | v2406: all variants; 23 checks in acceptance/session/preview_sketch_extrude.json |
 | nx_finish_sketch | Native-tested | sketch | model | v2406: tested; 55 checks in acceptance/sketch/sketch_natural_args.json |
 | nx_get_appearance | Native-tested | display | read | v2406: tested; 69 checks in acceptance/display/natural_values.json |
@@ -212,6 +213,7 @@ These labels report recorded evidence, not certification or independent verifica
 | nx_get_explosion | Native-tested | assembly | read | v2406: tested; 184 checks in acceptance/assembly/explosions.json |
 | nx_get_feature | Native-tested | modeling | read | v2406: tested; 31 checks in acceptance/modeling/results_reported.json |
 | nx_get_kf_rules | Native-tested | parts_files | read | v2406: tested; 56 checks in acceptance/parts_files/kf_rules.json |
+| nx_get_license_borrowing | Experimental | session | read | no acceptance evidence: hidden and refused in production |
 | nx_get_material | Native-tested | modeling | read | v2406: tested; 31 checks in acceptance/modeling/results_reported.json |
 | nx_get_model_summary | Native-tested | inspection | read | v2406: tested; 19 checks in acceptance/inspection/self_overlap_face_limit.json |
 | nx_get_operation | Native-tested | session | read | v2406: tested; 62 checks in acceptance/session/status_operations.json |
@@ -277,6 +279,7 @@ These labels report recorded evidence, not certification or independent verifica
 | nx_set_feature_suppression | Native-tested | modeling | model | v2406: tested; 40 checks in acceptance/modeling/feature_tree_undo.json |
 | nx_set_highlight | Native-tested | display | view | v2406: tested; 13 checks in acceptance/display/highlight.json |
 | nx_set_kf_rule | Native-tested | parts_files | model | v2406: all variants; 56 checks in acceptance/parts_files/kf_rules.json |
+| nx_set_license_borrowing | Experimental | session | session | no acceptance evidence: hidden and refused in production |
 | nx_set_light | Native-tested | display | model | v2406: tested; 39 checks in acceptance/display/lights_background.json |
 | nx_set_lighting_preset | Native-tested | display | model | v2406: tested; 39 checks in acceptance/display/lights_background.json |
 | nx_set_material | Native-tested | modeling | model | v2406: tested; 5 checks in acceptance/modeling/material_undo.json |
