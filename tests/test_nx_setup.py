@@ -9,7 +9,7 @@ def test_prepare_writes_a_start_journal_for_this_installation(tmp_path):
     shim = tmp_path / "ws" / nx_setup.SHIM_NAME
     text = shim.read_text(encoding="utf-8")
     assert text.startswith("# nx: threaded\n")
-    assert str(nx_setup.nx_app_folder() / "journals" / "start.py") in text
+    assert repr(str(nx_setup.nx_app_folder() / "journals" / "start.py")) in text  # a literal
 
 
 def test_the_journal_plays_start_py(tmp_path, monkeypatch):
