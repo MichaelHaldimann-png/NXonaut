@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import re
 
+from nx_mcp.kit import expr
+
 USER_SUPPRESSED = 1  # AskSuppressFeature mask: suppressed by the user
 INACTIVE = 16  # AskSuppressFeature mask: after the current feature
 
@@ -104,7 +106,7 @@ CUSTOM_ENGAGEMENT = '"Custom"'
 def hole_parameter(exp) -> str | None:
     """The threaded-hole parameter an expression holds (``"tap drill diameter"``), from
     its description "(M6 x 1.0 Threaded Hole(2) Tap Drill Diameter)"; None otherwise."""
-    match = _HOLE_PARAMETER.search(str(getattr(exp, "Description", "") or ""))
+    match = _HOLE_PARAMETER.search(expr.description(exp))
     return match.group(1).strip().casefold() if match else None
 
 

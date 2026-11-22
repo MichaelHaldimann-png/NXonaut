@@ -29,6 +29,29 @@ NO_SHEETS = 735029  # NX: "There are no drawing sheets in the selected part."
 COUNTS = ("changes", "additions", "deletions")
 HEADER = {"Number of Sheets": "sheets", "Number of Views": "views",
           "Number of Annotations": "annotations"}  # fmt: skip
+# NX in German (2512) words its report in German: header fields such as "Anzahl
+# Beschriftungen", the summary "1 Hinzufügung" and object classes "Beschriftungen".
+# Header fields are read by their key word, the rest mapped to the English names.
+_HEADER_WORDS = (("sheet", "sheets"), ("blätter", "sheets"), ("blatt", "sheets"),
+                 ("view", "views"), ("ansicht", "views"),
+                 ("annotation", "annotations"), ("beschriftung", "annotations"))  # fmt: skip
+_FILE_NAMES = {"file name", "dateiname", "name der datei"}
+_COUNT_WORDS = {"änderung": "changes", "aenderung": "changes", "hinzufügung": "additions",
+                "hinzufuegung": "additions", "löschung": "deletions",
+                "loeschung": "deletions"}  # fmt: skip
+_TYPES = {"beschriftungen": "Annotations", "bemaßungen": "Dimensions",
+          "bemassungen": "Dimensions", "ansichten": "Views", "blätter": "Sheets",
+          "tabellen": "Tables", "symbole": "Symbols"}  # fmt: skip
+
+
+def _header(field):
+    """The side key ("sheets", "views", "annotations") of a header field, or None."""
+    if field in HEADER:
+        return HEADER[field]
+    text = field.casefold()
+    if not (text.startswith("number of") or text.startswith("anzahl")):
+        return None
+    return next((key for word, key in _HEADER_WORDS if word in text), None)
 
 
 class CompareCounts(TypedDict):
@@ -69,8 +92,9 @@ def _lines(value):
 def counts_of(summary):
     """{changes, additions, deletions} from NX's summary line ("1 Deletion" too)."""
     out = dict.fromkeys(COUNTS, 0)
-    for number, word in re.findall(r"(\d+)\s+([A-Za-z]+)", summary or ""):
-        key = word.lower().rstrip("s") + "s"
+    for number, word in re.findall(r"(\d+)\s+([^\W\d_]+)", summary or ""):
+        word = word.casefold()
+        key = _COUNT_WORDS.get(word.removesuffix("en")) or word.rstrip("s") + "s"
         if key in out:
             out[key] = int(number)
     return out
@@ -89,10 +113,10 @@ def read_report(summary_lines, change_lines, detail_lines):
     current, earlier, by_type, details = {}, {}, [], []
     for line in summary_lines + detail_lines:
         fields = line.split("~")
-        if len(fields) == 3 and fields[0] in HEADER:
-            key = HEADER[fields[0]]
+        key = _header(fields[0]) if len(fields) == 3 else None
+        if key:
             current[key], earlier[key] = _int_or_none(fields[1]), _int_or_none(fields[2])
-        elif len(fields) == 3 and fields[0] == "File Name":
+        elif len(fields) == 3 and fields[0].casefold() in _FILE_NAMES:
             current["file"], earlier["file"] = fields[1], fields[2]
     seen = set()
     for line in change_lines:
@@ -100,11 +124,14 @@ def read_report(summary_lines, change_lines, detail_lines):
         values = [_int_or_none(f) for f in fields[1:]]
         if len(fields) == 4 and None not in values and fields[0] not in seen:
             seen.add(fields[0])
-            by_type.append({"type": fields[0], **dict(zip(COUNTS, values, strict=True))})
+            kind = _TYPES.get(fields[0].casefold(), fields[0])
+            by_type.append({"type": kind, **dict(zip(COUNTS, values, strict=True))})
     skip = {"Version", "Date/Time", "File Location", "File Name", *HEADER}
     for line in detail_lines:
         head = line.split("~")[0]
-        if head not in skip and not line.startswith("Summary:") and line not in change_lines:
+        if head in skip or _header(head) or head.casefold() in _FILE_NAMES:
+            continue
+        if not line.startswith("Summary:") and line not in change_lines:
             details.append(line)
     return current, earlier, by_type, details
 

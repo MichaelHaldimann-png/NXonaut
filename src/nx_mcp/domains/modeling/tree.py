@@ -329,7 +329,7 @@ def _description_words(f) -> list[str]:
     )
     words: list[str] = []
     for e in f.GetExpressions():
-        for word in _DESCRIPTION_WORD.findall(str(getattr(e, "Description", "") or "")):
+        for word in _DESCRIPTION_WORD.findall(expr.description(e)):
             word = word.casefold()
             if word not in own and word not in words:
                 words.append(word)

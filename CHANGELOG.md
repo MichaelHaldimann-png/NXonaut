@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 1.0.1 (2026-11-22)
+
+Licence borrowing, and fixes from the live NX 2512 acceptance run (German NX, a university
+site install). They pass the fake-NX tests and CI; the items marked *live* still need a
+run on real NX.
 
 **New**
 - License borrowing: `nx_set_license_borrowing` borrows NX's floating licenses (FlexNet
@@ -9,6 +13,26 @@
   `nx_finish_license_borrowing` ends the borrow period and can return licenses early.
   The license file decides how long borrowing is allowed. Experimental until the live
   acceptance run.
+
+**Fixed**
+- Bill of materials: rows follow the assembly navigator's order (the plate added first
+  is item 1), not NX's internal child list, which put a pin first. *live*
+- Material: reading several bodies at once reported the first body's material for the
+  second (an aluminium part read as steel).
+- NX in German: block, cylinder, tube and shell parameters (`length`, `width`, `height`,
+  `diameter`, `outer_diameter`, `thickness`) are found although NX names them «Länge»,
+  «Breite», «Höhe», «Stärke»; threaded-hole parameters read their German names too. *live*
+- NX in German: drawing compare reads the German report (counts of additions, changes
+  and deletions, sheets, views and «Beschriftungen» as annotations). *live*
+- NX in German: re-importing an expression file with a measured mass («Kilogramm») is
+  no longer refused as a unit clash.
+- New part in units the site's templates do not offer (no inch template): a clear
+  `NX_UNSUPPORTED_OPTION` on `units` before NX, instead of a failed save.
+- The small «made with NXonaut» note on a sheet no longer counts as a drawing annotation
+  in listings.
+- Windows: writing operation records, references and evidence retries for a moment when
+  a virus scanner or indexer holds the file (`PermissionError`, WinError 5), so sheet
+  borders and `fold` no longer fail on it.
 
 ## 1.0.0 (2026-11-21)
 

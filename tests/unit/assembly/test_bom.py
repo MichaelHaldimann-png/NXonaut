@@ -97,3 +97,20 @@ def test_empty_assembly_is_refused():
     nx = assembly_nx()
     bad = run(nx, "nx_get_bill_of_materials", part="asm")
     assert not bad.ok
+
+
+def test_rows_follow_navigator_order_not_nx_list_order(nx):
+    """Live NX 2512 listed children in another order than they were added (a pin before
+    the plate): rows follow the active order, else creation (tag) order."""
+    root = nx.asm.ComponentAssembly.RootComponent
+    root.children.reverse()
+    ok = run(nx, "nx_get_bill_of_materials", part="asm")
+    assert [r["name"] for r in ok.data["rows"]] == ["blk", "pin"]
+
+    class Order:
+        def AskChildrenOrder(self, parent):
+            return sorted(parent.GetChildren(), key=lambda c: -int(c.Tag))
+
+    nx.asm.ComponentAssembly.ActiveOrder = Order()
+    top = run(nx, "nx_get_bill_of_materials", part="asm", structure="top_level")
+    assert [r["name"] for r in top.data["rows"]] == ["sub", "blk"]

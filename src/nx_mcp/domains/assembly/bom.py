@@ -92,9 +92,39 @@ def _attribute(tx, prototype, title) -> str | None:
         return None
 
 
+def _navigator_order(tx):
+    """The assembly's active component order (NX's assembly navigator), or None.
+
+    ``Component.GetChildren`` has no defined order: live NX 2512 listed a pin before the
+    plate added first. ``Order.AskChildrenOrder`` gives the order the navigator shows."""
+    assembly = getattr(tx.part, "ComponentAssembly", None)
+    order = getattr(assembly, "ActiveOrder", None)
+    if order is None:
+        try:
+            order = next(iter(getattr(assembly, "Orders", None) or ()), None)
+        except Exception:
+            order = None
+    return order if hasattr(order, "AskChildrenOrder") else None
+
+
+def _children(order, component) -> list:
+    """``component``'s children in navigator order: the active order's, else by creation
+    (tag) so the bill never depends on NX's internal list order."""
+    children = list(component.GetChildren())
+    if order is not None and len(children) > 1:
+        try:
+            ordered = list(order.AskChildrenOrder(component))
+        except Exception:
+            ordered = []
+        if {int(c.Tag) for c in ordered} == {int(c.Tag) for c in children}:
+            return ordered
+    return sorted(children, key=lambda c: int(getattr(c, "Tag", 0) or 0))
+
+
 class _Bom:
     def __init__(self, tx, structure, include_suppressed, attributes):
         self.tx = tx
+        self.order = _navigator_order(tx)
         self.structure = structure
         self.include_suppressed = include_suppressed
         self.attributes = list(attributes or [])
@@ -140,7 +170,7 @@ class _Bom:
             row["components"].append(self.tx.ref(component, "component")["id"])
 
     def build(self, root) -> None:
-        children = self._kept(root.GetChildren())
+        children = self._kept(_children(self.order, root))
         if self.structure == "indented":
             self._indented(children, 0, "")
             return
@@ -152,7 +182,7 @@ class _Bom:
         todo = list(reversed(children))
         while todo:
             node = todo.pop()
-            below = self._kept(node.GetChildren())
+            below = self._kept(_children(self.order, node))
             if below:
                 todo.extend(reversed(below))
             else:
@@ -167,7 +197,7 @@ class _Bom:
             self._count(groups, order, child, level, prefix)
         for key, row in zip(first, order, strict=True):  # both in first-appearance order
             self.rows.append(row)
-            sub = self._kept(first[key].GetChildren())
+            sub = self._kept(_children(self.order, first[key]))
             if sub:
                 self._indented(sub, level + 1, row["item"] + ".")
 

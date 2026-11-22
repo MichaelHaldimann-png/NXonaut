@@ -83,6 +83,7 @@ from typing import Any
 from nx_mcp.acceptance import expect as expectations
 from nx_mcp.core import catalogue
 from nx_mcp.core import evidence as core_evidence
+from nx_mcp.core.tx import replace_file
 from nx_mcp.workspace import default_workspace
 
 # The checkout (scenarios, fixtures, scripts/dev_lock.py); an installed release
@@ -1139,7 +1140,7 @@ def write_evidence(record: dict, root: Path = EVIDENCE) -> tuple[Path | None, bo
     if changed:
         temp = target.with_name(target.name + ".tmp")
         temp.write_bytes(dump(record))
-        os.replace(temp, target)
+        replace_file(temp, target)
     if record["passed"]:
         (folder / (name + ".last-failure.json")).unlink(missing_ok=True)
     return target, changed
@@ -1151,7 +1152,7 @@ def write_run_log(workspace: Path, log: dict) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     temp = path.with_name(path.name + ".tmp")
     temp.write_bytes(dump(log))
-    os.replace(temp, path)
+    replace_file(temp, path)
     return path
 
 
@@ -1322,7 +1323,7 @@ def write_verify_summary(workspace: Path, summary: dict) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     temp = path.with_name(path.name + ".tmp")
     temp.write_bytes(dump(summary))
-    os.replace(temp, path)
+    replace_file(temp, path)
     return path
 
 
@@ -1519,7 +1520,7 @@ def fold(
         for name in sorted(written):
             fresh, target = Path(temp) / name, out_dir / name
             if not target.is_file() or target.read_bytes() != fresh.read_bytes():
-                os.replace(fresh, target)  # unchanged files are left untouched
+                replace_file(fresh, target)  # unchanged files are left untouched
     if out_dir == core_evidence.EVIDENCE_DIR:
         core_evidence.reload()
     return core_evidence.load(out_dir), problems

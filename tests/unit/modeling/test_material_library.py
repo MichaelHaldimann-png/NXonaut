@@ -367,3 +367,20 @@ def test_many_bodies_take_one_assign_call_and_a_scaled_budget(monkeypatch):
                         assign(bodies))[1], raising=False)  # fmt: skip
     again = run(nx, "nx_set_material", bodies=[b.ref for b in blocks], material="Steel")
     assert again.ok and calls == [120], again
+
+
+def test_described_materials_are_memoised_by_tag_not_python_identity():
+    """NX gives a new wrapper per call; id() of a collected one is reused by the next, which
+    read a second body's aluminium as steel on live NX 2512."""
+    from types import SimpleNamespace as NS
+
+    from nx_mcp.domains.modeling.material import describe
+
+    def material(tag, name):
+        return NS(Tag=tag, Name=name, IsLoadedLibraryMaterial=lambda: False,
+                  GetMaterialCategory=lambda: "METAL")  # fmt: skip
+
+    memo: dict = {}
+    assert describe(material(7, "Steel"), memo)["material"] == "Steel"
+    assert describe(material(9, "Aluminum_6061"), memo)["material"] == "Aluminum_6061"
+    assert describe(material(7, "Steel again"), memo)["material"] == "Steel"  # same tag

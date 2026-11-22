@@ -247,3 +247,15 @@ def test_update_names_the_kind_of_each_object_it_skips():
     assert reasons[1].startswith("view: up to date")
     assert reasons[2].startswith("sheet: nothing to refresh")
     assert reasons[3].startswith("not a drawing object (body)")
+
+
+def test_the_nxonaut_mark_is_left_out_of_annotation_listings():
+    """Live NX 2512: the sheet's 'made with NXonaut' note counted as a drawing object."""
+    nx = notes_nx()
+    nx.sheet_obj.Open()
+    assert run(nx, "nx_create_note", text=["S235"], origin=[20, 20]).ok
+    assert run(nx, "nx_create_note", text=["made with NXonaut"], origin=[400, 280]).ok
+    nx.part.Notes[-1].Name = "NXONAUT_MARK"
+    listed = run(nx, "nx_list_objects", kind="annotation")
+    assert listed.ok and listed.page["total"] == 1
+    assert listed.data["items"][0]["details"]["text"] == ["S235"]

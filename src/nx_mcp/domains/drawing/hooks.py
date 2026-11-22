@@ -223,11 +223,26 @@ def _annotations(part):
     return list({int(o.Tag): o for o in values}.values())
 
 
+# The small "made with NXonaut" note a new sheet gets (``sheets.MARK_NAME``): not one of
+# the drawing's annotations, so listings and counts leave it out; the engineer deletes it
+# in NX when it is not wanted.
+MARK_NAME = "NXONAUT_MARK"
+
+
+def _is_mark(a) -> bool:
+    try:
+        return str(getattr(a, "Name", "") or "") == MARK_NAME
+    except Exception:
+        return False
+
+
 @lister("annotation")
 def list_annotations(tx, owner, owner_kind):
     _whole_part(owner)
     out, sheets = [], {}
     for a in _annotations(tx.part):
+        if _is_mark(a):
+            continue
         details = {"origin": _origin(a), "bounds": _bounds(tx, a, sheets)}
         if hasattr(a, "GetText"):
             with contextlib.suppress(Exception):  # an annotation without readable text

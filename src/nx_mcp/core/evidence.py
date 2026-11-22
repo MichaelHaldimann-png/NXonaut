@@ -31,6 +31,7 @@ import types
 from pathlib import Path
 
 from nx_mcp.core.errors import NXError
+from nx_mcp.core.tx import replace_file
 
 EVIDENCE_DIR = Path(__file__).resolve().parent.parent / "evidence"
 # The supported build listings assume while no NX is connected (no bridge descriptor).
@@ -416,7 +417,7 @@ def record(
     temp = path.with_suffix(".tmp")
     # Bytes with LF: identical inputs give byte-identical files on every OS.
     temp.write_bytes((json.dumps(data, indent=2, sort_keys=True) + "\n").encode("utf-8"))
-    os.replace(temp, path)
+    replace_file(temp, path)
     if directory is None:
         reload()
     return path

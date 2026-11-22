@@ -54,6 +54,9 @@ _UNIT_ALIASES = {
     "degré": "Degrees", "degrés": "Degrees", "grado": "Degrees", "gradi": "Degrees",
     "rad": "Radian", "radian": "Radian", "radiant": "Radian", "bogenmass": "Radian",
     "bogenmaß": "Radian",
+    "kg": "Kilogram", "kilogram": "Kilogram", "kilogramm": "Kilogram", "kilogramme": "Kilogram",
+    "g": "Gram", "gram": "Gram", "gramm": "Gram", "gramme": "Gram",
+    "lbm": "PoundMass", "poundmass": "PoundMass", "pound": "PoundMass", "pfund": "PoundMass",
 }  # fmt: skip
 _TARGET_UNIT = {"mm": "MilliMeter", "in": "Inch", "deg": "Degrees", "rad": "Radian"}
 _NOUN = {
@@ -89,7 +92,48 @@ POSITIONS = {
     "REVOLVED": {"start": 0, "end": 1, "angle": 1},
     "BLEND": {"radius": 0},
     "CHAMFER": {"offset": 0, "distance": 0},
+    "BLOCK": {"length": 0, "width": 1, "height": 2},
+    "CYLINDER": {"diameter": 0, "height": 1},
+    "CONE": {"base_diameter": 0, "top_diameter": 1, "height": 2},
+    "SPHERE": {"diameter": 0},
+    "TUBE": {"outer_diameter": 0, "inner_diameter": 1},
+    "SHELL": {"thickness": 0},
 }
+# German NX words of expression descriptions ("Quader(1) Länge (XC)", "Schale(4) Stärke",
+# "Extrudieren(2) Endgrenze") -> the English words the aliases match. Longest first, so
+# "Außendurchmesser" is not read as "Durchmesser". Compared without case.
+_GERMAN = (
+    ("Gewindebohrung", "Threaded Hole"),
+    ("Außendurchmesser", "Outer Diameter"), ("Aussendurchmesser", "Outer Diameter"),
+    ("Innendurchmesser", "Inner Diameter"),
+    ("Kernlochdurchmesser", "Tap Drill Diameter"), ("Kernlochbohrer", "Tap Drill"),
+    ("Hauptdurchmesser", "Major Diameter"), ("Nenndurchmesser", "Major Diameter"),
+    ("Kerndurchmesser", "Minor Diameter"), ("Spitzenwinkel", "Tip Angle"),
+    ("Startgrenze", "Start Limit"), ("Anfangsgrenze", "Start Limit"),
+    ("Endgrenze", "End Limit"), ("Startabstand", "Start Distance"),
+    ("Endabstand", "End Distance"), ("Durchmesser", "Diameter"),
+    ("Steigung", "Pitch"), ("Teilungsabstand", "Pitch Distance"),
+    ("Anzahl", "Count"), ("Abstand", "Distance"), ("Versatz", "Offset"),
+    ("Länge", "Length"), ("Laenge", "Length"), ("Breite", "Width"),
+    ("Höhe", "Height"), ("Hoehe", "Height"), ("Tiefe", "Depth"),
+    ("Winkel", "Angle"), ("Stärke", "Thickness"), ("Staerke", "Thickness"),
+    ("Dicke", "Thickness"), ("Grenze", "Limit"),
+    ("Quader", "Block"), ("Zylinder", "Cylinder"), ("Kegel", "Cone"),
+    ("Kugel", "Sphere"), ("Rohr", "Tube"), ("Schale", "Shell"),
+)  # fmt: skip
+_GERMAN_WORDS = re.compile(
+    "|".join(re.escape(w) for w, _ in sorted(_GERMAN, key=lambda t: -len(t[0]))), re.IGNORECASE
+)
+_GERMAN_MAP = {w.casefold(): e for w, e in _GERMAN}
+
+
+def description(exp) -> str:
+    """An expression's NX description with German words in English ("Quader(1) Länge
+    (XC)" -> "Block(1) Length (XC)"), so the aliases match on a German NX too."""
+    text = str(getattr(exp, "Description", "") or "")
+    return _GERMAN_WORDS.sub(lambda m: _GERMAN_MAP[m.group(0).casefold()], text)
+
+
 FEATURE_ALIASES = {
     "outer_diameter": ("Tube(", ("Limit 1",)),
     "inner_diameter": ("Tube(", ("Limit 2",)),
@@ -225,7 +269,8 @@ def alias(feature, name):
     """
     words = ALIASES.get(name, (name.replace("_", " "),))
     expressions = list(feature.GetExpressions())
-    described = [(e, str(getattr(e, "Description", "") or "")) for e in expressions]
+    described = [(e, description(e)) for e in expressions]
+    raw = [(e, str(getattr(e, "Description", "") or "")) for e in expressions]
     if name in FEATURE_ALIASES:  # only the expressions of that feature kind match
         kind, words = FEATURE_ALIASES[name]
         described = [(e, t) for e, t in described if kind.casefold() in t.casefold()]
@@ -240,13 +285,12 @@ def alias(feature, name):
                 details={"candidates": [e.Name for e in hits]},
             )
     position = POSITIONS.get(str(getattr(feature, "FeatureType", "") or "").upper(), {}).get(name)
-    if position is not None and position < len(expressions) and not _english(described):
+    if position is not None and position < len(expressions) and not _english(raw):
         return expressions[position]
-    listed = [(e, str(getattr(e, "Description", "") or "")) for e in expressions]
     fail(
         "NX_NOT_FOUND",
         f"The feature has no {name!r} parameter",
-        details={"expressions": [{"name": e.Name, "description": t} for e, t in listed]},
+        details={"expressions": [{"name": e.Name, "description": t} for e, t in raw]},
     )
 
 

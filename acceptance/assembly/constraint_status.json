@@ -19,6 +19,6 @@
                 "data.items": {"contains": {"type": "touch", "status": "Solved"}},
                 "data.components": {"contains": {"state": "free", "constraints": 0}}}},
     {"call": "nx_list_assembly_constraints", "args": {"part": "$part", "component": "$B.data.component.id"},
-     "expect": {"data.page.total": 1, "data.items.0.type": "touch", "data.components.0.state": "constrained"}}
+     "expect": {"page.total": 1, "data.items.0.type": "touch", "data.components.0.state": "constrained"}}
   ]
 }

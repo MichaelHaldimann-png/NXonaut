@@ -233,3 +233,15 @@ def test_import_errors_roll_back_before_the_update():
     nx.update_errors = 0
     missing = run(nx, "nx_import_expressions", path=str(services(nx).root / "nope.exp"))
     assert missing.error["field"] == "/path"
+
+
+def test_a_mass_in_another_language_is_no_unit_clash():
+    """NX 2512 German: MassPropMass in 'Kilogramm' while the .exp file says [Kilogram]."""
+    from nx_mcp.domains.modeling.expression_files import _unit_clashes
+
+    mass = NS(Units=NS(Name="Kilogramm", Abbreviation="kg"))
+    length = NS(Units=NS(Name="Millimeter", Abbreviation="mm"))
+    before = {"MassPropMass": (mass, "1"), "len": (length, "10")}
+    assert _unit_clashes([("MassPropMass", "Kilogram"), ("len", "MilliMeter")], before) == []
+    clash = _unit_clashes([("len", "Inch")], before)
+    assert [c["name"] for c in clash] == ["len"]
