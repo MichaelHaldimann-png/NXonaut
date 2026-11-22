@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from types import SimpleNamespace as NS
 
+import pytest
+
+from nx_mcp.core.errors import NXError
 from nx_mcp.kit import parts
 
 UNITS = NS(Millimeters=1, Inches=0)
@@ -52,9 +55,12 @@ def test_a_site_template_set_gives_its_model_template():
     assert parts.template_name(TX, builder) == "template_mod_bfh.prt"  # "mod" first
 
 
-def test_units_must_match_else_nx_own_name():
+def test_no_site_template_in_these_units_is_refused_before_nx():
+    """Live BFH NX 2512: no inch template; NX's commit failed as NX_SAVE_FAILED."""
     builder = Builder(Template("template_mod_bfh.prt", units=1))
-    assert parts.template_name(TX, builder, "in") == parts.TEMPLATES["in"]
+    with pytest.raises(NXError) as error:
+        parts.template_name(TX, builder, "in")
+    assert error.value.code == "NX_UNSUPPORTED_OPTION" and error.value.field == "/units"
 
 
 def test_a_builder_without_template_list_keeps_nx_own_name():

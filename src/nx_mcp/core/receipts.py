@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import NoReturn
 
 from nx_mcp.core.errors import NXError, fail
+from nx_mcp.core.tx import replace_file
 
 TRACE_LOG_BYTES = 1_000_000
 
@@ -254,7 +255,7 @@ class OperationStore:
             json.dump(record, f, ensure_ascii=False, allow_nan=False)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(temp, path)
+        replace_file(temp, path)
         if not running:  # after the receipt; recover drops a marker left behind
             with contextlib.suppress(OSError):
                 marker.unlink(missing_ok=True)

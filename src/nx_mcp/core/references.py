@@ -55,6 +55,7 @@ from typing import NoReturn, TypedDict
 
 from nx_mcp.core.errors import NXError, fail
 from nx_mcp.core.errors import article as article  # re-exported (the grammar helper)
+from nx_mcp.core.tx import replace_file
 from nx_mcp.core.types import KIND_GROUPS, expand_kinds
 
 PREFIX = {
@@ -160,7 +161,7 @@ class Counter:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             temp = self.path.with_suffix(".tmp")
             temp.write_text(json.dumps({"next": self.limit}), encoding="utf-8")
-            os.replace(temp, self.path)
+            replace_file(temp, self.path)
 
     def next(self) -> int:
         if self.value >= self.limit:
@@ -827,7 +828,7 @@ class References:
             self.live_path.parent.mkdir(parents=True, exist_ok=True)
             temp = self.live_path.with_suffix(".tmp")
             temp.write_text(json.dumps({"pid": os.getpid(), "refs": rows}), encoding="utf-8")
-            os.replace(temp, self.live_path)
+            replace_file(temp, self.live_path)
             self._written = self.version
 
     def _load_inherited(self) -> dict[str, dict]:

@@ -202,3 +202,34 @@ def test_alias_falls_back_to_the_position_in_another_language():
     assert _code(expr.alias, feature, "radius").code == "NX_NOT_FOUND"
     other = NS(FeatureType="SHELL", GetExpressions=lambda: [start])
     assert _code(expr.alias, other, "distance").code == "NX_NOT_FOUND"
+
+
+def test_german_descriptions_match_the_english_aliases():
+    """NX 2512 German: 'Quader(1) Länge (XC)', 'Schale(4) Stärke', 'Rohr(2) Grenze 1'."""
+    length = NS(Name="p1", Description="Quader(1) Länge (XC)")
+    width = NS(Name="p2", Description="Quader(1) Breite (YC)")
+    height = NS(Name="p3", Description="Quader(1) Höhe (ZC)")
+    block = NS(FeatureType="BLOCK", GetExpressions=lambda: [length, width, height])
+    assert expr.description(length) == "Block(1) Length (XC)"
+    assert expr.alias(block, "length") is length and expr.alias(block, "height") is height
+    shell = NS(
+        FeatureType="SHELL", GetExpressions=lambda: [NS(Name="p9", Description="Schale(4) Stärke")]
+    )
+    assert expr.alias(shell, "thickness").Name == "p9"
+    outer = NS(Name="p5", Description="(Rohr(2) Grenze 1)")
+    inner = NS(Name="p6", Description="(Rohr(2) Grenze 2)")
+    tube = NS(FeatureType="TUBE", GetExpressions=lambda: [outer, inner])
+    assert (
+        expr.alias(tube, "outer_diameter") is outer and expr.alias(tube, "inner_diameter") is inner
+    )
+    # unknown German words: the position on a feature type NX never translates
+    odd = NS(FeatureType="TUBE", GetExpressions=lambda: [NS(Name="a", Description="Rohrx(2) A"),
+                                                       NS(Name="b", Description="Rohrx(2) B")])  # fmt: skip
+    assert expr.alias(odd, "inner_diameter").Name == "b"
+
+
+def test_german_threaded_hole_parameters_lock_like_english():
+    from nx_mcp.kit import features
+
+    major = NS(Description="(M6 x 1.0 Gewindebohrung(2) Hauptdurchmesser)")
+    assert features.hole_parameter(major) == "major diameter"

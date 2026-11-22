@@ -101,3 +101,19 @@ def test_an_earlier_revision_without_sheets_is_a_wrong_against():
     nx.part.DrawingCompare = NS(CreateCompareReportBuilder=refuse(123456))
     other = run(nx, "nx_check_drawing_changes", against="rev_a.prt")
     assert other.error["code"] == "NX_EXPORT_FAILED" and "rolled back" not in other.error["hint"]
+
+
+def test_german_report_reads_like_the_english_one():
+    """NX 2512 in German: 'Anzahl Beschriftungen', '1 Hinzufügung', 'Beschriftungen'."""
+    assert counts_of("Zusammenfassung: 0 Änderungen, 1 Hinzufügung, 2 Löschungen") == {
+        "changes": 0, "additions": 1, "deletions": 2}  # fmt: skip
+    current, earlier, by_type, details = read_report(
+        ["Dateiname~rev_b.prt~rev_a.prt", "Anzahl Blätter~1~1", "Anzahl Ansichten~1~1",
+         "Anzahl Beschriftungen~2~1"],
+        ["Beschriftungen~0~1~0"],
+        ["Anzahl Ansichten~1~1", "Notiz~neu"],
+    )  # fmt: skip
+    assert current == {"file": "rev_b.prt", "sheets": 1, "views": 1, "annotations": 2}
+    assert earlier["annotations"] == 1
+    assert by_type == [{"type": "Annotations", "changes": 0, "additions": 1, "deletions": 0}]
+    assert details == ["Notiz~neu"]

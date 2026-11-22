@@ -404,7 +404,10 @@ def describe(material, memo: dict) -> dict:
     if material is None:
         return {"material": None, "library": None, "category": None,
                 **dict.fromkeys(PROPERTIES)}  # fmt: skip
-    key = id(material)
+    # By tag: NX hands out a new Python wrapper per call, and id() of a collected one
+    # comes back for the next (live NX 2512 read a second body's aluminium as steel).
+    tag = getattr(material, "Tag", None)
+    key = ("tag", int(tag)) if tag is not None else ("name", str(material.Name))
     if key not in memo:
         name, library = str(material.Name), _library_of(material)
         category, values = None, dict.fromkeys(PROPERTIES)

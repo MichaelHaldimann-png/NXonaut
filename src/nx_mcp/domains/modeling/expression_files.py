@@ -253,16 +253,24 @@ def _row(tx, e) -> ExpressionRow:
 
 
 def _unit_clashes(entries, before) -> list[dict]:
-    """File lines that would give an existing expression other units (NX would keep the
-    old units silently and apply the number)."""
+    """File lines that would give an existing length or angle expression other units (NX
+    would keep the old units silently and apply the number)."""
     out = []
     for name, unit in entries:
         exp = before.get(name, (None,))[0]
         if exp is None or unit is None:
             continue
         own = getattr(exp, "Units", None)
-        if own is None or (expr.canonical_name(unit) != expr.canonical_unit(own)
-                           and unit != getattr(own, "Abbreviation", None)):  # fmt: skip
+        if own is None:
+            out.append({"name": name, "file_units": unit, "units": expr.units(exp)})
+            continue
+        theirs, mine = expr.canonical_name(unit), expr.canonical_unit(own)
+        if theirs == mine or unit == getattr(own, "Abbreviation", None):
+            continue
+        # Only lengths and angles are told apart: NX 2512 in German names a mass
+        # expression's units "Kilogramm" where its .exp file says [Kilogram]
+        # (MassPropMass of a measurement), the same unit in another language.
+        if theirs in expr.UNIT_SCALE and mine in expr.UNIT_SCALE:
             out.append({"name": name, "file_units": unit, "units": expr.units(exp)})
     return out
 

@@ -273,7 +273,8 @@ def template_name(tx, builder, units: str = "mm") -> str:
     ``UGII_SITE_DIR`` pax, live: BFH offers only ``template_mod_bfh.prt``) makes NX
     refuse it ("the selected template does not exist"): then the site's first model
     template of the same units, a ``.prt`` whose name says no drawing, assembly or CAE,
-    one with "mod" in its name first. Anything unknown keeps NX's own name.
+    one with "mod" in its name first; none in these units is ``NX_UNSUPPORTED_OPTION``
+    (``/units``) before NX. A builder without a template list keeps NX's own name.
     """
     standard = TEMPLATES[units]
     try:
@@ -305,7 +306,17 @@ def template_name(tx, builder, units: str = "mm") -> str:
         and not any(word in name.lower() for word in _NOT_MODEL)
     ]
     candidates.sort(key=lambda name: "mod" not in name.lower())  # stable: site order
-    return candidates[0] if candidates else standard
+    if not candidates:  # NX would refuse the commit ("the template does not exist")
+        unit_name = "millimetres" if units == "mm" else "inches"
+        fail(
+            "NX_UNSUPPORTED_OPTION",
+            f"This NX installation offers no blank model template in {unit_name}",
+            field="/units",
+            hint="Use the units the site's templates offer, or ask the NX administrator "
+            "for a model template in these units",
+            details={"templates": [name for name, _, _ in rows][:20]},
+        )
+    return candidates[0]
 
 
 def has_sheet_metal(part) -> bool:

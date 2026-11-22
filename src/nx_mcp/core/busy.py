@@ -52,6 +52,7 @@ from pathlib import Path
 
 from nx_mcp.core import target as targets
 from nx_mcp.core.errors import fail
+from nx_mcp.core.tx import replace_file
 
 BUSY_SECONDS = 300.0  # unsaved changes this recent make a part busy
 RECENT_SECONDS = 30.0  # ... when a call also worked in it this recently (shared connection)
@@ -229,7 +230,7 @@ def persist(services) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         temp = path.with_suffix(".tmp")
         temp.write_text(json.dumps({"pid": os.getpid(), **payload}), encoding="utf-8")
-        os.replace(temp, path)
+        replace_file(temp, path)
 
 
 def adopt(services) -> None:
