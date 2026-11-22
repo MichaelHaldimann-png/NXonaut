@@ -1,0 +1,23 @@
+{
+ "covers": {
+  "nx_set_license_borrowing": [],
+  "nx_get_license_borrowing": [],
+  "nx_finish_license_borrowing": []
+ },
+ "part": null,
+ "fixture": null,
+ "steps": [
+  {"call": "nx_get_license_borrowing", "args": {},
+   "intent": "Acceptance: lmborrow -status runs from the sidecar (lmutil found next to NX) and lists borrowed features",
+   "expect": {"ok": true, "mutation_outcome": "not_applicable", "data.lmutil": {"matches": "lmutil"}}},
+  {"call": "nx_set_license_borrowing", "args": {"days": 3, "until": "2030-01-01"},
+   "intent": "Acceptance: days and until together are refused before lmborrow runs (no borrow period is set on the runner)",
+   "expect": {"ok": false, "error.code": "NX_INVALID_ARGUMENT", "mutation_outcome": "not_started"}},
+  {"call": "nx_set_license_borrowing", "args": {"until": "2001-01-01"},
+   "intent": "Acceptance: an end in the past is refused",
+   "expect": {"ok": false, "error.code": "NX_INVALID_ARGUMENT", "error.field": "/until"}},
+  {"call": "nx_finish_license_borrowing", "args": {"features": []},
+   "intent": "Acceptance: an empty feature list is refused by validation (nothing is cleared or returned)",
+   "expect": {"ok": false, "error.code": "NX_INVALID_ARGUMENT"}}
+ ]
+}

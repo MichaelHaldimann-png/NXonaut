@@ -2,8 +2,17 @@
 
 ## 1.0.1 (2026-11-22)
 
-Fixes from the live NX 2512 acceptance run (German NX, a university site install). They
-pass the fake-NX tests and CI; the items marked *live* still need a run on real NX.
+Licence borrowing, and fixes from the live NX 2512 acceptance run (German NX, a university
+site install). They pass the fake-NX tests and CI; the items marked *live* still need a
+run on real NX.
+
+**New**
+- License borrowing: `nx_set_license_borrowing` borrows NX's floating licenses (FlexNet
+  `lmborrow`) for a number of days or until a date, so NX works without the VPN;
+  `nx_get_license_borrowing` lists borrowed features and their expiry, and
+  `nx_finish_license_borrowing` ends the borrow period and can return licenses early.
+  The license file decides how long borrowing is allowed. Experimental until the live
+  acceptance run.
 
 **Fixed**
 - Bill of materials: rows follow the assembly navigator's order (the plate added first
