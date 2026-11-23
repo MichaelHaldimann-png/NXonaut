@@ -108,7 +108,9 @@ async def test_a_run_stops_when_its_lock_was_taken(setup, capsys):
     def steal(method, params):
         if method == "nx_create_part":
             stolen = {"owner": "other", "acquired_at": time.time(), "refreshed_at": time.time()}
-            (workspace / ".nx-mcp" / "dev.lock").write_text(json.dumps(stolen))
+            path = workspace / ".nx-mcp" / "dev.lock"
+            with runner.DevLock(workspace, "thief", wait=0, echo=None).module.guard(path):
+                path.write_text(json.dumps(stolen))  # as a takeover: not inside a beat
 
     setup["nx"].on_call = steal
     code = await runner.run(
@@ -168,7 +170,9 @@ def test_the_heartbeat_keeps_the_lock_fresh_and_notices_a_takeover(tmp_path):
         while time.monotonic() < deadline and lock_state(tmp_path)["refreshed_at"] == 0:
             time.sleep(0.02)
         assert time.time() - lock_state(tmp_path)["refreshed_at"] < 5
-        lock.path.write_text(json.dumps({"owner": "other", "refreshed_at": time.time()}))
+        # Under the lock's guard, as a takeover writes: never between a beat's read and write.
+        with lock.module.guard(lock.path):
+            lock.path.write_text(json.dumps({"owner": "other", "refreshed_at": time.time()}))
         deadline = time.monotonic() + 5
         while time.monotonic() < deadline and lock.lost is None:
             time.sleep(0.02)
