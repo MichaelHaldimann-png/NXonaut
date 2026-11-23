@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.2 (2026-11-23)
+
+**Fixed**
+- NX started through a site launcher that sets both `UGII_USER_DIR` and `UGII_GROUP_DIR`
+  (live: a university install) never started NXonaut by itself and showed no NXonaut tab,
+  so every session needed Alt+F8 > Start NXonaut.py. Playing it once now adds a small
+  loader and the NXonaut menu and ribbon files to that launcher's own `UGII_USER_DIR`
+  (only when it is the engineer's personal folder): from the next NX start NXonaut starts
+  with NX and has its tab. They are removed again when NX finds `nx_app` itself. *live*
+
 ## 1.0.1 (2026-11-22)
 
 Licence borrowing, and fixes from the live NX 2512 acceptance run (German NX, a university
