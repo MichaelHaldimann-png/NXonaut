@@ -89,3 +89,40 @@ def test_a_launcher_using_both_dirs_is_reported_not_changed(monkeypatch):
     )
     assert env == {"UGII_USER_DIR": NX_APP}
     assert "custom_dirs.dat" in note
+
+
+def test_a_launcher_using_both_dirs_gets_a_loader_in_a_personal_user_dir(tmp_path, monkeypatch):
+    env = {"UGII_USER_DIR": NX_APP}
+    _fake_user_env(monkeypatch, env)
+    monkeypatch.setattr(nx_setup.Path, "home", classmethod(lambda cls: tmp_path))
+    nx_app = nx_setup.nx_app_folder()
+    user_dir = tmp_path / "BFH" / "nx_user"
+    process = {"UGII_USER_DIR": str(user_dir), "UGII_GROUP_DIR": r"\\site\group"}
+    note = nx_setup.launcher_override(nx_app, process)
+    assert "next NX start" in note
+    loader = user_dir / "startup" / nx_setup.LOADER_NAME
+    text = loader.read_text(encoding="utf-8")
+    assert text.startswith("# nx: threaded\n")
+    assert repr(str(nx_app / "startup" / "nx_mcp_startup.py")) in text
+    assert (user_dir / "startup" / "nxonaut.rtb").read_bytes() == (
+        nx_app / "startup" / "nxonaut.rtb"
+    ).read_bytes()
+    assert "journals" in (user_dir / "application" / "nxonaut_start.py").read_text("utf-8")
+    assert env == {"UGII_USER_DIR": NX_APP}  # the user environment is left alone
+
+    # NX finds nx_app itself later: the loader goes, so there is never a second menu.
+    (user_dir / "startup" / "own.men").write_text("x")
+    assert nx_setup.launcher_override(nx_app, {**process, "UGII_GROUP_DIR": NX_APP}) is None
+    assert sorted(p.name for p in user_dir.rglob("*") if p.is_file()) == ["own.men"]
+
+
+def test_the_loader_starts_the_bootstrap_and_ignores_a_removed_installation(tmp_path, monkeypatch):
+    boot = tmp_path / "nx_mcp_startup.py"
+    boot.write_text("def startup():\n    return 7\n", encoding="utf-8")
+    monkeypatch.delitem(sys.modules, "nx_mcp_startup", raising=False)
+    namespace = {}
+    exec(nx_setup.loader_text(boot), namespace)
+    assert namespace["startup"]() == 7
+    sys.modules.pop("nx_mcp_startup")
+    boot.unlink()
+    assert namespace["startup"]() == 0
