@@ -191,6 +191,8 @@ class WorkspaceInfo(TypedDict):
     absolute_paths: str
     reserved: str
     current_directory: str
+    # The MCP server adds mismatch (bool) to NX's answer, and server_root (its own root)
+    # with an NX_WORKSPACE_MISMATCH warning when NX uses another folder.
 
 
 class RunningInfo(TypedDict):

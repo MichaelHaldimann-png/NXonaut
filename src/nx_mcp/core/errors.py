@@ -150,6 +150,7 @@ CATEGORIES: dict[str, tuple[str, tuple[str, ...], str]] = {
             "NX_UI_BUSY",
             "NX_PART_NOT_GRANTED",
             "NX_MODAL_DIALOG_OPEN",
+            "NX_WORKSPACE_MISMATCH",
         ),
         "The engineer has NX; ask in chat before retrying",
     ),

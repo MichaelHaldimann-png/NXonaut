@@ -475,6 +475,26 @@ STATUS_HELD_SECONDS = 5.0
 HELD_REFUSE_SECONDS = 120.0
 
 
+def _folder_key(path) -> str:
+    """``path`` compared as a folder: either separator, no trailing one, any case."""
+    return str(path).replace("\\", "/").rstrip("/").casefold()
+
+
+def mismatch_error(host_root: str, sidecar_root: str) -> NXError:
+    """NX_WORKSPACE_MISMATCH: NX and this server use two different workspace folders, so
+    every file path one names is outside the other's (the remedy names both)."""
+    return NXError(
+        "NX_WORKSPACE_MISMATCH",
+        f"NX uses the workspace '{host_root}', this MCP server uses '{sidecar_root}': "
+        "they must be the same folder, so NX refuses every file path from here. Nothing "
+        "ran.",
+        hint="Tell the engineer: set the NXonaut extension's workspace to "
+        f"'{host_root}' and restart Claude, or restart NX and start NXonaut there with "
+        f"Alt+F8 > '{sidecar_root}/Start NXonaut.py'",
+        details={"nx_root": host_root, "server_root": sidecar_root},
+    )
+
+
 class CatalogueProxy:
     def __init__(self, bridge, workspace, store, *, build=None) -> None:
         self.bridge = bridge
@@ -493,6 +513,8 @@ class CatalogueProxy:
         self.read_only_reason: str | None = None
         self._running: dict[str, int] = {}  # caller id -> its calls waiting for NX now
         self._overlap: dict[str, float] = {}  # caller id -> when two of its calls overlapped
+        # The workspace root the connected NX host reports (nx_get_status), else None.
+        self.host_root: str | None = None
 
     def _descriptor(self):
         path = getattr(self.bridge, "descriptor_path", None)
@@ -541,6 +563,50 @@ class CatalogueProxy:
         if descriptor is None:
             return None
         return (descriptor.pid, descriptor.port, descriptor.token, descriptor.nx_version)
+
+    def note_host_root(self, data) -> None:
+        """Remember the host's workspace root from nx_get_status ``data``."""
+        root = ((data or {}).get("workspace") or {}).get("root") if isinstance(data, dict) else None
+        if isinstance(root, str) and root:
+            self.host_root = root
+
+    def workspace_mismatch(self) -> NXError | None:
+        """NX_WORKSPACE_MISMATCH when the host's workspace root is known and is another
+        folder than this server's, else None."""
+        mine = getattr(self.workspace, "root", None)
+        if not self.host_root or mine is None:
+            return None
+        if _folder_key(self.host_root) == _folder_key(mine):
+            return None
+        return mismatch_error(self.host_root, str(mine))
+
+    async def _learn_host_root(self) -> None:
+        """Read the host's workspace root (one short status read); never raises."""
+        try:
+            answer = await asyncio.wait_for(
+                self.bridge.call("nx_get_status", {"include": ["workspace"]}), STATUS_TIMEOUT
+            )
+        except Exception:
+            return
+        if isinstance(answer, dict):
+            self.note_host_root(answer.get("data"))
+
+    def _flag_mismatch(self, envelope: dict) -> dict:
+        """nx_get_status ``envelope`` with ``workspace.server_root`` and, when NX uses
+        another folder, ``workspace.mismatch`` and an NX_WORKSPACE_MISMATCH warning."""
+        data = envelope.get("data") if isinstance(envelope, dict) else None
+        workspace = data.get("workspace") if isinstance(data, dict) else None
+        if not isinstance(workspace, dict) or not workspace.get("root"):
+            return envelope
+        self.note_host_root(data)
+        problem = self.workspace_mismatch()
+        workspace["mismatch"] = problem is not None
+        if problem is not None:
+            workspace["server_root"] = problem.details["server_root"]
+            warnings = envelope.setdefault("warnings", [])
+            warnings.append({"code": problem.code, "message": f"{problem.message} "
+                             f"{problem.hint}."})  # fmt: skip
+        return envelope
 
     def nx_health(self, *, reader: str | None = None, sample: float | None = None):
         """``(health, heartbeat)``: NX's state seen from outside NX (host/heartbeat.py),
@@ -635,13 +701,16 @@ class CatalogueProxy:
             return
         if key != self._key:  # a new NX session remembers nothing yet
             self.licenses, self.versions, self.read_only_reason = [], [], None
+            self.host_root = None
         self._key, self._read_at = key, time.monotonic()
         if await asyncio.to_thread(self.held, STATUS_HELD_SECONDS):
             return  # NX accepts no connection now: keep what is known
         try:
             answer = await asyncio.wait_for(
-                self.bridge.call("nx_get_status", {"include": ["bridge"]}), STATUS_TIMEOUT
+                self.bridge.call("nx_get_status", {"include": ["bridge", "workspace"]}),
+                STATUS_TIMEOUT,
             )
+            self.note_host_root((answer or {}).get("data"))
             bridge = ((answer or {}).get("data") or {}).get("bridge") or {}
             rows = bridge.get("license_unavailable")
         except Exception:
@@ -1023,6 +1092,8 @@ class CatalogueProxy:
         elif detail not in ("compact", "full"):
             problem = NXError("NX_INVALID_ARGUMENT", "detail: compact or full", field="/detail")
         problem = problem or self._invalid(spec, args) or self._resolve_paths(spec, args)  # 1, 2
+        if problem is None and spec.paths and spec.runs != "sidecar":
+            problem = self.workspace_mismatch()  # NX would refuse every path from here
         if problem is None and not self.dev():  # 3
             build = self.build()
             if build is not None:
@@ -1061,6 +1132,7 @@ class CatalogueProxy:
             if refused is not None:
                 return result(refused)
         params.update(keys)
+        from_nx = False  # the envelope is NX's own answer
         if spec.effect != "read" and "expires_at" not in params:
             # The ghost guard (A27): a changing call NX cannot start within the bridge's
             # queue time of being sent never runs (bridge.start_deadline).
@@ -1110,6 +1182,7 @@ class CatalogueProxy:
         else:
             if isinstance(answer, dict) and "ok" in answer:
                 envelope = answer
+                from_nx = True
                 full = answer.get("full_result")  # a bridge overflow snapshot: the caller's
                 if isinstance(full, dict) and isinstance(full.get("id"), str):
                     claim(full["id"])
@@ -1124,11 +1197,31 @@ class CatalogueProxy:
                     operation_id=operation_id,
                 )
         envelope = self._served_hints(_tidy(self._relative_paths(spec, envelope)))
+        if status_call and from_nx:
+            envelope = self._flag_mismatch(envelope)
+        elif (envelope.get("error") or {}).get("code") == "NX_PATH_OUTSIDE_WORKSPACE":
+            envelope = await self._explain_outside(spec, envelope)
         if not envelope.get("ok", True):  # opt-in, anonymous; never fails the call
             await asyncio.to_thread(self._report_error, spec.name, envelope)
         if detail == "compact":
             envelope = _project(envelope, self.store)
         return result(envelope, extra=self._attachments(envelope))
+
+    async def _explain_outside(self, spec, envelope: dict) -> dict:
+        """NX's NX_PATH_OUTSIDE_WORKSPACE for a path this server resolved inside its own
+        workspace: NX_WORKSPACE_MISMATCH when NX uses another folder (it says why and
+        what to change), else ``envelope`` unchanged."""
+        if self.workspace_mismatch() is None:
+            await self._learn_host_root()
+        problem = self.workspace_mismatch()
+        if problem is None:
+            return envelope
+        error = envelope.get("error") or {}
+        if error.get("field"):
+            problem.field = error["field"]
+        changed = failure(spec.name, problem, envelope.get("mutation_outcome") or "not_started",
+                          operation_id=envelope.get("operation_id"))  # fmt: skip
+        return self._served_hints(changed)
 
     def _report_error(self, tool: str, envelope: dict) -> None:
         """Keep an anonymous report of a fault when the user opted in (error_reports)."""

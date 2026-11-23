@@ -210,7 +210,7 @@ start, and `dev_reload.py` prints the error. The checks:
 
 | Module | Responsibility |
 |---|---|
-| `errors.py` | Table of 22 categories and 72 codes (surface 1.8), each with `retry` and a default `hint`. `fail(code, message, *, field=None, hint=None, details=None, nx_code=None, retry=None)` raises `NXError` (a subclass of `NXToolError`). `native(codes=None, default="NX_ERROR")` context manager (below) |
+| `errors.py` | Table of 22 categories and 73 codes (surface 1.8), each with `retry` and a default `hint`. `fail(code, message, *, field=None, hint=None, details=None, nx_code=None, retry=None)` raises `NXError` (a subclass of `NXToolError`). `native(codes=None, default="NX_ERROR")` context manager (below) |
 | `kernel.py` | `run(spec, args, ctx)` and `run_child(spec, args, parent_tx)`, the gate order of section 3. Nothing else applies gates |
 | `target.py` | Gate 3t (pure): the call keys (`split_call_keys`, `check_call_keys`, the ghost guard `check_expiry`), `part_from_text`, `agent_parts`, the two-parts note (`census`, `load_note`), `roots`, `resolve` and `refuse_other_part`; for `target` resolvers of tools that carry refs inside other arguments, `part_named_by` (the part a ref or anchor string pins, as gate 3t pins a ref argument) and `part_at_path` (3.4) |
 | `switching.py` | Gate 4s: `enter(...)` returns the call's `Bound` (`check`, `defers`, `leave`), `repair`, `deferred`; drives `kit.switching.Switch` through `Services.switch` (3.4) |
