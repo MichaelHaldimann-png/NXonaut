@@ -11,7 +11,7 @@ from tests.core.fakes import FakeServices
 
 
 def test_taxonomy_has_22_categories_and_73_codes():
-    assert len(errors.CATEGORIES) == 22 and len(errors.CODES) == 73  # + NX_BUSY, NX_ENGINEER_PART, NX_WORKSPACE_MISMATCH
+    assert len(errors.CATEGORIES) == 22 and len(errors.CODES) == 73  # + NX_WORKSPACE_MISMATCH
     assert all(c.startswith("NX_") for c in errors.CODES)
 
 
