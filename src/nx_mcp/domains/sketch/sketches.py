@@ -158,6 +158,7 @@ class SketchData(TypedDict, total=False):
     parked: Annotated[bool, Doc("Open but deactivated between calls; finish it to model")]
     curves: Annotated[list[result.Row], Doc("The created curves, in order (with curves)")]
     loops: Annotated[list[sketch_curves.Loop], Doc("Connected curve chains (with curves)")]
+    fully_constrained: Annotated[bool, Doc("With finish: no degree of freedom left")]
 
 
 def _create_summary(a, say):
@@ -424,6 +425,7 @@ def nx_create_sketch(
         data["curves"] = [r["curve"] for r in made["curves"]]
         data["loops"] = made["loops"]
     if finish:
+        data.update(_constraint_note(tx, sketch))  # type: ignore[typeddict-item]
         _deactivate(tx, sketch)
         data["active"] = False
     else:  # open, but not active in NX between calls: other parts' calls run
@@ -479,6 +481,34 @@ class FinishData(TypedDict, total=False):
     feature: result.Row
     was_active: Annotated[bool, Doc("It was open (active or parked)")]
     curve_count: int
+    fully_constrained: Annotated[bool, Doc("No degree of freedom left (NX solver)")]
+    free_curves: Annotated[int, Doc("Curves not fully constrained")]
+
+
+def _constraint_note(tx, sk) -> dict:
+    """``fully_constrained``/``free_curves`` of the active sketch ``sk`` before it is
+    finished, with a note when curves are still free (design rule modelling/
+    fully_constrained). A sketch without curves or a solver state NX cannot give adds
+    nothing: the finish never fails on it."""
+    if not ksketch.geometry(sk):
+        return {}
+    try:
+        state = common.status(tx, sk, dof=False)
+    except Exception:  # noqa: BLE001 - the note is advice, the finish goes on
+        return {}
+    row: dict = {"fully_constrained": state["fully_constrained"]}
+    free = state.get("free_curves")
+    if free is not None:
+        row["free_curves"] = free
+    if not state["fully_constrained"]:
+        tx.warn(
+            "NX_NOTE",
+            f"The sketch is not fully constrained ({free if free is not None else 'some'} "
+            "curves free): add constraints (symmetric about a centreline where the shape "
+            "is symmetric) and dimensions, unless the engineer's rule "
+            "modelling/fully_constrained is off",
+        )
+    return row
 
 
 def _finish_summary(a, say):
@@ -525,6 +555,7 @@ def nx_finish_sketch(
         if tx.session.ActiveSketch is None:  # parked: open it again to finish it
             with native(default="NX_UPDATE_FAILED"):
                 sk.Activate(tx.nx.Sketch.ViewReorient.FalseValue)
+        note = _constraint_note(tx, sk)
         _deactivate(tx, sk)
         parking.unpark(tx.services, tx.part)
         _reopen_on_undo(tx, sk)
@@ -533,7 +564,11 @@ def nx_finish_sketch(
     count = len(ksketch.geometry(sk))
     if active is not None and not count:
         tx.warn("NX_NOTE", "The finished sketch has no curves: add curves before modeling with it")
-    return {**common.sketch_rows(tx, sk), "was_active": active is not None, "curve_count": count}
+    data: FinishData = {**common.sketch_rows(tx, sk), "was_active": active is not None}
+    data["curve_count"] = count
+    if active is not None:
+        data.update(note)  # type: ignore[typeddict-item]
+    return data
 
 
 def _reopen_on_undo(tx, sk) -> None:
