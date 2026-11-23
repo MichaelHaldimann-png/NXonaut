@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.3 (2026-11-23)
+
+**Fixed**
+- Co-modelling: NXonaut no longer deletes the engineer's own work. Every call compares the
+  part with the state its previous call left; objects the engineer made in NX in between
+  are theirs. The call says the part changed, and `nx_delete_objects` refuses and rolls
+  back a delete that would remove any of them, even as a dependent (`NX_ENGINEER_WORK`),
+  unless the engineer agreed.
+
+**Changed**
+- Modelling design rules: sketches fully constrained and symmetric where the part is,
+  shafts as revolved profiles; finishing a sketch reports its free curves.
+
 ## 1.0.2 (2026-11-23)
 
 **Fixed**
