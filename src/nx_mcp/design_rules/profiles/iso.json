@@ -544,6 +544,16 @@
         "drawing": "Name the process on the drawing: cast parts get the casting tolerance grade and a note for unspecified radii and draft; welded parts weld symbols per ISO 2553; sheet metal a flat pattern or bend data."
       }
     },
+    "modelling": {
+      "title": "Modelling style: sketches, symmetry, few features",
+      "rules": {
+        "fully_constrained": "on: finish every sketch fully constrained (nx_finish_sketch and nx_get_sketch report fully_constrained and free_curves; 0 free curves before modelling). Fix or dimension one point to the sketch origin or projected reference geometry, then constraints, then driving dimensions. The engineer turns it off with nx_save_design_rule (topic modelling, rule fully_constrained, text off); then constrain only what design intent needs.",
+        "symmetry": "Where a profile is symmetric, draw a centreline (construction line on the axis or a datum) and use symmetric constraints about it instead of two equal dimensions; dimension the full width across the centreline, not half widths. Symmetric holes and slots: symmetric constraint or a mirror copy of the curves (nx_create_sketch_copy mirror).",
+        "few_sketches": "Few sketches, more information per sketch: one sketch per profile that carries all its steps, slots and radii, instead of many small sketches or stacked primitive features. Name each sketch after its purpose (PROFIL, NUT).",
+        "revolved_parts": "Shafts, axles, bushes, discs and other turned parts: one half-profile sketch on a plane through the axis (axis as a centreline on the sketch's x axis), fully constrained, revolved once 360 degrees; never stack cylinders. Shoulder fillets, chamfers and undercuts go in the profile or as edge features afterwards; keyways and cross holes are separate features.",
+        "intent": "Dimension the way the part is made and inspected (from the datum faces in the drawing), and drive repeated values from expressions so a change is one edit."
+      }
+    },
     "naming": {
       "title": "Part, file and component names: pick one scheme per project",
       "rules": {

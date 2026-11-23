@@ -119,6 +119,22 @@ def test_finish_deactivates_and_is_a_no_op_for_an_inactive_sketch():
     assert nx.session.ActiveSketch is other
 
 
+def test_finish_reports_a_sketch_that_is_not_fully_constrained():
+    nx = sketch_nx()
+    sk = nx.sketch(active=True)
+    nx.line(sk, (0, 0, 0), (10, 0, 0))
+    nx.status = (2, 1)  # NX: UnderConstrained, one curve free
+    ok = run(nx, "nx_finish_sketch", sketch=sk.ref)
+    assert ok.ok and ok.data["fully_constrained"] is False and ok.data["free_curves"] == 1
+    assert any("modelling/fully_constrained" in w["message"] for w in ok.warnings), ok
+    done = nx.sketch(active=True)
+    nx.line(done, (0, 0, 0), (10, 0, 0))
+    nx.status = (3, 0)  # WellConstrained
+    ok = run(nx, "nx_finish_sketch", sketch=done.ref)
+    assert ok.ok and ok.data["fully_constrained"] is True
+    assert not any("fully_constrained" in w["message"] for w in ok.warnings), ok
+
+
 def test_get_sketch_reads_geometry_constraints_and_status_without_leaving_it_active():
     nx = sketch_nx()
     sk = nx.sketch(origin=(0, 0, 10))
