@@ -10,8 +10,9 @@ STATUS = """lmutil - Copyright (c) 1989-2023 Flexera. All Rights Reserved.
 Vendor    Feature                Expiration
 ______    ________               __________
 
-ugslmd    nx_base                29-Nov-2026 23:59
-ugslmd    drafting               29-Nov-2026 23:59
+ugslmd    nx_base       1.0      29-Dec-2099 23:59
+ugslmd    drafting      1.0      29-Dec-2099 23:59
+ugslmd    jack_base     1.0      6-Nov-26 19:24
 """
 
 
@@ -46,7 +47,8 @@ def test_borrow_for_days_sets_the_period_and_reports_status(lm, tmp_path):
     data = result.data
     assert data["period_active"] and data["until"].endswith("23:59")
     assert [r["feature"] for r in data["borrowed"]] == ["nx_base", "drafting"]
-    assert data["borrowed"][0]["expires"] == "29-Nov-2026 23:59"
+    assert data["borrowed"][0]["expires"] == "2099-12-29 23:59"
+    assert data["expired"] == 1
     assert "restart NX" in data["note"]
 
 
@@ -92,3 +94,8 @@ def test_a_refused_borrow_names_the_license_server(monkeypatch, tmp_path):
 
 def test_parse_status_ignores_the_banner():
     assert borrow.parse_status("lmutil - Copyright\nno licenses borrowed\n") == []
+
+
+def test_two_digit_years_and_the_borrow_subkey():
+    assert borrow.expiry_of("ugslmd jack 1.0 6-Nov-26 19:24") == dt.datetime(2026, 11, 6, 19, 24)
+    assert borrow.REGISTRY_KEYS[0].endswith("\\Borrow")

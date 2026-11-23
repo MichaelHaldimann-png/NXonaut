@@ -48,14 +48,15 @@ SEARCH = (
     r"C:\Program Files\Siemens\PLMLicenseServer\lmutil.exe",
     r"C:\Program Files\Siemens\*\NXBIN\lmutil.exe",
 )
-REGISTRY_KEY = r"Software\FLEXlm License Manager"
+# lmborrow keeps LM_BORROW in the Borrow subkey; older FlexNet in the key itself.
+REGISTRY_KEYS = (r"Software\FLEXlm License Manager\Borrow", r"Software\FLEXlm License Manager")
 NEXT_STEPS = (
     "While still on the VPN: restart NX and open every application needed offline "
     "(Modeling, Drafting, Assemblies...) so NX checks their licenses out, then check "
     "nx_get_license_borrowing and call nx_finish_license_borrowing; then the VPN may go"
 )
 DATE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})(?:[ T](\d{1,2}:\d{2}))?$")
-EXPIRY_RE = re.compile(r"(\d{1,2}-[A-Za-z]{3}-\d{4})(?:\s+(\d{1,2}:\d{2}))?")
+EXPIRY_RE = re.compile(r"(\d{1,2})-([A-Za-z]{3})-(\d{4}|\d{2})(?:\s+(\d{1,2}):(\d{2}))?")
 
 
 class Borrowed(TypedDict, total=False):
@@ -66,6 +67,7 @@ class Borrowed(TypedDict, total=False):
 
 class BorrowStatus(TypedDict, total=False):
     period_active: bool
+    expired: int
     period: str
     borrowed: list[Borrowed]
     lmutil: str
@@ -174,12 +176,26 @@ def parse_status(text: str) -> list[Borrowed]:
         parts = line.split()
         if not started or len(parts) < 3:
             continue
-        expiry = EXPIRY_RE.search(line)
         row: Borrowed = {"vendor": parts[0], "feature": parts[1]}
-        if expiry:
-            row["expires"] = " ".join(p for p in expiry.groups() if p)
+        end = expiry_of(line)
+        if end:
+            row["expires"] = end.strftime("%Y-%m-%d %H:%M")
         rows.append(row)
     return rows
+
+
+def expiry_of(line: str) -> dt.datetime | None:
+    """The expiry in an ``lmborrow -status`` row ('6-Nov-26 19:24' or '29-Nov-2026')."""
+    match = EXPIRY_RE.search(line)
+    if not match or match.group(2).lower() not in MONTHS:
+        return None
+    day, month, year, hour, minute = match.groups()
+    full = int(year) + (2000 if len(year) == 2 else 0)
+    try:
+        return dt.datetime(full, MONTHS.index(month.lower()) + 1, int(day),
+                           int(hour or 23), int(minute or 59))  # fmt: skip
+    except ValueError:
+        return None
 
 
 def borrow_period() -> str:
@@ -187,20 +203,28 @@ def borrow_period() -> str:
     value = os.environ.get("LM_BORROW", "")
     if value or sys.platform != "win32":
         return value
-    try:
-        import winreg
+    import winreg
 
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, REGISTRY_KEY) as key:
-            return str(winreg.QueryValueEx(key, "LM_BORROW")[0] or "")
-    except OSError:
-        return ""
+    for name in REGISTRY_KEYS:
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, name) as key:
+                value = str(winreg.QueryValueEx(key, "LM_BORROW")[0] or "")
+        except OSError:
+            continue
+        if value:
+            return value
+    return ""
 
 
 def _status(exe: str) -> BorrowStatus:
     code, text = run(exe, "-status")
     period = borrow_period()
-    data: BorrowStatus = {"period_active": bool(period), "borrowed": parse_status(text),
-                          "lmutil": exe}  # fmt: skip
+    now = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
+    rows = parse_status(text)
+    active = [r for r in rows if r.get("expires", "9999") > now]  # an old borrow stays listed
+    data: BorrowStatus = {"period_active": bool(period), "borrowed": active, "lmutil": exe}
+    if len(active) < len(rows):
+        data["expired"] = len(rows) - len(active)
     if period:
         data["period"] = period
     if code and not data["borrowed"] and "no licenses" not in text.lower():
