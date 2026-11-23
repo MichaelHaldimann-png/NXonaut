@@ -152,6 +152,8 @@ def personal(folder: Path) -> bool:
     roots = [Path.home()] + [
         Path(os.environ[n]) for n in ("APPDATA", "LOCALAPPDATA") if n in os.environ
     ]
+    if str(folder).startswith(("\\\\", "//")):  # a network share
+        return False
     try:
         resolved = folder.resolve()
         return any(resolved.is_relative_to(root.resolve()) for root in roots)
