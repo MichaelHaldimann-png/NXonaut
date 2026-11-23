@@ -21,7 +21,8 @@ NAME = {"type": "string", "maxLength": 40}
 DESCRIPTIONS = {
     GET: (
         "Engineering rules to follow when modelling and drawing: manufacturing processes "
-        "(casting, machining, sheet_metal...) with checks, drawing, tolerances, shaft, threads. "
+        "(casting, machining, sheet_metal...) with checks, modelling style, drawing, tolerances, "
+        "shaft, threads. "
         "Profile ISO, CH, DE or US, then the engineer's own rules, which win. No topic: list."
     ),
     SAVE: (

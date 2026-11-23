@@ -76,9 +76,9 @@ AGENT_INSTRUCTIONS = (
     "Options match in any case or spacing ('Through All'). When two or more parts are loaded, "
     "add the target part's file name to the arguments of every call without refs, the listed "
     'core tools included: {"part": "housing", ...}; nx_list_parts lists them. Before a part '
-    "or drawing read nx_get_design_rules (manufacturing, naming, then the process and drawing, "
-    "shaft or threads topic) and run its checks before done; save a convention the engineer "
-    "corrects with nx_save_design_rule once they agree. Long jobs: start intent with '[3/7] ' "
+    "or drawing read nx_get_design_rules (manufacturing, modelling, naming, then process, "
+    "drawing, shaft or threads) and run its checks before done; save a convention "
+    "the engineer corrects with nx_save_design_rule once they agree. Long jobs: start intent with '[3/7] ' "
     "for the panel's progress bar."
 )
 # Every tool that can be called without references lists ``part`` in its schemas (the
