@@ -19,6 +19,7 @@ from __future__ import annotations
 import contextlib
 from typing import Annotated, NoReturn, TypedDict
 
+from nx_mcp.core import authorship
 from nx_mcp.core.catalogue import deleter, hooks, tool
 from nx_mcp.core.errors import fail, native, with_article
 from nx_mcp.core.tx import Tx
@@ -134,6 +135,20 @@ def delete_expressions(tx, objects):
             tx.part.Expressions.Delete(exp)
 
 
+def _refuse_engineer_work(engineer: list[Row]) -> NoReturn:
+    """NX_ENGINEER_WORK: the delete would take objects the engineer made in NX (between
+    agent calls, ``core/authorship``) with it; the kernel rolls the delete back."""
+    names = ", ".join(str(r.get("name") or r.get("id")) for r in engineer[:5])
+    fail(
+        "NX_ENGINEER_WORK",
+        f"This delete would remove the engineer's own work: {names}",
+        hint="Nothing was deleted. Ask the engineer; build the change without deleting "
+        "their objects, or retry with engineer_confirmed=true once they agreed",
+        details={"engineer_objects": [r.get("id") for r in engineer[:50]],
+                 "count": len(engineer)},
+    )  # fmt: skip
+
+
 def _one_target(groups: dict) -> None:
     """A sketch listed with its own sketch feature is deleted once, through the feature
     (NX deletes the sketch with it; deleting both fails in NX)."""
@@ -182,13 +197,16 @@ def nx_delete_objects(
     objects: Annotated[
         list[Ref], Items(1, 100), Doc("Ids such as f:12 or s:3 to delete; mixed kinds allowed")
     ],
+    engineer_confirmed: Annotated[
+        bool, Doc("True only after the engineer said to delete their objects (NX_ENGINEER_WORK)")
+    ] = False,
 ) -> DeleteData:
     """Delete 1-100 objects (ids like f:12) of the work part in one step.
     Kinds: feature, sketch, curve, point, component, component_pattern, assembly_constraint,
     reference_set, explosion, traceline, annotation, dimension, drawing_table, section_view,
     drawing_sheet, drawing_view, unused expression; a body goes with its feature. Objects NX
-    deleted with them are dependents. nx_undo_operation reverts a delete only until another
-    part changes; suppress a feature to keep it recoverable."""
+    deleted with them are dependents; the engineer's own objects never (NX_ENGINEER_WORK).
+    Undo reverts a delete only until another part changes."""
     deleters = hooks("deleter")
     groups: dict[str, list] = {}
     rows: dict[int, Row] = {}
@@ -243,11 +261,17 @@ def nx_delete_objects(
     # the work part as the deleted rows name it (short ref), never its registry key
     part_id = next(iter(rows.values()))["part"]
     dependents: list[Row] = []
+    theirs = authorship.engineer_tags(services, part)
+    engineer: list[Row] = [rows[t] for t in rows if t in theirs]
     for key, entry in before.items():
         if key not in after and key[0] not in QUIET and int(key[1]) not in rows:
             row = services.describe(entry, live=False)
             row["part"] = part_id
             dependents.append(row)
+            if int(key[1]) in theirs and key[0] in authorship.KINDS:
+                engineer.append(row)
+    if engineer and not engineer_confirmed:
+        _refuse_engineer_work(engineer)
     if len(list(services.parts() or [])) > 1:
         tx.warn(
             "NX_NOTE",

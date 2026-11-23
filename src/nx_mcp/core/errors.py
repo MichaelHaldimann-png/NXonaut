@@ -1,4 +1,4 @@
-"""Error taxonomy (tool-surface.md 1.8): 22 categories, 70 codes, ``native()``.
+"""Error taxonomy (tool-surface.md 1.8): 22 categories, 73 codes, ``native()``.
 
 Handlers raise only through :func:`fail` or :func:`native`. The kernel turns any
 :class:`NXError` into ``{category, code, message, hint, field, retry, nx_code,
@@ -88,6 +88,7 @@ CATEGORIES: dict[str, tuple[str, tuple[str, ...], str]] = {
             "NX_CROSS_PART",
             "NX_PART_BUSY",
             "NX_ENGINEER_PART",
+            "NX_ENGINEER_WORK",  # a delete would take the engineer's own objects with it
         ),
         "Resolve the blocker listed in details; ask the engineer when it is their data",
     ),

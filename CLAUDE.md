@@ -14,7 +14,8 @@ authenticated loopback bridge. Design of record: `docs/design/architecture.md`
   `types.py`, `validate.py`, `kernel.py` (one gate order for every call), `tx.py`,
   `errors.py`, `references.py`, `receipts.py`, `evidence.py`, `summary.py`; several
   parts: `target.py` (gate 3t), `switching.py` (gate 4s), `marks.py`, `busy.py`,
-  `parking.py`, `undoable.py` (what an undo can compensate).
+  `parking.py`, `undoable.py` (what an undo can compensate), `authorship.py` (the
+  engineer's objects made between agent calls: change note, delete refusal).
 - `kit/`: shared NX know-how, one module per subject (architecture.md 1.4): analysis_objects,
   args, bodies, builders, capture, curve, deform, display, drawing, explode, expr, facts,
   features, files, geom, kinematics, licenses, massprops, measure, model, parts, pose,

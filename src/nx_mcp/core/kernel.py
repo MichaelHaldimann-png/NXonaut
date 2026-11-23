@@ -45,7 +45,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NoReturn, cast
 
-from nx_mcp.core import busy, evidence, parking, switching
+from nx_mcp.core import authorship, busy, evidence, parking, switching
 from nx_mcp.core import marks as undo_marks
 from nx_mcp.core import target as targets
 from nx_mcp.core.errors import CATEGORIES, NXError, classify, fail, missing_member, pinpoint
@@ -1285,7 +1285,8 @@ def run(spec, args, ctx: Context) -> dict:
     alerts: dict | None = None  # NX feature alerts before the handler (gate 11)
     unanswered: list = []  # NX readers that could not answer (NX_UNVERIFIED)
     bound: switching.Bound | None = None
-    handler_started = handler_done = False
+    handler_started = handler_done = session_settle = False
+    engineer_note: str | None = None
     args, keys = targets.split_call_keys(spec, args)  # part/expires_at in arguments
     part_text = keys.get("part", ctx.part)
     caller = targets.check_caller(keys.get("caller", ctx.caller))
@@ -1345,6 +1346,7 @@ def run(spec, args, ctx: Context) -> dict:
         if spec.effect == "model":  # 8
             phases.lap("gates")
             before = services.snapshot(part) if part is not None else {}
+            engineer_note = authorship.note(authorship.observe(services, part, before))
             alerts = feature_alerts(services, part, unanswered)
             if alerts is None and part is not None:
                 unanswered.append("Features")
@@ -1374,6 +1376,11 @@ def run(spec, args, ctx: Context) -> dict:
                 "call ran it again (nx_get_operation lists the reverted run under previous)",
             )
         call_args = _gate_units(spec, checked, services, tx)  # 9
+        if spec.effect == "session":  # a redo or preview changes parts without a snapshot
+            engineer_note = authorship.note(authorship.observe_tracked(services))
+            session_settle = True
+        if engineer_note is not None:  # someone changed the part since the agent's last call
+            tx.warn("NX_NOTE", engineer_note)
         handler_started = True
         with services.observe() as observer:
             data = spec.handler(tx, **call_args)  # 10
@@ -1401,6 +1408,7 @@ def run(spec, args, ctx: Context) -> dict:
                 services, seen, after, spec, refreshed, retired=retired, floor=floor, tx=tx
             )
             _edited(spec, checked, services, tx, changes)
+            authorship.settle(services, part, after)
             phases.lap("changes")
             if tx.references == "part_invalidated":  # the handler invalidated the part
                 changes["references"] = tx.references
@@ -1502,6 +1510,8 @@ def run(spec, args, ctx: Context) -> dict:
             receipts.log_trace(spec.name, operation_id, trace)
         return envelope
     finally:
+        if session_settle:  # what the session call left is the agent's
+            authorship.settle_tracked(services)
         if bound is not None and not bound.left:  # a replay after the switch, or a crash
             with contextlib.suppress(Exception):
                 bound.leave()
@@ -1952,6 +1962,8 @@ def run_child(
         flags = _gate_ownership(spec, services, checked.args)  # 6
         part = services.work_part()
         before = services.snapshot(part) if part is not None else {}
+        if spec.effect == "model":
+            authorship.observe(services, part, before)
         child = Tx(
             services,
             spec,
@@ -1978,6 +1990,7 @@ def run_child(
         bound.check()  # 4s (after): the child's target is still the work part
         _check_ownership_after(services, flags)
         before, after = _readback_parts(spec, services, child, part, before, parent.mark)  # 11
+        authorship.settle(services, part, after)
         retired = services.invalidate(before, after, spec.invalidates == "topology")  # 12
         for key, extra in child.extra_parts.items():  # the parent rolls these back too
             parent.extra_parts.setdefault(key, extra)

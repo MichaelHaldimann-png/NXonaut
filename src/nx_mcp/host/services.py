@@ -19,7 +19,7 @@ from typing import Any, cast
 
 from nx_mcp import side_effects
 from nx_mcp.bridge import ObjectKind, ObjectRegistry
-from nx_mcp.core import busy, catalogue
+from nx_mcp.core import authorship, busy, catalogue
 from nx_mcp.core import marks as undo_marks
 from nx_mcp.core.errors import fail
 from nx_mcp.core.receipts import OperationStore
@@ -180,6 +180,10 @@ class NXServices(Services):
         # for another part after an out-of-band close; the path must match too.
         self.owned_parts: dict = {}  # created or opened by the agent
         self.granted_parts: dict = {}  # allowed by the engineer on the panel
+        # core/authorship: part key -> snapshot keys the agent's last call left, and part
+        # key -> tags of objects the engineer made between agent calls (never deleted unasked)
+        self.authorship_baselines: dict = {}
+        self.engineer_objects: dict = {}
         self._generations: dict = {}  # part tag -> generation of this session
         # Registry entries a commit retired (consumed faces, deleted features): an undo
         # that brings the same NX object back (same tag) revives the handle and its refs.
@@ -885,6 +889,7 @@ class NXServices(Services):
             self.objects.invalidate_part(key)
             self.owned_parts.pop(key, None)
             self.granted_parts.pop(key, None)
+        authorship.forget(self, keys)
         for tag, generation in list(self._generations.items()):
             if any(key.endswith("_" + generation) for key in keys):
                 self._generations.pop(tag, None)
