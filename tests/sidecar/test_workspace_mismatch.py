@@ -33,6 +33,10 @@ def outside_answer():
                       "field": "/path", "retry": "after_fix"}}  # fmt: skip
 
 
+def srv_root(tmp_path):
+    return Workspace(tmp_path).root  # resolved (macOS: /private/var/...)
+
+
 def server(tmp_path, bridge):
     return create_server(bridge, Workspace(tmp_path), surface="full", build="v2406")
 
@@ -49,14 +53,14 @@ async def test_status_flags_another_workspace_and_path_calls_are_refused(tmp_pat
     status = await call(srv, "nx_get_status", {"include": ["workspace"]})
     workspace = status["data"]["workspace"]
     assert workspace["mismatch"] is True and workspace["root"] == str(other)
-    assert workspace["server_root"] == str(tmp_path)
+    assert workspace["server_root"] == str(srv_root(tmp_path))
     assert [w["code"] for w in status["warnings"]] == ["NX_WORKSPACE_MISMATCH"]
 
     bridge.call.reset_mock()
     refused = await call(srv, "nx_create_part", {"path": "smoke/a.prt"})
     error = refused["error"]
     assert error["code"] == "NX_WORKSPACE_MISMATCH" and error["retry"] == "ask_engineer"
-    assert str(other) in error["message"] and str(tmp_path) in error["message"]
+    assert str(other) in error["message"] and str(srv_root(tmp_path)) in error["message"]
     assert "Start NXonaut.py" in error["hint"]
     assert refused["mutation_outcome"] == "not_started"
     bridge.call.assert_not_called()  # nothing sent
@@ -64,7 +68,7 @@ async def test_status_flags_another_workspace_and_path_calls_are_refused(tmp_pat
 
 async def test_same_workspace_in_another_spelling_is_no_mismatch(tmp_path):
     bridge = AsyncMock()
-    bridge.call.return_value = status_answer(str(tmp_path).upper() + "/")
+    bridge.call.return_value = status_answer(str(srv_root(tmp_path)).upper() + "/")
     srv = server(tmp_path, bridge)
     status = await call(srv, "nx_get_status", {"include": ["workspace"]})
     assert status["data"]["workspace"]["mismatch"] is False
@@ -80,13 +84,13 @@ async def test_nx_path_refusal_is_explained_by_the_workspace_mismatch(tmp_path):
     refused = await call(srv, "nx_create_part", {"path": "smoke/a.prt"})
     error = refused["error"]
     assert error["code"] == "NX_WORKSPACE_MISMATCH" and error["field"] == "/path"
-    assert error["details"] == {"nx_root": str(other), "server_root": str(tmp_path)}
+    assert error["details"] == {"nx_root": str(other), "server_root": str(srv_root(tmp_path))}
     assert bridge.call.call_args.args == ("nx_get_status", {"include": ["workspace"]})
 
 
 async def test_nx_path_refusal_stays_when_both_use_one_workspace(tmp_path):
     bridge = AsyncMock()
-    bridge.call.side_effect = [outside_answer(), status_answer(tmp_path)]
+    bridge.call.side_effect = [outside_answer(), status_answer(srv_root(tmp_path))]
     srv = server(tmp_path, bridge)
     refused = await call(srv, "nx_create_part", {"path": "smoke/a.prt"})
     assert refused["error"]["code"] == "NX_PATH_OUTSIDE_WORKSPACE"
