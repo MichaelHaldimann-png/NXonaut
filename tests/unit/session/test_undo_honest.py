@@ -19,7 +19,7 @@ from typing import Annotated, TypedDict
 
 import pytest
 
-from nx_mcp.core import catalogue, undoable
+from nx_mcp.core import authorship, catalogue, undoable
 from nx_mcp.core.catalogue import make_spec
 from nx_mcp.core.errors import fail
 from nx_mcp.core.tx import Tx
@@ -104,6 +104,8 @@ def delete_old(nx, part, op):
     old = Feature("OLD")
     old.OwningPart, old.IsOccurrence, old.Suppressed = part, False, False
     part.Features.append(old)
+    svc = services(nx)  # the agent made it (core/authorship), not the engineer
+    authorship.settle(svc, part, svc.snapshot(part))
     done = run(nx, "nx_delete_objects", operation_id=op, part="a", objects=[nx.ref_of(old)])
     assert done.ok, done
     return done

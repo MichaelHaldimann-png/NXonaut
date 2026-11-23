@@ -12,6 +12,7 @@ from types import SimpleNamespace as NS
 
 import pytest
 
+from nx_mcp.core import authorship
 from nx_mcp.domains.parts_files import parts as part_tools
 from tests.kit import fake_nx, run
 from tests.kit.kernel import services
@@ -43,7 +44,10 @@ def feature(nx, name):
 
 
 def delete(nx, name, op):
-    ok = run(nx, "nx_delete_objects", operation_id=op, objects=[feature(nx, name).ref])
+    made = feature(nx, name)
+    svc = services(nx)  # the agent made it (core/authorship), not the engineer
+    authorship.settle(svc, nx.part, svc.snapshot(nx.part))
+    ok = run(nx, "nx_delete_objects", operation_id=op, objects=[made.ref])
     assert ok.ok, ok
     return ok
 

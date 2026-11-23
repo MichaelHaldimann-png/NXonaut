@@ -303,3 +303,63 @@ def test_an_unused_expression_is_deleted_and_a_used_one_is_refused_before_any_ch
     assert refused.error["code"] == "NX_DEPENDENCY_ORDER", refused
     assert refused.error["field"] == "/objects/0" and refused.mutation_outcome == "not_started"
     assert "depth" in refused.error["message"]
+
+
+# ---------------------------------------------------------------------------
+# The engineer's work (core/authorship): never deleted with the agent's objects unasked
+
+
+def _agent_call(nx):
+    """A model call of the agent: its snapshot is the baseline of the next call."""
+    from nx_mcp.core import authorship
+
+    svc = services(nx)
+    authorship.settle(svc, nx.part, svc.snapshot(nx.part))
+
+
+def test_a_delete_that_takes_the_engineers_features_with_it_is_refused_and_rolled_back(nx):
+    extrude = feature(nx, "EXTRUDE(1)", body=nx.block(10, 10, 10))
+    _agent_call(nx)  # the agent made the extrude
+    pocket = feature(nx, "POCKET(2)")  # the engineer, in NX, between agent calls
+    blend = feature(nx, "BLEND(3)")
+    extrude.cascade += [pocket, blend]
+    failed = run(nx, "nx_delete_objects", objects=[extrude.ref])
+    assert failed.error["code"] == "NX_ENGINEER_WORK", failed
+    assert failed.mutation_outcome == "rolled_back"
+    assert set(failed.error["details"]["engineer_objects"]) == {pocket.ref, blend.ref}
+    assert list(nx.part.Features) == [extrude, pocket, blend]  # nothing deleted
+    assert any("engineer changed this part" in w["message"] for w in failed.warnings or [])
+    ok = run(nx, "nx_delete_objects", objects=[extrude.ref], engineer_confirmed=True)
+    assert ok.ok and list(nx.part.Features) == []
+
+
+def test_the_agents_own_dependents_are_deleted_as_before(nx):
+    extrude, blend, _body = model(nx)
+    _agent_call(nx)
+    ok = run(nx, "nx_delete_objects", objects=[extrude.ref])
+    assert ok.ok and not any("engineer changed" in w["message"] for w in ok.warnings)
+    assert {r["id"] for r in ok.data["dependents"]} >= {blend.ref}
+
+
+def test_an_engineer_feature_named_directly_is_refused(nx):
+    _agent_call(nx)
+    theirs = feature(nx, "CHAMFER(1)")
+    failed = run(nx, "nx_delete_objects", objects=[theirs.ref])
+    assert failed.error["code"] == "NX_ENGINEER_WORK"
+    assert list(nx.part.Features) == [theirs]
+
+
+def test_a_later_call_still_knows_the_engineers_work(nx):
+    extrude = feature(nx, "EXTRUDE(1)")
+    _agent_call(nx)
+    theirs = feature(nx, "BLEND(2)")
+    extrude.cascade.append(theirs)
+    from nx_mcp.core import authorship
+
+    svc = services(nx)
+    authorship.observe(svc, nx.part, svc.snapshot(nx.part))  # the agent's next call saw it
+    other = feature(nx, "EXTRUDE(3)")  # and made this one
+    authorship.settle(svc, nx.part, svc.snapshot(nx.part))
+    assert run(nx, "nx_delete_objects", objects=[other.ref]).ok
+    failed = run(nx, "nx_delete_objects", objects=[extrude.ref])
+    assert failed.error["code"] == "NX_ENGINEER_WORK"

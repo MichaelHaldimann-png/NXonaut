@@ -3406,11 +3406,12 @@ Set an in-session undo checkpoint in the work part; restore it by id or label. T
 
 **Delete objects** · effect `model` · NX 2406: tested; 33 checks in `acceptance/session/delete_objects.json`
 
-Delete 1-100 objects (ids like f:12) of the work part in one step. Kinds: feature, sketch, curve, point, component, component_pattern, assembly_constraint, reference_set, explosion, traceline, annotation, dimension, drawing_table, section_view, drawing_sheet, drawing_view, unused expression; a body goes with its feature. Objects NX deleted with them are dependents. nx_undo_operation reverts a delete only until another part changes; suppress a feature to keep it recoverable.
+Delete 1-100 objects (ids like f:12) of the work part in one step. Kinds: feature, sketch, curve, point, component, component_pattern, assembly_constraint, reference_set, explosion, traceline, annotation, dimension, drawing_table, section_view, drawing_sheet, drawing_view, unused expression; a body goes with its feature. Objects NX deleted with them are dependents; the engineer's own objects never (NX_ENGINEER_WORK). Undo reverts a delete only until another part changes.
 
 | Argument | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `objects` | array[1-100] of Ref | required | Ids such as f:12 or s:3 to delete; mixed kinds allowed |
+| `engineer_confirmed` | boolean | `false` | True only after the engineer said to delete their objects (NX_ENGINEER_WORK) |
 
 ### `nx_delete_results`
 
