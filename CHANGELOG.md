@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.0.4 (2026-11-26)
+
+Faster, cheaper co-modelling: fewer calls per step and less lost work. Passes the fake-NX
+tests and CI; items marked *live* still need a run on real NX.
+
+**Added**
+- Autosave: the parts NXonaut made itself are saved after model steps, at most every
+  `NX_MCP_AUTOSAVE` minutes (default 2, `0` or `off`: never), so a dropped connection or
+  a crashed NX loses at most the last minutes. Parts the engineer made or only allowed on
+  the panel are never saved automatically. Undo goes back to the last autosave. *live*
+- `nx_run_batch` also runs extrude, revolve, hole, blend and chamfer: a sketch and its
+  features are one call instead of several. *live* (not yet run in a batch on real NX)
+- Design rule topic `workflow`: how to work in few calls, recipes for shafts, plates,
+  brackets and assemblies, and one final check before a part counts as done.
+- `nx_find_tools` takes `schemas` (1-3): the top hits' schemas come in the same answer,
+  one call less per new tool.
+
 ## 1.0.3 (2026-11-23)
 
 **Fixed**
