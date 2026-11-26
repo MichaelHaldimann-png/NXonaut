@@ -37,6 +37,9 @@ from nx_mcp.sidecar import schema
 
 NAMES = ("nx_find_tools", "nx_get_tool_schemas", "nx_invoke", "nx_invoke_read")
 MAX_QUERIES = 20  # one-task searches per nx_find_tools call
+# nx_find_tools ``schemas``: the top hits' input schemas in the same answer, which saves the
+# nx_get_tool_schemas round trip when the agent already knows it will call the first hit.
+MAX_INLINE_SCHEMAS = 3
 # Words naming something NX MCP does not do, with what to do instead (a find note).
 MISSING = {
     "pocket": "No pocket tool: sketch the outline on the face (nx_create_sketch, "
@@ -512,6 +515,9 @@ class FindTools(_Strict):
     effect: Effect | None = None
     offset: Annotated[int, Field(ge=0, le=10_000)] = 0
     limit: Annotated[int | None, Field(ge=1, le=20)] = None  # 10; 5 per query in queries
+    schemas: Annotated[
+        int, Field(ge=0, le=MAX_INLINE_SCHEMAS, description="Also the schemas of the top n hits")
+    ] = 0
 
     @model_validator(mode="after")
     def _query_or_queries(self) -> FindTools:
@@ -562,7 +568,8 @@ MODELS: dict[str, type[BaseModel]] = {
 DESCRIPTIONS = {
     "nx_find_tools": (
         "Search NX tools by task (fillet finds blend); empty query: domain overview. Then "
-        "nx_get_tool_schemas and nx_invoke (nx_invoke_read for effect read); not MCP tools."
+        "nx_get_tool_schemas (or schemas: 1-3 here) and nx_invoke (nx_invoke_read for effect "
+        "read); not MCP tools."
     ),
     "nx_get_tool_schemas": (
         "Exact input schemas, examples and prerequisites of 1-10 tools ('tool#v': only "
