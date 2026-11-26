@@ -188,6 +188,27 @@ async def test_untested_variant_is_refused_before_nx(tmp_path, tested):
     assert not bridge.call.called
 
 
+async def test_find_can_return_the_top_hits_schemas_in_one_call(tmp_path, tested):
+    """``schemas: n`` saves the nx_get_tool_schemas round trip for the top hits."""
+    agent = server(tmp_path)
+    found = body(await agent.call_tool("nx_find_tools", {"query": "datum plane", "schemas": 1}))
+    fetched = body(
+        await agent.call_tool("nx_get_tool_schemas", {"names": [found["data"]["tools"][0]["name"]]})
+    )
+    assert found["data"]["schemas"] == fetched["data"]["tools"]
+    plain = body(await agent.call_tool("nx_find_tools", {"query": "datum plane"}))
+    assert "schemas" not in plain["data"]  # off by default: the listing stays small
+    each = body(
+        await agent.call_tool(
+            "nx_find_tools", {"queries": ["datum plane", "list objects"], "schemas": 3}
+        )
+    )["data"]
+    tops = [item["tools"][0]["name"] for item in each["results"]]
+    assert [entry["name"] for entry in each["schemas"]] == tops
+    bad = body(await agent.call_tool("nx_find_tools", {"query": "fillet", "schemas": 4}))
+    assert bad["error"]["code"] == "NX_INVALID_ARGUMENT"
+
+
 async def test_schemas_for_tools_and_variants(tmp_path, tested):
     agent = server(tmp_path)
     data = body(

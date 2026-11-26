@@ -3538,7 +3538,7 @@ Roll the checkpoint's part back to it (id or label), undoing its agent operation
 
 **Run batch** · effect `model` · NX 2406: tested; 43 checks in `acceptance/session/run_batch.json`
 
-Run 1-100 light calls under one undo mark; a failure undoes all. Batchable: sketch tools (curves, constraints, dimensions, finish), drawing notes, dimensions, GD&T and symbols, component placement, nx_set_name, nx_delete_objects. "$0.data.sketch" names step 0's result. Heavy features (extrude): call alone, or preview then accept. A sketch takes at most 500 curves (NX then blocks on a dialog).
+Run 1-100 calls under one undo mark; a failure undoes all. Batchable: sketch tools (curves, constraints, dimensions, finish), extrude, revolve, hole, blend, chamfer (new in batches, not yet live tested), drawing notes, dimensions, GD&T, symbols, component placement, nx_set_name, nx_delete_objects. "$0.data.sketch" names step 0's result. A sketch takes at most 500 curves (NX then blocks on a dialog).
 
 | Argument | Type | Default | Notes |
 | --- | --- | --- | --- |

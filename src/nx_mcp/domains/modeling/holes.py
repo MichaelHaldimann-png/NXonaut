@@ -513,6 +513,7 @@ def _breaks_through(tx, spec, removed, nominal, material) -> bool:
     variants="form",
     cost="heavy",
     previewable=True,
+    batchable=True,  # nx_run_batch steps (decision 6, 2026-11-26)
     example={"face": "fc:7", "positions": [[10, 10, 20]], "diameter": 6, "depth": 10},
 )
 def nx_create_hole(

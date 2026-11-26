@@ -135,6 +135,7 @@ def _principal(vector):
     requires=("work_part", "no_active_sketch"),
     cost="heavy",
     previewable=True,
+    batchable=True,  # nx_run_batch steps (decision 6, 2026-11-26)
     example={"sketch": "s:3", "end": "10 mm", "direction": "-z"},
     # NX 2406 refuses a through-all extrude in a part that is not displayed ("Incorrect
     # object for this operation", live 2026-10-12); distance and until-face limits work.
@@ -574,6 +575,7 @@ def _open_note(tx, section, sheet) -> None:
     requires=("work_part", "no_active_sketch"),
     cost="heavy",
     previewable=True,
+    batchable=True,  # nx_run_batch steps (decision 6, 2026-11-26)
     example={"sketch": "s:3", "axis": "z", "end_angle": 180},
 )
 def nx_create_revolve(

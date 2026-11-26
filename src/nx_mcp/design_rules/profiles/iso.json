@@ -554,6 +554,18 @@
         "intent": "Dimension the way the part is made and inspected (from the datum faces in the drawing), and drive repeated values from expressions so a change is one edit."
       }
     },
+    "workflow": {
+      "title": "Workflow: fewer calls, recipes for common parts, the final check",
+      "rules": {
+        "fewer_calls": "Plan the part first, then build it in few calls: nx_find_tools with schemas 1 when you will call the top hit; one nx_run_batch per sketch with its features (create sketch, curves, constraints, dimensions, finish, then extrude, revolve or hole on its '$n.data...' results; blends and chamfers need edge refs, so find the edges after the batch and do them in one call per size); nx_get_model_summary instead of listing every object. Keep results compact (detail full only when needed).",
+        "save": "Parts NXonaut made itself are autosaved after model steps (NX_MCP_AUTOSAVE minutes, default 2); undo goes back to the last autosave only. Before a risky change set nx_create_checkpoint. Never save, rebuild or delete the engineer's own parts unasked.",
+        "recipe_shaft": "Shaft or turned part: one batch: sketch on a plane through the axis, half profile with the axis as centreline, shoulders, chamfers and undercuts in the profile, fully constrained, finish, revolve 360. Then keyways and cross holes as separate features; then the final check.",
+        "recipe_plate": "Plate or flange: one batch: outline sketch (symmetric about centrelines), finish, extrude; then nx_create_hole on the top face with all positions of one hole kind in one call (or one hole and nx_create_pattern); edge blends and chamfers in one call each per size; then the final check.",
+        "recipe_bracket": "Bracket or profile part: one batch per main profile: sketch the full cross-section with all steps and radii, finish, extrude; cut-outs as a second sketch and extrude in the same batch; holes and blends after; then the final check.",
+        "recipe_assembly": "Assembly (ass_<name>): place every component with nx_create_component (several in one batch), constrain with nx_create_assembly_constraint (touch/align, distance, angle, fix one base part), then nx_list_assembly_constraints until no part is free or broken, nx_check_interference, nx_measure_assembly_mass.",
+        "final_check": "Before saying a part is done, in one go: nx_check_sketch (or nx_finish_sketch) reports 0 free curves where rule modelling/fully_constrained is on; nx_check_model has no errors; nx_measure_mass gives a plausible mass for the material; the process checks of nx_get_design_rules pass. Drawings: nx_get_drawing_plan for views and scale, no overlapping dimensions or notes, title block filled. Report the results in one short line."
+      }
+    },
     "naming": {
       "title": "Part, file and component names: pick one scheme per project",
       "rules": {

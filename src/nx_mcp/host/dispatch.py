@@ -32,6 +32,7 @@ from nx_mcp.core.errors import NXError, classify
 from nx_mcp.core.receipts import new_operation_id
 from nx_mcp.core.tx import NOT_GRANTED_HINT
 from nx_mcp.core.validate import validate
+from nx_mcp.host import autosave
 from nx_mcp.host.quiet import Calm
 
 catalogue.load()
@@ -134,6 +135,7 @@ def run(services, spec, params: dict) -> dict:
     operation_id = params.pop("operation_id", None) or new_operation_id()
     params.pop("detail", None)  # Compaction is the sidecar's job (gate 14).
     loaded = services.loaded()
+    caller = params.get("caller")
     try:
         envelope = kernel.run(
             spec, params, kernel.Context(services, operation_id=operation_id, intent=intent)
@@ -142,6 +144,8 @@ def run(services, spec, params: dict) -> dict:
         with contextlib.suppress(Exception):
             services.track(loaded)
     if envelope.get("ok"):
+        with contextlib.suppress(Exception):  # never fails the committed call
+            autosave.after_call(services, spec, envelope, caller=caller)
         return envelope
     raise KernelError(envelope)
 

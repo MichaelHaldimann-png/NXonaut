@@ -68,8 +68,8 @@ def test_failing_child_rolls_back_the_whole_batch_and_names_the_step():
 
 def test_every_step_is_checked_before_anything_runs():
     nx = sketch_nx()
-    extrude = {"tool": "nx_create_extrude", "arguments": {"sketch": "$0.data.sketch"}}
-    refused = run(nx, "nx_run_batch", operations=[SKETCH, extrude])
+    shell = {"tool": "nx_create_shell", "arguments": {"body": "$0.data.sketch"}}
+    refused = run(nx, "nx_run_batch", operations=[SKETCH, shell])
     assert refused.error["code"] == "NX_UNSUPPORTED_OPTION"
     assert refused.error["field"] == "/operations/1/tool"
     assert refused.error["details"]["child_index"] == 1
@@ -132,17 +132,39 @@ def test_summary_counts_steps_and_names_the_first():
     assert render(spec, {"operations": [SKETCH]}) == "Batch of 1 step: Create sketch"
 
 
-def test_refusals_say_what_runs_in_a_batch_and_what_to_do_instead():
+def test_common_features_run_in_a_batch_with_their_sketch():
+    """2026-11-26: extrude, revolve, hole, blend and chamfer are batchable, so a sketch
+    and its features are one call (not yet run on live NX inside a batch)."""
+    registry = catalogue.load()
+    for name in BATCHED_FEATURES:
+        assert registry[name].batchable and registry[name].cost == "heavy", name
     nx = sketch_nx()
     extrude = {"tool": "nx_create_extrude", "arguments": {"sketch": "$0.data.sketch"}}
-    refused = run(nx, "nx_run_batch", operations=[SKETCH, extrude])
+    done = run(nx, "nx_run_batch", operations=[SKETCH, extrude])
+    if not done.ok:  # the fake may not build an extrude; it is never refused as a step kind
+        assert done.error.get("field") != "/operations/1/tool", done
+
+
+BATCHED_FEATURES = (
+    "nx_create_extrude",
+    "nx_create_revolve",
+    "nx_create_hole",
+    "nx_create_blend",
+    "nx_create_chamfer",
+)
+
+
+def test_refusals_say_what_runs_in_a_batch_and_what_to_do_instead():
+    nx = sketch_nx()
+    shell = {"tool": "nx_create_shell", "arguments": {"body": "$0.data.sketch"}}
+    refused = run(nx, "nx_run_batch", operations=[SKETCH, shell])
     error = refused.error
-    assert "light steps only" in error["message"]
+    assert "sketches, common features" in error["message"]
     assert "nx_preview_changes" in error["hint"] and "nx_finish_preview" in error["hint"]
     assert "nx_create_sketch_curves" in error["hint"]  # the batchable tools are listed
     batchable = error["details"]["batchable"]
     assert {"nx_create_sketch", "nx_set_name", "nx_finish_sketch"} <= set(batchable)
-    assert "nx_create_extrude" not in batchable
+    assert "nx_create_extrude" in batchable and "nx_create_shell" not in batchable
     typo = run(nx, "nx_run_batch", operations=[{"tool": "nx_create_sketch_curve", "arguments": {}}])
     assert typo.error["code"] == "NX_UNKNOWN_TOOL"
     assert "nx_create_sketch_curves" in typo.error["hint"]

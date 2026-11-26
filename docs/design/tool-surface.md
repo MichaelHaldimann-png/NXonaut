@@ -852,8 +852,9 @@ Tool names and arguments may change freely; there are no compatibility aliases.
    automatically; faces and edges only on request (`anchor: true` on the
    returning tool or `nx_create_anchor`).
 6. **Batch scope:** only tools marked `batchable` (sketch geometry,
-   constraints and dimensions, annotations, component placement); heavy
-   features stay one call each.
+   constraints and dimensions, annotations, component placement, and since
+   2026-11-26 extrude, revolve, hole, blend and chamfer, so a sketch and its
+   features are one call); other heavy features stay one call each.
 7. **Default profile:** `agent`; `full` stays available.
 8. **Generic delete:** `nx_delete_objects` accepts mixed kinds and reports the
    dependent objects NX deletes with them.

@@ -613,8 +613,8 @@ def make_spec(
         if missing:
             problems.append(f"summary names unknown parameters {missing}")
     # Admission rules.
-    if batchable and (effect != "model" or cost != "light"):
-        problems.append("batchable requires effect 'model' and cost light")
+    if batchable and effect != "model":
+        problems.append("batchable requires effect 'model'")
     if previewable and effect != "model":
         problems.append("previewable requires effect 'model'")
     if restorable and effect != "view":

@@ -76,10 +76,10 @@ AGENT_INSTRUCTIONS = (
     "Options match in any case or spacing ('Through All'). When two or more parts are loaded, "
     "add the target part's file name to the arguments of every call without refs, the listed "
     'core tools included: {"part": "housing", ...}; nx_list_parts lists them. Before a part '
-    "or drawing read nx_get_design_rules (manufacturing, modelling, naming, then process, "
-    "drawing, shaft or threads) and run its checks before done; save a convention "
-    "the engineer corrects with nx_save_design_rule once they agree. Long jobs: start intent with '[3/7] ' "
-    "for the panel's progress bar."
+    "or drawing read nx_get_design_rules (manufacturing, modelling, workflow, naming, then "
+    "process, drawing, shaft or threads) and run its checks before done; save a convention "
+    "the engineer corrects with nx_save_design_rule once they agree. Long jobs: intent "
+    "'[3/7] ...' shows the panel's progress bar."
 )
 # Every tool that can be called without references lists ``part`` in its schemas (the
 # ref-less core tools in the agent listing, every such tool in nx_get_tool_schemas and the
@@ -492,6 +492,8 @@ class Surface:
         if hidden and not request.offset:
             data["not_available"] = hidden
         data.update(self._notes(request.query, partial, spellings))
+        if request.schemas and not request.offset:
+            self._inline_schemas(data, [r["name"] for r in data["tools"]][: request.schemas])
         if not hits:  # never just empty: the domains to browse instead
             data["domains"] = self._domains(request.effect)
             data["hint"] = (
@@ -533,6 +535,9 @@ class Surface:
             item.update(self._notes(query, partial, spellings))
             results.append(item)
         data: dict[str, Any] = {"results": results, "call_with": self.call_with()}
+        if request.schemas and not request.offset:
+            tops = [item["tools"][0]["name"] for item in results if item["tools"]]
+            self._inline_schemas(data, list(dict.fromkeys(tops))[: request.schemas])
         if any(not item["total"] for item in results):
             data["hint"] = "Some queries match no tool: try other words, or an empty query"
         listing = self.build_note(first=not request.offset)
@@ -546,6 +551,13 @@ class Surface:
                 "data": data,
             }
         )
+
+    def _inline_schemas(self, data: dict[str, Any], names: list[str]) -> None:
+        """``schemas``: the named hits' nx_get_tool_schemas entries in the same answer, so
+        an agent that will call the top hit skips one round trip."""
+        entries = [e for e in (self.describe(n, False) for n in names) if e]
+        if entries:
+            data["schemas"] = entries
 
     def _domains(self, effect) -> list[dict[str, Any]]:
         """The domains with their tool counts and a few key tools each."""
