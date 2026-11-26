@@ -1298,7 +1298,7 @@ caps in the test, never the table:
 | Item (characters of compact JSON) | Cap | Measured |
 |---|---|---|
 | `agent` profile listing (4 gateways + 14 core tools; paid every turn) | 17,650 + 15 per domain = 17,830 (12 domains) | 17,517 (about 4.6K tokens) |
-| `agent` server instructions (once per session) | 1,800 | 1,793 |
+| `agent` server instructions (once per session) | 1,800 | 1,797 |
 | Full listing (name + description + input schema, call keys included) | mean 1,265 per listed tool | mean 1,191.2 over 289 tools (344,260, about 90.6K tokens) |
 | Tool definition (name + description + input schema, no call keys) | each 1,600; 3,000 for unions | max 1,598 (194 plain tools), 2,999 (89 unions) |
 | Tool definition drift (75th percentile per kind) | plain 1,050, union 1,860 | plain 1,042.8, union 1,826 |
