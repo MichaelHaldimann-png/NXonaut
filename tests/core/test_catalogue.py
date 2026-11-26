@@ -152,7 +152,7 @@ def _named(fn, name):
         (lambda: ok_tool, {"label": "x" * 49}, "label"),
         (lambda: ok_tool, {"keywords": ("a",)}, "keywords"),
         (lambda: ok_tool, {"summary": "Blend {radius}"}, "unknown parameters"),
-        (lambda: ok_tool, {"batchable": True, "cost": "heavy"}, "batchable"),
+        (lambda: ok_tool, {"batchable": True, "effect": "view"}, "batchable"),
         (lambda: ok_tool, {"cost": "instant"}, "unknown cost"),  # merged into light
         (lambda: ok_tool, {"previewable": True, "effect": "file"}, "previewable"),
         (lambda: ok_tool, {"variants": "size"}, "Literal"),

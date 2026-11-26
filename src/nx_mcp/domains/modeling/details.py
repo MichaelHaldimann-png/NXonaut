@@ -142,6 +142,7 @@ forbid_extra(RadiusPoint)
     requires=("work_part", "no_active_sketch"),
     cost="heavy",
     previewable=True,
+    batchable=True,  # nx_run_batch steps (decision 6, 2026-11-26)
     example={"edges": ["e:21"], "radius": "2 mm"},
 )
 def nx_create_blend(
@@ -235,6 +236,7 @@ def chamfer_method(method, offset2, angle) -> ChamferMethod:
     variants="method",
     cost="heavy",
     previewable=True,
+    batchable=True,  # nx_run_batch steps (decision 6, 2026-11-26)
     example={"edges": ["e:21"], "offset": "1 mm"},
 )
 def nx_create_chamfer(

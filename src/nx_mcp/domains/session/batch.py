@@ -1,8 +1,9 @@
 """``nx_run_batch``: 1-100 batchable calls under one undo mark (tool-surface 3.1).
 
 Only tools marked ``batchable`` run (decision 6: sketch geometry, constraints and
-dimensions, annotations, component placement); heavy features stay one call each. Every step is checked before the
-first one runs: an unknown or non-batchable tool, arguments that break the
+dimensions, annotations, component placement, and since 2026-11-26 the common features
+extrude, revolve, hole, blend and chamfer, so a sketch and its features are one call).
+Every step is checked before the first one runs: an unknown or non-batchable tool, arguments that break the
 tool's schema or a ``"$n.path"`` reference to a step that has not run yet refuse
 the batch with nothing changed.
 
@@ -98,7 +99,10 @@ def _refuse(spec, registry, mode: str) -> NoReturn:
     """``NX_UNSUPPORTED_OPTION`` naming what to do instead and the admitted tools."""
     name, names = spec.name, admitted_tools(registry, mode)
     if mode == "batch":
-        why = "a batch runs light steps only (sketch, annotation, placement, rename, delete)"
+        why = (
+            "a batch runs sketches, common features (extrude, revolve, hole, blend, "
+            "chamfer), annotations, placement, rename and delete only"
+        )
         if spec.previewable:
             hint = (
                 f"Call {name} on its own after the batch, or send all the steps to "
@@ -204,11 +208,11 @@ def nx_run_batch(
     *,
     operations: Annotated[list[Step], Items(1, MAX_STEPS)],
 ) -> BatchData:
-    """Run 1-100 light calls under one undo mark; a failure undoes all. Batchable: sketch
-    tools (curves, constraints, dimensions, finish), drawing notes, dimensions, GD&T and
-    symbols, component placement, nx_set_name, nx_delete_objects. "$0.data.sketch" names step
-    0's result. Heavy features (extrude): call alone, or preview then accept. A sketch takes
-    at most 500 curves (NX then blocks on a dialog)."""
+    """Run 1-100 calls under one undo mark; a failure undoes all. Batchable: sketch tools
+    (curves, constraints, dimensions, finish), extrude, revolve, hole, blend, chamfer (new in
+    batches, not yet live tested), drawing notes, dimensions, GD&T, symbols, component
+    placement, nx_set_name, nx_delete_objects. "$0.data.sketch" names step 0's result. A
+    sketch takes at most 500 curves (NX then blocks on a dialog)."""
     with tx.checks():  # a refused step changes nothing
         _preflight(operations, services=tx.services)
     total = len(operations)
